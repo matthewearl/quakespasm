@@ -78,6 +78,7 @@ cvar_t	coop = {"coop","0",CVAR_NONE};			// 0 or 1
 cvar_t	pausable = {"pausable","1",CVAR_NONE};
 
 cvar_t	developer = {"developer","0",CVAR_NONE};
+cvar_t	sync_movements = {"sync_movements","0",CVAR_NONE};
 
 cvar_t	temp1 = {"temp1","0",CVAR_NONE};
 
@@ -284,6 +285,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&pausable);
 
 	Cvar_RegisterVariable (&temp1);
+	Cvar_RegisterVariable (&sync_movements);
 
 	Host_FindMaxClients ();
 }
@@ -570,9 +572,11 @@ qboolean Host_FilterTime (float time)
 	realtime += time;
 
 	//johnfitz -- max fps cvar
-	maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
-	if (!cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
-		return false; // framerate is too high
+	if (!sync_movements.value) {
+		maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
+		if (!cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
+			return false; // framerate is too high
+	}
 	//johnfitz
 
 	host_frametime = realtime - oldrealtime;
@@ -622,6 +626,8 @@ void Host_ServerFrame (void)
 {
 	int		i, active; //johnfitz
 	edict_t	*ent; //johnfitz
+	qboolean moved = false;
+	qboolean do_phys = false;
 
 // run the world state
 	pr_global_struct->frametime = host_frametime;
@@ -633,11 +639,12 @@ void Host_ServerFrame (void)
 	SV_CheckForNewClients ();
 
 // read client messages
-	SV_RunClients ();
+	SV_RunClients (&moved);
 
 // move things around and think
 // always pause in single player if in console or menus
-	if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game) )
+	do_phys = (!sync_movements.value || moved);
+	if ( do_phys && !sv.paused && (svs.maxclients > 1 || key_dest == key_game) )
 		SV_Physics ();
 
 //johnfitz -- devstats
@@ -657,7 +664,9 @@ void Host_ServerFrame (void)
 //johnfitz
 
 // send all messages to the clients
-	SV_SendClientMessages ();
+
+	if ( !svs.clients[0].spawned ||  do_phys )
+		SV_SendClientMessages ();
 }
 
 /*

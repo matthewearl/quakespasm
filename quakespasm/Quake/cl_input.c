@@ -319,7 +319,6 @@ void CL_BaseMove (usercmd_t *cmd)
 		cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
 		cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
 	}
-
 //
 // adjust for speed key
 //

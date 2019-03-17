@@ -973,6 +973,7 @@ void ED_LoadFromFile (const char *data)
 	dfunction_t	*func;
 	edict_t		*ent = NULL;
 	int		inhibit = 0;
+	const char *classname = NULL;
 
 	pr_global_struct->time = sv.time;
 
@@ -992,7 +993,6 @@ void ED_LoadFromFile (const char *data)
 			ent = ED_Alloc ();
 		data = ED_ParseEdict (data, ent);
 
-		// remove things from different skill levels or deathmatch
 		if (deathmatch.value)
 		{
 			if (((int)ent->v.spawnflags & SPAWNFLAG_NOT_DEATHMATCH))
@@ -1022,8 +1022,16 @@ void ED_LoadFromFile (const char *data)
 			continue;
 		}
 
+		classname = PR_GetString(ent->v.classname);
+
+		if (nomonsters.value && strncmp(classname, "monster_", 8) == 0) {
+			ED_Free (ent);
+			inhibit++;
+			continue;
+		}
+
 	// look for the spawn function
-		func = ED_FindFunction ( PR_GetString(ent->v.classname) );
+		func = ED_FindFunction ( classname );
 
 		if (!func)
 		{

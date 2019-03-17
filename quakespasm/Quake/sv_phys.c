@@ -167,7 +167,7 @@ Two entities have touched, so run their touch functions
 */
 void SV_Impact (edict_t *e1, edict_t *e2)
 {
-	int		old_self, old_other;
+	int			old_self, old_other;
 
 	old_self = pr_global_struct->self;
 	old_other = pr_global_struct->other;
@@ -184,6 +184,8 @@ void SV_Impact (edict_t *e1, edict_t *e2)
 	{
 		pr_global_struct->self = EDICT_TO_PROG(e2);
 		pr_global_struct->other = EDICT_TO_PROG(e1);
+
+		SEG_CheckTouch(e1, e2);
 		PR_ExecuteProgram (e2->v.touch);
 	}
 
@@ -271,6 +273,8 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 
 		for (i=0 ; i<3 ; i++)
 			end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
+		//end[0] = ent->v.origin[0];
+		//end[1] = ent->v.origin[1];
 
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
 

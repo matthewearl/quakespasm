@@ -328,11 +328,23 @@ void SV_AirMove (void)
 	vec3_t		wishvel, wishdir;
 	float		wishspeed;
 	float		fmove, smove;
+	float		speed_before;
 
 	AngleVectors (sv_player->v.angles, forward, right, up);
 
 	fmove = cmd.forwardmove;
 	smove = cmd.sidemove;
+/*
+	Sys_Printf("@@@FRAME_INPUT@@@ {'time': %.4f, 'yaw': %.4f, 'fmove': %.2f, 'smove': %.2f, 'button2': %.2f, "
+			   "'vel': [%.2f, %.2f, %.2f], 'z': %.2f}\n",
+			sv.time,
+			sv_player->v.angles[YAW],
+			fmove,
+			smove,
+			sv_player->v.button2,
+			velocity[0], velocity[1], velocity[2],
+			sv_player->v.origin[2]);
+			*/
 
 // hack to not let you back into teleporter
 	if (sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -354,18 +366,56 @@ void SV_AirMove (void)
 		wishspeed = sv_maxspeed.value;
 	}
 
+	speed_before = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
 	if ( sv_player->v.movetype == MOVETYPE_NOCLIP)
 	{	// noclip
 		VectorCopy (wishvel, velocity);
 	}
 	else if ( onground )
 	{
+		float speed_after_friction, speed_after_accel;
 		SV_UserFriction ();
+
+		speed_after_friction = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
 		SV_Accelerate (wishspeed, wishdir);
+		speed_after_accel = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
+		if (sv_player->v.button2)
+		{
+			Con_Printf("F: %3.2f A: %3.2f f: %3.2f s: %3.2f\n",
+					speed_after_friction - speed_before,
+					speed_after_accel - speed_after_friction,
+					fmove, smove);
+		}
 	}
 	else
 	{	// not on ground, so little effect on velocity
 		SV_AirAccelerate (wishspeed, wishvel);
+	}
+	{
+		vec3_t flat_vel;
+		char buf[40];
+		float speed, angle;
+		int i, accel, neg;
+
+		VectorCopy(velocity, flat_vel);
+		flat_vel[2] = 0.;
+		speed = VectorNormalize(flat_vel);
+
+		angle = 57.296f * asinf(flat_vel[1] * wishdir[0] - flat_vel[0] * wishdir[1]);
+
+		accel = (speed - speed_before) * 5.;
+		neg = accel < 0;
+		if (neg) {
+				accel = -accel;
+		}
+		accel = accel > 10 ? 10 : accel;
+
+		sprintf(buf, "[          ] %d %.1f", (int)speed, angle);
+		
+		for (i = 0; i < accel; i++) {
+				buf[i + 1] = neg ? '-' : '+';
+		}
+		SCR_CenterPrint (buf);
 	}
 }
 
@@ -427,6 +477,13 @@ void SV_ClientThink (void)
 	else
 		SV_AirMove ();
 	//johnfitz
+	/*{
+			char buf[20];
+			float speed;
+			speed = sqrt(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
+			sprintf(buf, "%.1f", speed);
+			SCR_CenterPrint (buf);
+	}*/
 }
 
 
@@ -479,7 +536,7 @@ SV_ReadClientMessage
 Returns false if the client should be killed
 ===================
 */
-qboolean SV_ReadClientMessage (void)
+qboolean SV_ReadClientMessage (qboolean *moved)
 {
 	int		ret;
 	int		ccmd;
@@ -581,6 +638,7 @@ nextmsg:
 
 			case clc_move:
 				SV_ReadClientMove (&host_client->cmd);
+				*moved = true;
 				break;
 			}
 		}
@@ -595,7 +653,7 @@ nextmsg:
 SV_RunClients
 ==================
 */
-void SV_RunClients (void)
+void SV_RunClients (qboolean *moved)
 {
 	int				i;
 
@@ -606,7 +664,7 @@ void SV_RunClients (void)
 
 		sv_player = host_client->edict;
 
-		if (!SV_ReadClientMessage ())
+		if (!SV_ReadClientMessage (moved))
 		{
 			SV_DropClient (false);	// client misbehaved...
 			continue;

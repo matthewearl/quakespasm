@@ -8,13 +8,13 @@
 DO_USERDIRS=0
 
 ### Enable/Disable SDL2
-USE_SDL2=0
+USE_SDL2=1
 
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=0
-USE_CODEC_MP3=1
-USE_CODEC_VORBIS=1
+USE_CODEC_MP3=0
+USE_CODEC_VORBIS=0
 USE_CODEC_OPUS=0
 # either mikmod or xmp
 USE_CODEC_MIKMOD=0
@@ -36,7 +36,7 @@ check_gcc = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/nu
 
 HOST_OS := $(shell uname|sed -e s/_.*//|tr '[:upper:]' '[:lower:]')
 
-DEBUG   ?= 0
+DEBUG   ?= 1
 
 # ---------------------------
 # build variables
@@ -59,6 +59,7 @@ CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -DDEBUG
 CFLAGS += -g
+CFLAGS += -O0
 do_strip=
 else
 DFLAGS += -DNDEBUG
@@ -280,6 +281,7 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
+	segment.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------

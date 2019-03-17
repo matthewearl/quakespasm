@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <unistd.h>
 #include "quakedef.h"
 
 static void CL_FinishTimeDemo (void);
@@ -237,13 +238,13 @@ void CL_Record_f (void)
 		CL_Stop_f();
 
 	c = Cmd_Argc();
-	if (c != 2 && c != 3 && c != 4)
+	if (false && c != 2 && c != 3 && c != 4)
 	{
 		Con_Printf ("record <demoname> [<map> [cd track]]\n");
 		return;
 	}
 
-	if (strstr(Cmd_Argv(1), ".."))
+	if (c > 1 && strstr(Cmd_Argv(1), ".."))
 	{
 		Con_Printf ("Relative pathnames are not allowed.\n");
 		return;
@@ -273,7 +274,19 @@ void CL_Record_f (void)
 		track = -1;
 	}
 
-	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+	if (c > 1) {
+		q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+		COM_AddExtension (name, ".dem", sizeof(name));
+	} else {
+		int i;
+		for (i = 0; i < 10000; i++) {
+			q_snprintf (name, sizeof(name), "%s/demo%04d", com_gamedir, i);
+			COM_AddExtension (name, ".dem", sizeof(name));
+			if (access( name, F_OK ) == -1) {
+				break;
+			}
+		}
+	}
 
 // start the map up
 	if (c > 2)
@@ -283,8 +296,6 @@ void CL_Record_f (void)
 			return;
 	}
 
-// open the demo file
-	COM_AddExtension (name, ".dem", sizeof(name));
 
 	Con_Printf ("recording to %s.\n", name);
 	cls.demofile = fopen (name, "wb");

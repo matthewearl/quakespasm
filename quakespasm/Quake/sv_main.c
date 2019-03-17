@@ -88,6 +88,7 @@ void SV_Init (void)
 	extern	cvar_t	sv_altnoclip; //johnfitz
 
 	sv.edicts = NULL; // ericw -- sv.edicts switched to use malloc()
+	sv.touched_edicts = NULL;
 
 	Cvar_RegisterVariable (&sv_maxvelocity);
 	Cvar_RegisterVariable (&sv_gravity);
@@ -1381,6 +1382,7 @@ void SV_SpawnServer (const char *server)
 	/* Host_ClearMemory() called above already cleared the whole sv structure */
 	sv.max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS); //johnfitz -- max_edicts cvar
 	sv.edicts = (edict_t *) malloc (sv.max_edicts*pr_edict_size); // ericw -- sv.edicts switched to use malloc()
+	sv.touched_edicts = (qboolean *) calloc (sv.max_edicts, sizeof(qboolean));
 
 	sv.datagram.maxsize = sizeof(sv.datagram_buf);
 	sv.datagram.cursize = 0;

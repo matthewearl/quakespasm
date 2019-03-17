@@ -62,6 +62,8 @@ typedef struct
 	edict_t		*edicts;			// can NOT be array indexed, because
 									// edict_t is variable sized, but can
 									// be used to reference the world ent
+	qboolean	*touched_edicts;
+	float		last_segment_time;
 	server_state_t	state;			// some actions are only valid during load
 
 	sizebuf_t	datagram;
@@ -224,9 +226,11 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg);
 void SV_MoveToGoal (void);
 
 void SV_CheckForNewClients (void);
-void SV_RunClients (void);
+void SV_RunClients (qboolean *moved);
 void SV_SaveSpawnparms ();
 void SV_SpawnServer (const char *server);
+
+void SEG_CheckTouch (edict_t *e1, edict_t *e2);
 
 #endif	/* _QUAKE_SERVER_H */
 

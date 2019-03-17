@@ -166,6 +166,7 @@ int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
 
 	sock->canSend = false;
+	Con_Printf("Sending packet, buffer length:%08x Seq:%08x\n", packetBuffer.length, packetBuffer.sequence);
 
 	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
 		return -1;
@@ -390,6 +391,7 @@ int	Datagram_GetMessage (qsocket_t *sock)
 			{
 				sock->sendMessageLength = 0;
 				sock->canSend = true;
+				Con_Printf("Received ACK Seq:%08x\n", sequence);
 			}
 			continue;
 		}
@@ -1023,7 +1025,7 @@ static qsocket_t *_Datagram_CheckNewConnections (void)
 		if (s->driver != net_driverlevel)
 			continue;
 		ret = dfunc.AddrCompare(&clientaddr, &s->addr);
-		if (ret >= 0)
+		if (false && ret >= 0)
 		{
 			// is this a duplicate connection reqeust?
 			if (ret == 0 && net_time - s->connecttime < 2.0)

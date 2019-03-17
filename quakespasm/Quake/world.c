@@ -339,7 +339,7 @@ void SV_TouchLinks (edict_t *ent)
 	int		old_self, old_other;
 	int		i, listcount;
 	int		mark;
-	
+
 	mark = Hunk_LowMark ();
 	list = (edict_t **) Hunk_Alloc (sv.num_edicts*sizeof(edict_t *));
 	
@@ -368,6 +368,8 @@ void SV_TouchLinks (edict_t *ent)
 		pr_global_struct->self = EDICT_TO_PROG(touch);
 		pr_global_struct->other = EDICT_TO_PROG(ent);
 		pr_global_struct->time = sv.time;
+
+		SEG_CheckTouch(ent, touch);
 		PR_ExecuteProgram (touch->v.touch);
 
 		pr_global_struct->self = old_self;

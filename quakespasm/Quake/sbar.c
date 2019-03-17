@@ -518,6 +518,7 @@ void Sbar_SoloScoreboard (void)
 			Sbar_DrawString (160 - len*4, 4, str);
 		return;
 	}
+	Con_Printf("Exact time: %f\n", cl.time);
 	minutes = cl.time / 60;
 	seconds = cl.time - 60*minutes;
 	tens = seconds / 10;
