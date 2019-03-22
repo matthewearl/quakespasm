@@ -552,7 +552,7 @@ returns 1 if a message was received
 returns -1 if connection is invalid
 =================
 */
-int	NET_GetMessage (qsocket_t *sock)
+int	NET_GetMessage (qsocket_t *sock, qboolean block)
 {
 	int ret;
 
@@ -567,7 +567,7 @@ int	NET_GetMessage (qsocket_t *sock)
 
 	SetNetTime();
 
-	ret = sfunc.QGetMessage(sock);
+	ret = sfunc.QGetMessage(sock, block);
 
 	// see if this connection has timed out
 	if (ret == 0 && !IS_LOOP_DRIVER(sock->driver))
@@ -722,7 +722,7 @@ int NET_SendToAll (sizebuf_t *data, double blocktime)
 				}
 				else
 				{
-					NET_GetMessage (host_client->netconnection);
+					NET_GetMessage (host_client->netconnection, false);
 				}
 				count++;
 				continue;
@@ -736,7 +736,7 @@ int NET_SendToAll (sizebuf_t *data, double blocktime)
 				}
 				else
 				{
-					NET_GetMessage (host_client->netconnection);
+					NET_GetMessage (host_client->netconnection, false);
 				}
 				count++;
 				continue;

@@ -186,6 +186,7 @@ typedef struct
 	int		(*AddrCompare) (struct qsockaddr *addr1, struct qsockaddr *addr2);
 	int		(*GetSocketPort) (struct qsockaddr *addr);
 	int		(*SetSocketPort) (struct qsockaddr *addr, int port);
+	int		(*BlockUntilReadable) (sys_socket_t socketid);
 } net_landriver_t;
 
 #define	MAX_NET_DRIVERS		8
@@ -201,7 +202,7 @@ typedef struct
 	void		(*SearchForHosts) (qboolean xmit);
 	qsocket_t	*(*Connect) (const char *host);
 	qsocket_t	*(*CheckNewConnections) (void);
-	int		(*QGetMessage) (qsocket_t *sock);
+	int		(*QGetMessage) (qsocket_t *sock, qboolean block);
 	int		(*QSendMessage) (qsocket_t *sock, sizebuf_t *data);
 	int		(*SendUnreliableMessage) (qsocket_t *sock, sizebuf_t *data);
 	qboolean	(*CanSendMessage) (qsocket_t *sock);

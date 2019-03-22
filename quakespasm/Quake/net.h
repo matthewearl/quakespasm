@@ -62,7 +62,7 @@ qboolean NET_CanSendMessage (struct qsocket_s *sock);
 // Returns true or false if the given qsocket can currently accept a
 // message to be transmitted.
 
-int	NET_GetMessage (struct qsocket_s *sock);
+int	NET_GetMessage (struct qsocket_s *sock, qboolean block);
 // returns data in net_message sizebuf
 // returns 0 if no data is waiting
 // returns 1 if a message was received

@@ -268,6 +268,30 @@ sys_socket_t UDP_CheckNewConnections (void)
 
 //=============================================================================
 
+int UDP_BlockUntilReadable(sys_socket_t socketid)
+{
+	int retval = 0;
+	fd_set read_set = {};
+	struct timeval timeout = {};
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
+
+	FD_ZERO(&read_set);
+	FD_SET(socketid, &read_set);
+
+	retval = select(socketid + 1, &read_set, NULL, NULL, &timeout);
+	if (retval == -1) {
+		Sys_Error ("UDP: select failed (%s)", hstrerror(h_errno));
+		return -1;
+	}
+
+	if (retval == 0) {
+		printf("Warning:  select timed out\n");
+	}
+	return 0;
+}
+
 int UDP_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	socklen_t addrlen = sizeof(struct qsockaddr);

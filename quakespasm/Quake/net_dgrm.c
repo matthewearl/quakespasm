@@ -284,7 +284,7 @@ int Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 }
 
 
-int	Datagram_GetMessage (qsocket_t *sock)
+int	Datagram_GetMessage (qsocket_t *sock, qboolean block)
 {
 	unsigned int	length;
 	unsigned int	flags;
@@ -299,6 +299,11 @@ int	Datagram_GetMessage (qsocket_t *sock)
 
 	while (1)
 	{
+		if (block) {
+			if (sfunc.BlockUntilReadable(sock->socket) == -1) {
+				return -1;
+			}
+		}
 		length = (unsigned int) sfunc.Read(sock->socket, (byte *)&packetBuffer,
 							NET_DATAGRAMSIZE, &readaddr);
 

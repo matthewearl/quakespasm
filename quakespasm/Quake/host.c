@@ -499,7 +499,7 @@ void Host_ShutdownServer(qboolean crash)
 				}
 				else
 				{
-					NET_GetMessage(host_client->netconnection);
+					NET_GetMessage(host_client->netconnection, false);
 					count++;
 				}
 			}
@@ -644,8 +644,9 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	do_phys = (!sync_movements.value || moved);
-	if ( do_phys && !sv.paused && (svs.maxclients > 1 || key_dest == key_game) )
+	if ( do_phys && !sv.paused && (svs.maxclients > 1 || key_dest == key_game) ) {
 		SV_Physics ();
+	}
 
 //johnfitz -- devstats
 	if (cls.signon == SIGNONS)
@@ -665,8 +666,9 @@ void Host_ServerFrame (void)
 
 // send all messages to the clients
 
-	if ( !svs.clients[0].spawned ||  do_phys )
+	if ( !svs.clients[0].spawned ||  do_phys ) {
 		SV_SendClientMessages ();
+	}
 }
 
 /*

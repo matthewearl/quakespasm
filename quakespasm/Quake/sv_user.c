@@ -28,6 +28,7 @@ edict_t	*sv_player;
 extern	cvar_t	sv_friction;
 cvar_t	sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern	cvar_t	sv_stopspeed;
+extern  cvar_t	sync_movements;
 
 static	vec3_t		forward, right, up;
 
@@ -541,11 +542,13 @@ qboolean SV_ReadClientMessage (qboolean *moved)
 	int		ret;
 	int		ccmd;
 	const char	*s;
+	qboolean block = !!sync_movements.value;
 
 	do
 	{
 nextmsg:
-		ret = NET_GetMessage (host_client->netconnection);
+		ret = NET_GetMessage (host_client->netconnection, block);
+		block = false;
 		if (ret == -1)
 		{
 			Sys_Printf ("SV_ReadClientMessage: NET_GetMessage failed\n");

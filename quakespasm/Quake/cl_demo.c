@@ -152,7 +152,7 @@ int CL_GetMessage (void)
 
 	while (1)
 	{
-		r = NET_GetMessage (cls.netcon);
+		r = NET_GetMessage (cls.netcon, false);
 
 		if (r != 1 && r != 2)
 			return r;

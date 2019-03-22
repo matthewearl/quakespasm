@@ -54,6 +54,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #endif
 
+extern cvar_t	sync_movements;
+
+
 static void Sys_AtExit (void)
 {
 	SDL_Quit();
@@ -155,6 +158,10 @@ int main(int argc, char *argv[])
 				time = newtime - oldtime;
 			}
 
+			if (!!sync_movements.value && net_activeconnections == 0) 
+			{
+				SDL_Delay(10);
+			}
 			Host_Frame (time);
 			oldtime = newtime;
 		}

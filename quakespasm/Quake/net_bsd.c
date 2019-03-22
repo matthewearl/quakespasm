@@ -59,7 +59,7 @@ net_driver_t net_drivers[] =
 		Datagram_CanSendMessage,
 		Datagram_CanSendUnreliableMessage,
 		Datagram_Close,
-		Datagram_Shutdown
+		Datagram_Shutdown,
 	}
 };
 
@@ -89,7 +89,8 @@ net_landriver_t	net_landrivers[] =
 		UDP_GetAddrFromName,
 		UDP_AddrCompare,
 		UDP_GetSocketPort,
-		UDP_SetSocketPort
+		UDP_SetSocketPort,
+		UDP_BlockUntilReadable,
 	}
 };
 

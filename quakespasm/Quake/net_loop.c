@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <assert.h>
+
 #include "q_stdinc.h"
 #include "arch_def.h"
 #include "net_sys.h"
@@ -128,10 +130,12 @@ static int IntAlign(int value)
 }
 
 
-int Loop_GetMessage (qsocket_t *sock)
+int Loop_GetMessage (qsocket_t *sock, qboolean block)
 {
 	int		ret;
 	int		length;
+
+	assert(!block);
 
 	if (sock->receiveMessageLength == 0)
 		return 0;
