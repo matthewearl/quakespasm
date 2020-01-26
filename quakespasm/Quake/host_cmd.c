@@ -1529,11 +1529,11 @@ void Host_Kill_f (void)
 		return;
 	}
 
-	if (sv_player->v.health <= 0)
-	{
-		SV_ClientPrintf ("Can't suicide -- allready dead!\n");
-		return;
-	}
+	//if (sv_player->v.health <= 0)
+	//{
+	////	SV_ClientPrintf ("Can't suicide -- allready dead!\n");
+	//	return;
+	//}
 
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
@@ -1661,6 +1661,22 @@ void Host_Spawn_f (void)
 			Sys_Printf ("%s entered the game\n", host_client->name);
 
 		PR_ExecuteProgram (pr_global_struct->PutClientInServer);
+
+		// Spiral
+		/*
+		ent->v.origin[0] = 774.88190109;
+		ent->v.origin[1] = 2299.06754479;
+		ent->v.origin[2] = 30 + -101.98701297;
+		ent->v.angles[1] = 270.;
+		*/
+
+		// Pre draw bridge
+		/*
+		ent->v.origin[0] = -144.05;
+		ent->v.origin[1] = 2446.22801636;
+		ent->v.origin[2] = -72.;
+		ent->v.angles[1] = 90.;
+		*/
 	}
 
 
