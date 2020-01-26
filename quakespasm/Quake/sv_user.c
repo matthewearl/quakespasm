@@ -335,17 +335,23 @@ void SV_AirMove (void)
 
 	fmove = cmd.forwardmove;
 	smove = cmd.sidemove;
-/*
-	Sys_Printf("@@@FRAME_INPUT@@@ {'time': %.4f, 'yaw': %.4f, 'fmove': %.2f, 'smove': %.2f, 'button2': %.2f, "
-			   "'vel': [%.2f, %.2f, %.2f], 'z': %.2f}\n",
-			sv.time,
-			sv_player->v.angles[YAW],
-			fmove,
-			smove,
-			sv_player->v.button2,
-			velocity[0], velocity[1], velocity[2],
-			sv_player->v.origin[2]);
-			*/
+
+	Sys_Printf("@@@FRAME_INPUT@@@ {\"time\": %llu, \"yaw\": %u, \"pitch\": %u, \"roll\": %u, \"fmove\": %u, "
+			   "\"smove\": %u, \"button2\": %u, "
+			   "\"velx\": %u, \"vely\": %u, \"velz\": %u, \"z\": %u, \"host_frametime\": %llu, \"jumpreleased\": %d, "
+			   "\"onground\": %d}\n",
+			*(unsigned long long *)&sv.time,
+			*(unsigned int *)&sv_player->v.angles[YAW],
+			*(unsigned int *)&sv_player->v.angles[PITCH],
+			*(unsigned int *)&sv_player->v.angles[ROLL],
+			*(unsigned int *)&fmove,
+			*(unsigned int *)&smove,
+			*(unsigned int *)&sv_player->v.button2,
+			*(unsigned int *)&velocity[0], *(unsigned int *)&velocity[1], *(unsigned int *)&velocity[2],
+			*(unsigned int *)&sv_player->v.origin[2],
+			*(unsigned long long *)&host_frametime,
+			(int)sv_player->v.flags & FL_JUMPRELEASED,
+			onground);
 
 // hack to not let you back into teleporter
 	if (sv.time < sv_player->v.teleport_time && fmove < 0)
