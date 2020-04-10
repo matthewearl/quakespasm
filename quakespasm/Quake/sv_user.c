@@ -44,6 +44,9 @@ usercmd_t	cmd;
 cvar_t	sv_idealpitchscale = {"sv_idealpitchscale","0.8",CVAR_NONE};
 cvar_t	sv_altnoclip = {"sv_altnoclip","1",CVAR_ARCHIVE}; //johnfitz
 
+speed_info_t speed_info = {-1, -1, -1};
+
+
 /*
 ===============
 SV_SetIdealPitch
@@ -336,6 +339,7 @@ void SV_AirMove (void)
 	fmove = cmd.forwardmove;
 	smove = cmd.sidemove;
 
+	/*
 	Sys_Printf("@@@FRAME_INPUT@@@ {\"time\": %llu, \"yaw\": %u, \"pitch\": %u, \"roll\": %u, \"fmove\": %u, "
 			   "\"smove\": %u, \"button2\": %u, "
 			   "\"velx\": %u, \"vely\": %u, \"velz\": %u, \"z\": %u, \"host_frametime\": %llu, \"jumpreleased\": %d, "
@@ -352,6 +356,7 @@ void SV_AirMove (void)
 			*(unsigned long long *)&host_frametime,
 			(int)sv_player->v.flags & FL_JUMPRELEASED,
 			onground);
+	*/
 
 // hack to not let you back into teleporter
 	if (sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -388,10 +393,14 @@ void SV_AirMove (void)
 		speed_after_accel = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
 		if (sv_player->v.button2)
 		{
+			/*
 			Con_Printf("F: %3.2f A: %3.2f f: %3.2f s: %3.2f\n",
 					speed_after_friction - speed_before,
 					speed_after_accel - speed_after_friction,
 					fmove, smove);
+			*/
+			speed_info.fmove = fmove;
+			speed_info.smove = smove;
 		}
 	}
 	else
@@ -422,7 +431,8 @@ void SV_AirMove (void)
 		for (i = 0; i < accel; i++) {
 				buf[i + 1] = neg ? '-' : '+';
 		}
-		SCR_CenterPrint (buf);
+		//SCR_CenterPrint (buf);
+		speed_info.speed = speed;
 	}
 }
 

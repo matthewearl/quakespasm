@@ -219,6 +219,7 @@ CL_Record_f
 record <demoname> <map> [cd track]
 ====================
 */
+extern cvar_t	host_maxfps;
 void CL_Record_f (void)
 {
 	int		c;
@@ -280,7 +281,11 @@ void CL_Record_f (void)
 	} else {
 		int i;
 		for (i = 0; i < 10000; i++) {
-			q_snprintf (name, sizeof(name), "%s/demo%04d", com_gamedir, i);
+			if (host_maxfps.value != 72.) {
+				q_snprintf (name, sizeof(name), "%s/demos_maxfps_%02d/demo%04d", com_gamedir, (int)host_maxfps.value, i);
+			} else {
+				q_snprintf (name, sizeof(name), "%s/demo%04d", com_gamedir, i);
+			}
 			COM_AddExtension (name, ".dem", sizeof(name));
 			if (access( name, F_OK ) == -1) {
 				break;
@@ -457,6 +462,10 @@ void CL_PlayDemo_f (void)
 	cls.demoplayback = true;
 	cls.demopaused = false;
 	cls.state = ca_connected;
+
+	speed_info.speed = -1;
+	speed_info.fmove = -1;
+	speed_info.smove = -1;
 
 // get rid of the menu and/or console
 	key_dest = key_game;

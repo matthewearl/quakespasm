@@ -840,8 +840,11 @@ void SCR_ScreenShot_f (void)
 	else
 		ok = false;
 
-	if (ok)
-		Con_Printf ("Wrote %s\n", imagename);
+	if (ok) {
+		if (!cls.demoplayback || cls.demopaused || !cls.timedemo) {
+			Con_Printf ("Wrote %s\n", imagename);
+		}
+	}
 	else
 		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", imagename);
 
@@ -1120,6 +1123,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawClock (); //johnfitz
+		SCR_DrawSpeed ();
 		SCR_DrawConsole ();
 		M_Draw ();
 	}

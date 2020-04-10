@@ -678,6 +678,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
+void SCR_ScreenShot_f (void);
 void _Host_Frame (float time)
 {
 	static double		time1 = 0;
@@ -702,6 +703,11 @@ void _Host_Frame (float time)
 
 // allow mice or other external controllers to add commands
 	IN_Commands ();
+
+//
+	if (cls.demoplayback && !cls.demopaused && cls.timedemo) {
+		SCR_ScreenShot_f();
+	}
 
 // process console commands
 	Cbuf_Execute ();

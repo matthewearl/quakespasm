@@ -330,5 +330,17 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
+
+// MLE
+// Information for the speed-o-meter
+typedef struct
+{
+	float speed;	
+	float smove, fmove;
+} speed_info_t;
+
+extern speed_info_t speed_info;
+
+
 #endif	/* QUAKEDEFS_H */
 

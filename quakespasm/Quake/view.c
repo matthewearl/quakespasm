@@ -39,6 +39,8 @@ cvar_t	scr_ofsz = {"scr_ofsz","0", CVAR_NONE};
 cvar_t	cl_rollspeed = {"cl_rollspeed", "200", CVAR_NONE};
 cvar_t	cl_rollangle = {"cl_rollangle", "2.0", CVAR_NONE};
 
+cvar_t	show_speed = {"show_speed", "0"};
+
 cvar_t	cl_bob = {"cl_bob","0.02", CVAR_NONE};
 cvar_t	cl_bobcycle = {"cl_bobcycle","0.6", CVAR_NONE};
 cvar_t	cl_bobup = {"cl_bobup","0.5", CVAR_NONE};
@@ -867,6 +869,100 @@ void V_CalcRefdef (void)
 		Chase_UpdateForDrawing (); //johnfitz
 }
 
+
+
+// MLE:  Taken from JoeQuake
+/*
+==============
+SCR_DrawSpeed
+==============
+*/
+void SCR_DrawSpeed2 (float display_speed, int bad_jump)
+{
+	int		x, y, size, bg_color;
+	float		scale, speedunits;
+	char		st[8];
+
+	GL_SetCanvas (CANVAS_CROSSHAIR);
+
+	scale = 1;
+	size = 8;
+
+	sprintf (st, "%3d", (int)display_speed);
+
+	x = -80;
+	y = -10;
+	y = 10;
+	
+	float alpha = 0.5;
+	bg_color = bad_jump ? 251 : 10;
+	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x, y + (int)(9 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x + (int)(32 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(64 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(96 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(128 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+
+	Draw_Fill (x, y, 160, 9, 52, 0.9);
+
+	speedunits = display_speed;
+	if (display_speed <= 500)
+	{
+		Draw_Fill (x, y, (int)(display_speed / 3.125), 9, 100, alpha);
+	}
+	else 
+	{   
+		while (speedunits > 500)
+			speedunits -= 500;
+		Draw_Fill (x, y, (int)(speedunits / 3.125), 9, 68, alpha);
+	}
+	Draw_String (x + (int)(4.5 * size) - (strlen(st) * size), y, st);
+}
+
+
+void SCR_DrawSpeed (void)
+{
+	float		speed;
+	vec3_t		vel;
+	int		bad_jump = 0;
+	static	float	maxspeed = 0, display_speed = -1;
+	static	double	lastrealtime = 0;
+
+	if (!show_speed.value)
+		return;
+
+	if (lastrealtime > realtime)
+	{
+		lastrealtime = 0;
+		display_speed = -1;
+		maxspeed = 0;
+	}
+
+	VectorCopy (cl.velocity, vel);
+	vel[2] = 0;
+	speed = VectorLength (vel);
+
+	if (speed > maxspeed)
+		maxspeed = speed;
+
+	if (speed_info.speed >= 0)
+	{
+	    display_speed = speed_info.speed;
+	    bad_jump = speed_info.fmove == 0 || speed_info.smove == 0;
+	}
+
+	if (display_speed >= 0)
+	    SCR_DrawSpeed2(display_speed, bad_jump);
+
+	if (realtime - lastrealtime >= 0.0)
+	{
+		lastrealtime = realtime;
+		display_speed = maxspeed;
+		maxspeed = 0;
+	}
+}
+
+
 /*
 ==================
 V_RenderView
@@ -936,6 +1032,7 @@ void V_Init (void)
 	Cvar_RegisterVariable (&scr_ofsz);
 	Cvar_RegisterVariable (&cl_rollspeed);
 	Cvar_RegisterVariable (&cl_rollangle);
+	Cvar_RegisterVariable (&show_speed);
 	Cvar_RegisterVariable (&cl_bob);
 	Cvar_RegisterVariable (&cl_bobcycle);
 	Cvar_RegisterVariable (&cl_bobup);

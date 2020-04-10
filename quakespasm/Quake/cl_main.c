@@ -169,6 +169,10 @@ void CL_EstablishConnection (const char *host)
 	cls.state = ca_connected;
 	cls.signon = 0;				// need all the signon messages before playing
 	MSG_WriteByte (&cls.message, clc_nop);	// NAT Fix from ProQuake
+
+	speed_info.speed = -1;
+	speed_info.fmove = -1;
+	speed_info.smove = -1;
 }
 
 /*
