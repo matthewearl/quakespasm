@@ -35,7 +35,7 @@ void SCR_SizeUp (void);
 void SCR_SizeDown (void);
 void SCR_BringDownConsole (void);
 void SCR_CenterPrint (const char *str);
-void SCR_DrawSpeed2 (float display_speed, int offs);
+void SCR_DrawSpeed (void);
 
 void SCR_BeginLoadingPlaque (void);
 void SCR_EndLoadingPlaque (void);
