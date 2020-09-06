@@ -179,6 +179,66 @@ int CL_GetMessage (void)
 }
 
 
+
+#define TEMP_DEMO_PATH  "/dev/shm/demos/temp_demo.dem"
+
+
+static void CL_MoveFile(char *src_path, char *dst_path)
+{
+	FILE *dst, *src;
+    char buf[1024];
+    int n_read = sizeof(buf);
+    int n_written;
+    int rc;
+    qboolean error = false;
+
+    if (!error) {
+        src = fopen(src_path, "rb");
+        if (src == NULL) {
+            Con_Printf ("Failed to open %s for reading.\n", src_path);
+            error = true;
+        }
+    }
+    if (!error) {
+        dst = fopen(dst_path, "wb");
+        if (dst == NULL) {
+            Con_Printf ("Failed to open %s for writing.\n", dst_path);
+            error = true;
+        }
+    }
+
+    while (!error && n_read == sizeof(buf)) {
+        n_read = fread(buf, 1, sizeof(buf), src);
+        n_written = fwrite(buf, 1, n_read, dst);
+        if (n_written < n_read) {
+            Con_Printf ("Wrote less bytes than were read!.\n");
+            error = true;
+        }
+    }
+
+    if (src != NULL) {
+        fclose(src);
+    }
+    if (dst != NULL) {
+        fclose(dst);
+    }
+
+    if (!error) {
+        rc = unlink(src_path);
+        if (rc == -1) {
+            Con_Printf ("Failed to remove %s.\n", src_path);
+            error = true;
+        }
+    }
+
+    if (!error) {
+        Con_Printf ("Successfully moved demo file %s -> %s.\n", src_path, dst_path);
+    } else {
+        Con_Printf ("Failed to move demo file %s -> %s.\n", src_path, dst_path);
+    }
+}
+
+
 /*
 ====================
 CL_Stop_f
@@ -204,12 +264,16 @@ void CL_Stop_f (void)
 
 // finish up
 	fclose (cls.demofile);
+
+    CL_MoveFile(TEMP_DEMO_PATH, cls.demopath);
+
+    cls.demopath[0] = '\0';
 	cls.demofile = NULL;
 	cls.demorecording = false;
 	Con_Printf ("Completed demo\n");
 	
 // ericw -- update demo tab-completion list
-	DemoList_Rebuild ();
+	//DemoList_Rebuild ();  // Causes an annoying stall on directories with many files
 }
 
 /*
@@ -293,6 +357,8 @@ void CL_Record_f (void)
 		}
 	}
 
+    q_snprintf(cls.demopath, sizeof(cls.demopath), "%s", name);
+
 // start the map up
 	if (c > 2)
 	{
@@ -302,8 +368,8 @@ void CL_Record_f (void)
 	}
 
 
-	Con_Printf ("recording to %s.\n", name);
-	cls.demofile = fopen (name, "wb");
+	Con_Printf ("recording to %s.\n", cls.demopath);
+	cls.demofile = fopen (TEMP_DEMO_PATH, "wb");
 	if (!cls.demofile)
 	{
 		Con_Printf ("ERROR: couldn't create %s\n", name);
