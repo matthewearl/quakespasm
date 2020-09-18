@@ -177,6 +177,9 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
+CFLAGS+= -fPIC
+# CFLAGS+= -O0 -ggdb
+
 COMMON_LIBS:= -lm -lGL
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
@@ -282,7 +285,7 @@ OBJS := strlcat.o \
 	world.o \
 	zone.o \
 	segment.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) main_lib.o
 
 # ------------------------
 # Linux build rules
@@ -291,6 +294,9 @@ OBJS := strlcat.o \
 quakespasm:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+libquakespasm.so: $(OBJS)
+	$(LINKER) -shared $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 
 image.o: lodepng.c lodepng.h stb_image_write.h
 
