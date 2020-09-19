@@ -304,7 +304,7 @@ void Host_WriteConfiguration (void)
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
-	if (host_initialized && !isDedicated && !host_parms->errstate)
+	if (host_initialized && !isLibrary && !isDedicated && !host_parms->errstate)
 	{
 		f = fopen (va("%s/config.cfg", com_gamedir), "w");
 		if (!f)
@@ -570,6 +570,16 @@ qboolean Host_FilterTime (float time)
 	float maxfps; //johnfitz
 
 	realtime += time;
+
+    if (isLibrary) {
+        if (host_framerate.value > 0) {
+            host_frametime = host_framerate.value;
+        } else {
+            host_frametime = 1. / 72;
+        }
+
+        return true;
+    }
 
 	//johnfitz -- max fps cvar
 	if (!sync_movements.value) {
@@ -860,7 +870,7 @@ void Host_Init (void)
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 
-	if (cls.state != ca_dedicated)
+	if (!isLibrary && cls.state != ca_dedicated)
 	{
 		host_colormap = (byte *)COM_LoadHunkFile ("gfx/colormap.lmp", NULL);
 		if (!host_colormap)
@@ -884,6 +894,10 @@ void Host_Init (void)
 		Sbar_Init ();
 		CL_Init ();
 	}
+
+    if (isLibrary) {
+		CL_Init ();
+    }
 
 	Hunk_AllocName (0, "-HOST_HUNKLEVEL-");
 	host_hunklevel = Hunk_LowMark ();
@@ -936,7 +950,7 @@ void Host_Shutdown(void)
 
 	NET_Shutdown ();
 
-	if (cls.state != ca_dedicated)
+	if (!isLibrary && cls.state != ca_dedicated)
 	{
 		if (con_initialized)
 			History_Shutdown ();

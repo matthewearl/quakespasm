@@ -2201,7 +2201,7 @@ static void COM_Game_f (void)
 		//clear out and reload appropriate data
 		Cache_Flush ();
 		Mod_ResetAll();
-		if (!isDedicated)
+		if (!isLibrary && !isDedicated)
 		{
 			TexMgr_NewGame ();
 			Draw_NewGame ();

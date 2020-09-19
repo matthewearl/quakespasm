@@ -178,7 +178,7 @@ CFLAGS+= -DUSE_CODEC_UMX
 endif
 
 CFLAGS+= -fPIC
-# CFLAGS+= -O0 -ggdb
+CFLAGS+= -O0 -ggdb
 
 COMMON_LIBS:= -lm -lGL
 

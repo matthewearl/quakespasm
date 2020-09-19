@@ -274,7 +274,7 @@ void R_ReadPointFile_f (void)
 	particle_t	*p;
 	char	name[MAX_QPATH];
 
-	if (cls.state != ca_connected)
+	if (isLibrary || cls.state != ca_connected)
 		return;			// need an active map.
 
 	q_snprintf (name, sizeof(name), "maps/%s.pts", cl.mapname);

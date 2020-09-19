@@ -205,6 +205,13 @@ void IN_Activate (void)
 	if (no_mouse)
 		return;
 
+    if (isLibrary) {
+        total_dx = 0;
+        total_dy = 0;
+
+        return;
+    }
+
 #ifdef MACOS_X_ACCELERATION_HACK
 	/* Save the status of mouse acceleration */
 	if (originalMouseSpeed == -1 && in_disablemacosxmouseaccel.value)
@@ -237,6 +244,7 @@ void IN_Activate (void)
 	total_dx = 0;
 	total_dy = 0;
 }
+
 
 void IN_Deactivate (qboolean free_cursor)
 {
@@ -1003,6 +1011,11 @@ void IN_SendKeyEvents (void)
 	SDL_Event event;
 	int key;
 	qboolean down;
+
+    if (isLibrary) {
+        // Key events are sent by calling add_key_event when in library mode
+        return;
+    }
 
 	while (SDL_PollEvent(&event))
 	{

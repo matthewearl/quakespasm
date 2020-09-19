@@ -636,7 +636,7 @@ static void S_UpdateAmbientSounds (void)
 	channel_t	*chan;
 
 // no ambients when disconnected
-	if (cls.state != ca_connected)
+	if (isLibrary || cls.state != ca_connected)
 		return;
 // calc ambient sound levels
 	if (!cl.worldmodel)

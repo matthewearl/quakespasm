@@ -837,6 +837,10 @@ void CL_NewTranslation (int slot)
 	int		top, bottom;
 	byte	*dest, *source;
 
+    if (isLibrary) {
+        return;
+    }
+
 	if (slot > cl.maxclients)
 		Sys_Error ("CL_NewTranslation: slot > cl.maxclients");
 	dest = cl.scores[slot].translations;

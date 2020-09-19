@@ -280,6 +280,9 @@ void R_TranslateNewPlayerSkin (int playernum)
 	aliashdr_t	*paliashdr;
 	int		skinnum;
 
+    if (isLibrary)
+        return;
+
 //get correct texture pixels
 	currententity = &cl_entities[1+playernum];
 
@@ -385,6 +388,9 @@ R_NewMap
 void R_NewMap (void)
 {
 	int		i;
+
+    if (isLibrary)
+        return;
 
 	for (i=0 ; i<256 ; i++)
 		d_lightstylevalue[i] = 264;		// normal light value

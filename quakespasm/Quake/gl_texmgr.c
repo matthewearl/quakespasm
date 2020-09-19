@@ -1197,7 +1197,7 @@ gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int
 	gltexture_t *glt;
 	int mark;
 
-	if (isDedicated)
+	if (isLibrary || isDedicated)
 		return NULL;
 
 	// cache check

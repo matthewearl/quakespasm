@@ -865,7 +865,7 @@ void SCR_BeginLoadingPlaque (void)
 {
 	S_StopAllSounds (true);
 
-	if (cls.state != ca_connected)
+	if (isLibrary || cls.state != ca_connected)
 		return;
 	if (cls.signon != SIGNONS)
 		return;
@@ -948,7 +948,7 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 	double time1, time2; //johnfitz -- timeout
 	int lastkey, lastchar;
 
-	if (cls.state == ca_dedicated)
+	if (isLibrary || cls.state == ca_dedicated)
 		return true;
 
 	scr_notifystring = text;

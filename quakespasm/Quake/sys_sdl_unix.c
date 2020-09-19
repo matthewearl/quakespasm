@@ -49,6 +49,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 
+qboolean		isLibrary = false;
 qboolean		isDedicated;
 cvar_t		sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
@@ -386,7 +387,7 @@ void Sys_Error (const char *error, ...)
 	fputs (errortxt2, stderr);
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
-	if (!isDedicated)
+	if (!isLibrary && !isDedicated)
 		PL_ErrorDialog(text);
 
 	exit (1);
