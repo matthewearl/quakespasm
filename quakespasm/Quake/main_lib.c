@@ -104,3 +104,39 @@ read_player_info(vec3_t pos, vec3_t vel, vec3_t view_angle)
     return rc;
 }
 
+
+// Enable this for profiling
+#if 0
+int
+main(int argc, char **argv)
+{
+    vec3_t pos, vel, view_angle;
+    int b = 0;
+    int i, j;
+
+    start_host(argc, argv);
+    add_command("map e1m1");
+
+    for (j = 0; j < 100; j++) {
+        while (!b) {
+            do_frame();
+            b = (read_player_info(pos, vel, view_angle) == 1);
+        }
+
+        for (i = 0; i < 72; i++) {
+            do_frame();
+            read_player_info(pos, vel, view_angle);
+        }
+
+        add_key_event(119, true);
+
+        for (i = 0; i < 72 * 4; i++) {
+            do_frame();
+            read_player_info(pos, vel, view_angle);
+        }
+
+        add_command("restart");
+    }
+}
+#endif
+
