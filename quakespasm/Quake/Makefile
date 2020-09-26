@@ -295,8 +295,10 @@ quakespasm:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
+HEADLESS_LIBS = -lm $(NETLIBS) $(CODECLIBS)
+
 libquakespasm.so: $(OBJS)
-	$(LINKER) -shared $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
+	$(LINKER) -shared $(OBJS) $(LDFLAGS) $(HEADLESS_LIBS) $(SDL_LIBS) -o $@
 
 image.o: lodepng.c lodepng.h stb_image_write.h
 
@@ -306,6 +308,7 @@ debug:
 
 clean:
 	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
+	rm libquakespasm.so
 
 install:	quakespasm
 	cp quakespasm /usr/local/games/quake
