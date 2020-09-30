@@ -219,7 +219,7 @@ SYSOBJ_CDA := cd_sdl.o
 SYSOBJ_INPUT := in_sdl.o
 SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_NET := net_bsd.o net_udp.o
-SYSOBJ_SYS := pl_linux.o sys_sdl_unix.o
+SYSOBJ_SYS := pl_linux.o sys_unix.o sys_sdl_unix.o
 SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES :=
 
@@ -285,7 +285,7 @@ OBJS := strlcat.o \
 	world.o \
 	zone.o \
 	segment.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) main_lib.o
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------
 # Linux build rules
@@ -295,10 +295,15 @@ quakespasm:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
+HEADLESS_OBJS = main_lib.o host.o sys_unix.o cmd.o console.o cvar.o common.o wad.o keys.o pr_edict.o \
+			   gl_model.o net_main.o sv_main.o host_cmd.o pr_exec.o sv_user.o sv_phys.o pr_cmds.o cl_main.o cl_tent.o \
+			   cl_input.o chase.o cl_demo.o mathlib.o net_bsd.o sv_move.o net_loop.o net_dgrm.o menu.o net_udp.o \
+			   zone.o strlcpy.o crc.o cd_null.o strlcat.o world.o segment.o cl_parse.o view.o
 HEADLESS_LIBS = -lm $(NETLIBS) $(CODECLIBS)
 
-libquakespasm.so: $(OBJS)
-	$(LINKER) -shared $(OBJS) $(LDFLAGS) $(HEADLESS_LIBS) $(SDL_LIBS) -o $@
+
+libquakespasm.so: $(HEADLESS_OBJS)
+	$(LINKER) -shared $(HEADLESS_OBJS) $(LDFLAGS) $(HEADLESS_LIBS) -o $@
 
 image.o: lodepng.c lodepng.h stb_image_write.h
 

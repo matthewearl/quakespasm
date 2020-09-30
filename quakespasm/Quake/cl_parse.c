@@ -1186,14 +1186,16 @@ void CL_ParseServerMessage (void)
 		case svc_intermission:
 			cl.intermission = 1;
 			cl.completed_time = cl.time;
-			Con_Printf("Actual completed time %.2f", (float)cl.time);
+			cl.completed_time_double = cl.time;
+			Con_Printf("Actual completed time %.2f\n", (float)cl.time);
 			vid.recalc_refdef = true;	// go to full screen
 			break;
 
 		case svc_finale:
 			cl.intermission = 2;
 			cl.completed_time = cl.time;
-			Con_Printf("Actual completed time %.2f", (float)cl.time);
+			cl.completed_time_double = cl.time;
+			Con_Printf("Actual completed time %.2f\n", (float)cl.time);
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
 			str = MSG_ReadString ();
@@ -1205,7 +1207,8 @@ void CL_ParseServerMessage (void)
 		case svc_cutscene:
 			cl.intermission = 3;
 			cl.completed_time = cl.time;
-			Con_Printf("Actual completed time %.2f", (float)cl.time);
+			cl.completed_time_double = cl.time;
+			Con_Printf("Actual completed time %.2f\n", (float)cl.time);
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
 			str = MSG_ReadString ();

@@ -705,9 +705,14 @@ void MSG_WriteString (sizebuf_t *sb, const char *s)
 }
 
 //johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
+extern cvar_t	host_jq;
 void MSG_WriteCoord16 (sizebuf_t *sb, float f)
 {
-	MSG_WriteShort (sb, Q_rint(f*8));
+    if (host_jq.value) {
+        MSG_WriteShort (sb, (int)(f * 8));
+    } else {
+        MSG_WriteShort (sb, Q_rint(f*8));
+    }
 }
 
 //johnfitz -- 16.8 fixed point coords, max range +-32768

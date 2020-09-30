@@ -57,6 +57,8 @@ jmp_buf 	host_abortserver;
 
 byte		*host_colormap;
 
+cvar_t	host_jq = {"host_jq","0",CVAR_NONE};	// joequake compatibility
+
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "72", CVAR_ARCHIVE}; //johnfitz
@@ -254,6 +256,7 @@ void Host_InitLocal (void)
 
 	Host_InitCommands ();
 
+	Cvar_RegisterVariable (&host_jq);
 	Cvar_RegisterVariable (&host_framerate);
 	Cvar_RegisterVariable (&host_speeds);
 	Cvar_RegisterVariable (&host_maxfps); //johnfitz

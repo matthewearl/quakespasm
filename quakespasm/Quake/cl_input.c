@@ -336,6 +336,7 @@ void CL_BaseMove (usercmd_t *cmd)
 CL_SendMove
 ==============
 */
+extern cvar_t	host_jq;
 void CL_SendMove (const usercmd_t *cmd)
 {
 	int		i;
@@ -358,7 +359,7 @@ void CL_SendMove (const usercmd_t *cmd)
 
 	for (i=0 ; i<3 ; i++)
 		//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-		if (cl.protocol == PROTOCOL_NETQUAKE)
+		if (!host_jq.value && cl.protocol == PROTOCOL_NETQUAKE)
 			MSG_WriteAngle (&buf, cl.viewangles[i], cl.protocolflags);
 		else
 			MSG_WriteAngle16 (&buf, cl.viewangles[i], cl.protocolflags);

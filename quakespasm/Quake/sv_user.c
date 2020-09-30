@@ -509,6 +509,7 @@ void SV_ClientThink (void)
 SV_ReadClientMove
 ===================
 */
+extern cvar_t	host_jq;
 void SV_ReadClientMove (usercmd_t *move)
 {
 	int		i;
@@ -523,7 +524,7 @@ void SV_ReadClientMove (usercmd_t *move)
 // read current angles
 	for (i=0 ; i<3 ; i++)
 		//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-		if (sv.protocol == PROTOCOL_NETQUAKE)
+		if (!host_jq.value && sv.protocol == PROTOCOL_NETQUAKE)
 			angle[i] = MSG_ReadAngle (sv.protocolflags);
 		else
 			angle[i] = MSG_ReadAngle16 (sv.protocolflags);

@@ -187,6 +187,7 @@ typedef struct
 
 	int			intermission;	// don't change view angle, full screen, etc
 	int			completed_time;	// latched at intermission start
+    double		completed_time_double;	// latched at intermission start
 
 	double		mtime[2];		// the timestamp of last two messages
 	double		time;			// clients view of time, should be between

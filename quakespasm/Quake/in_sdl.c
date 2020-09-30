@@ -205,13 +205,6 @@ void IN_Activate (void)
 	if (no_mouse)
 		return;
 
-    if (isLibrary) {
-        total_dx = 0;
-        total_dy = 0;
-
-        return;
-    }
-
 #ifdef MACOS_X_ACCELERATION_HACK
 	/* Save the status of mouse acceleration */
 	if (originalMouseSpeed == -1 && in_disablemacosxmouseaccel.value)
