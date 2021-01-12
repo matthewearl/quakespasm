@@ -146,19 +146,14 @@ double Sys_DoubleTime (void)
 // Like R_ParseParticleEffect in r_part.c except it just does the parsing
 void R_ParseParticleEffect (void)
 {
-	int			i, count, msgcount;
+	int			i;
 
 	for (i=0 ; i<3 ; i++)
 		MSG_ReadCoord (cl.protocolflags);
 	for (i=0 ; i<3 ; i++)
-		MSG_ReadChar () * (1.0/16);
-	msgcount = MSG_ReadByte ();
+		MSG_ReadChar ();
 	MSG_ReadByte ();
-
-	if (msgcount == 255)
-		count = 1024;
-	else
-		count = msgcount;
+	MSG_ReadByte ();
 }
 
 
@@ -247,6 +242,9 @@ extern cvar_t cl_minpitch;
 
 static vec3_t   in_viewangle = {0.f, 0.f, 0.f};
 
+static qboolean   in_override_usercmd = false;
+static usercmd_t  in_usercmd = {};
+
 
 void IN_Commands (void)
 {
@@ -289,13 +287,23 @@ void IN_Deactivate (qboolean free_cursor)
 
 void IN_Move(usercmd_t *cmd)
 {
-    cl.viewangles[YAW] = in_viewangle[YAW];
-    cl.viewangles[PITCH] = in_viewangle[PITCH];
+    if (in_override_usercmd) {
+        VectorCopy(in_usercmd.viewangles, cl.viewangles);
 
-    if (cl.viewangles[PITCH] > cl_maxpitch.value)
-        cl.viewangles[PITCH] = cl_maxpitch.value;
-    if (cl.viewangles[PITCH] < cl_minpitch.value)
-        cl.viewangles[PITCH] = cl_minpitch.value;
+        cmd->forwardmove = in_usercmd.forwardmove;
+        cmd->sidemove = in_usercmd.sidemove;
+        cmd->upmove = in_usercmd.upmove;
+
+        in_override_usercmd = false;
+    } else {
+        cl.viewangles[YAW] = in_viewangle[YAW];
+        cl.viewangles[PITCH] = in_viewangle[PITCH];
+
+        if (cl.viewangles[PITCH] > cl_maxpitch.value)
+            cl.viewangles[PITCH] = cl_maxpitch.value;
+        if (cl.viewangles[PITCH] < cl_minpitch.value)
+            cl.viewangles[PITCH] = cl_minpitch.value;
+    }
 }
 
 
@@ -386,6 +394,19 @@ set_angle(float yaw, float pitch)
 
 
 void
+set_usercmd(vec3_t view_angle, float fmove, float smove, float upmove)
+{
+    VectorCopy(view_angle, in_usercmd.viewangles);
+
+    in_usercmd.forwardmove = fmove;
+    in_usercmd.sidemove = smove;
+    in_usercmd.upmove = upmove;
+
+    in_override_usercmd = true;
+}
+
+
+void
 do_frame(void)
 {
     Host_Frame(0.);     // Time argument should be ignored
@@ -425,7 +446,7 @@ read_player_info(vec3_t pos, vec3_t vel, vec3_t view_angle, qboolean *jump_relea
 }
 
 
-int
+void
 check_intermission(int *intermission, double *completed_time)
 {
     *intermission = cl.intermission;
