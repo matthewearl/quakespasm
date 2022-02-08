@@ -100,6 +100,9 @@ typedef struct entity_s
 	vec3_t					currentangles;	//johnfitz -- transform lerping
 
 	lightcache_t			lightcache;		// alias light trace cache
+
+	float					traildelay;		// time left until next particle trail update
+	vec3_t					trailorg;		// previous particle trail point
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
