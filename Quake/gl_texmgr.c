@@ -296,11 +296,17 @@ static void TexMgr_Imagelist_f (void)
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
-		Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, glt->name);
-		if (glt->flags & TEXPREF_MIPMAP)
-			texels += glt->width * glt->height * 4.0f / 3.0f;
+		const char *mipstr = glt->flags & TEXPREF_MIPMAP ? "m" : " ";
+		unsigned int layers = glt->flags & TEXPREF_CUBEMAP ? glt->depth * 6 : glt->depth;
+		unsigned int s = glt->width * glt->height * layers;
+
+		if (layers > 1)
+			Con_SafePrintf ("%3i x %4i x %4i %s %s\n", layers, glt->width, glt->height, mipstr, glt->name);
 		else
-			texels += (glt->width * glt->height);
+			Con_SafePrintf ("      %4i x %4i %s %s\n", glt->width, glt->height, mipstr, glt->name);
+		if (glt->flags & TEXPREF_MIPMAP)
+			s = (s * 4 + 3) / 3;
+		texels += s;
 	}
 
 	mb = texels * (Cvar_VariableValue("vid_bpp") / 8.0f) / 0x100000;
