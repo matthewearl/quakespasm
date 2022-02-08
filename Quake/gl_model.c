@@ -2646,7 +2646,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	daliasskininterval_t	*pinskinintervals;
 	char			fbr_mask_name[MAX_QPATH]; //johnfitz -- added for fullbright support
 	src_offset_t		offset; //johnfitz
-	unsigned int		texflags = TEXPREF_PAD | TEXPREF_MIPMAP;
+	unsigned int		texflags = TEXPREF_PAD;
 
 	skin = (byte *)(pskintype + 1);
 
