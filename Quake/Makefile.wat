@@ -1,4 +1,4 @@
-# makefile to build quakespasm.exe for Windows using Open Watcom:
+# makefile to build ironwail.exe for Windows using Open Watcom:
 # wmake -f OWMakefile.win32
 
 ### Enable/disable SDL2
@@ -115,7 +115,7 @@ LIBS = $(CODECLIBS) $(SDL_LIBS) $(COMMON_LIBS) $(NET_LIBS)
 # targets
 # ---------------------------
 
-all: quakespasm.exe
+all: ironwail.exe
 
 # ---------------------------
 # rules
@@ -232,8 +232,8 @@ OBJS = strlcat.obj &
 # ------------------------
 
 # 1 MB stack size.
-quakespasm.exe: $(OBJS) quakespasm.res
+ironwail.exe: $(OBJS) quakespasm.res
 	wlink N $@ SYS NT_WIN OPTION q OPTION STACK=0x100000 OPTION RESOURCE=$^*.res LIBR {$(LIBS)} F {$(OBJS)}
 
 clean: .symbolic
-	rm -f *.obj *.res *.err quakespasm.exe
+	rm -f *.obj *.res *.err ironwail.exe
