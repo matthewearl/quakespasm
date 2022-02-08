@@ -743,7 +743,7 @@ int TexMgr_SafeTextureSize (int s)
 {
 	if ((int)gl_max_size.value > 0)
 		s = q_min(TexMgr_Pad((int)gl_max_size.value), s);
-	s = q_min(gl_max_texture_size, s);
+	s = CLAMP(1, s, gl_max_texture_size);
 	return s;
 }
 
