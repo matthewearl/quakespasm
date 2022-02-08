@@ -136,15 +136,10 @@ typedef struct
 	int			flags;
 } mtexinfo_t;
 
-#define	VERTEXSIZE	7
-
-typedef struct glpoly_s
-{
-	struct	glpoly_s	*next;
-	struct	glpoly_s	*chain;
-	int		numverts;
-	float	verts[4][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
-} glpoly_t;
+typedef struct glvert_s {
+	vec3_t		pos;
+	float		st[4];
+} glvert_t;
 
 typedef struct msurface_s
 {

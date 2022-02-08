@@ -553,7 +553,7 @@ void GL_BuildBModelVertexBuffer (void)
 	unsigned int	numverts, varray_bytes, varray_index;
 	int			i, j, k;
 	qmodel_t	*m;
-	float		*varray;
+	glvert_t	*varray;
 	float		lmscalex = 1.f / 16.f / lightmap_width;
 	float		lmscaley = 1.f / 16.f / lightmap_height;
 
@@ -576,8 +576,8 @@ void GL_BuildBModelVertexBuffer (void)
 	}
 	
 // build vertex array
-	varray_bytes = VERTEXSIZE * sizeof(float) * numverts;
-	varray = (float *) malloc (varray_bytes);
+	varray_bytes = sizeof (glvert_t) * numverts;
+	varray = (glvert_t *) malloc (varray_bytes);
 	varray_index = 0;
 	
 	for (j=1 ; j<MAX_MODELS ; j++)
@@ -590,7 +590,7 @@ void GL_BuildBModelVertexBuffer (void)
 		{
 			msurface_t	*fa = &m->surfaces[i];
 			texture_t	*texture = m->textures[fa->texinfo->texnum];
-			float		*verts = &varray[VERTEXSIZE * varray_index];
+			glvert_t	*vert = &varray[varray_index];
 			float		texscalex, texscaley, useofs;
 			medge_t		*r_pedge;
 			lightmap_t	*lm;
@@ -625,7 +625,7 @@ void GL_BuildBModelVertexBuffer (void)
 			fa->vbo_firstvert = varray_index;
 			varray_index += fa->numedges;
 
-			for (k = 0; k < fa->numedges; k++, verts += VERTEXSIZE)
+			for (k = 0; k < fa->numedges; k++, vert++)
 			{
 				float	*vec;
 				float	s, t;
@@ -649,9 +649,9 @@ void GL_BuildBModelVertexBuffer (void)
 				t = DotProduct (vec, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3] * useofs;
 				t *= texscaley;
 
-				VectorCopy (vec, verts);
-				verts[3] = s;
-				verts[4] = t;
+				VectorCopy (vec, vert->pos);
+				vert->st[0] = s;
+				vert->st[1] = t;
 
 				if (!(fa->flags & SURF_DRAWTILED))
 				{
@@ -660,8 +660,8 @@ void GL_BuildBModelVertexBuffer (void)
 					// Q64 RERELEASE texture shift
 					if (texture->shift > 0)
 					{
-						verts[3] /= (2 * texture->shift);
-						verts[4] /= (2 * texture->shift);
+						vert->st[0] /= (2 * texture->shift);
+						vert->st[1] /= (2 * texture->shift);
 					}
 
 					//
@@ -679,14 +679,14 @@ void GL_BuildBModelVertexBuffer (void)
 					t += 8;
 					t *= lmscaley;
 
-					verts[5] = s;
-					verts[6] = t;
+					vert->st[2] = s;
+					vert->st[3] = t;
 				}
 				else
 				{
 					// first lightmap texel is fullbright
-					verts[5] = 0.5f / lightmap_width;
-					verts[6] = 0.5f / lightmap_height;
+					vert->st[2] = 0.5f / lightmap_width;
+					vert->st[3] = 0.5f / lightmap_height;
 				}
 			}
 		}
