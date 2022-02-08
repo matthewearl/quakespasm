@@ -309,7 +309,7 @@ static void TexMgr_Imagelist_f (void)
 		texels += s;
 	}
 
-	mb = texels * (Cvar_VariableValue("vid_bpp") / 8.0f) / 0x100000;
+	mb = texels * 4 / 0x100000;
 	Con_Printf ("%i textures %i pixels %1.1f megabytes\n", numgltextures, (int)texels, mb);
 }
 
