@@ -454,7 +454,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		fb = t->fullbright;
 		if (r_lightmap_cheatsafe)
 			tx = fb = NULL;
-		if (!gl_fullbrights.value)
+		if (!gl_fullbrights.value && t->type != TEXTYPE_SKY)
 			fb = NULL;
 	}
 	else
