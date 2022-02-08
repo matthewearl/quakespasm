@@ -330,6 +330,9 @@ GL_PackLitSurfaces
 static void GL_PackLitSurfaces (void)
 {
 	int			i, j, k, pass, bins[256];
+	int			maxblack[2] = {0, 0};
+	int			blackofs[2];
+	int			blacklm;
 	msurface_t *surf;
 
 	// generate surface list
@@ -344,11 +347,18 @@ static void GL_PackLitSurfaces (void)
 		{
 			if (surf->flags & SURF_DRAWTILED)
 				continue;
+			if (!surf->samples)
+			{
+				maxblack[0] = q_max (maxblack[0], surf->extents[0]>>4);
+				maxblack[1] = q_max (maxblack[1], surf->extents[1]>>4);
+			}
 			// use light_s temporarily as a sort key
 			surf->light_s = Interleave (surf->extents[0]>>4, surf->extents[1]>>4) ^ 0xffffu;
 			VEC_PUSH (lit_surfs, surf);
 		}
 	}
+
+	blacklm = AllocBlock (maxblack[0]+1, maxblack[1]+1, &blackofs[0], &blackofs[1]);
 
 	lit_surf_order[0] = (int *) realloc (lit_surf_order[0], sizeof (lit_surf_order[0][0]) * VEC_SIZE (lit_surfs));
 	lit_surf_order[1] = (int *) realloc (lit_surf_order[1], sizeof (lit_surf_order[1][0]) * VEC_SIZE (lit_surfs));
@@ -394,7 +404,19 @@ static void GL_PackLitSurfaces (void)
 
 	// pack surfaces in sort order
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
-		GL_AllocSurfaceLightmap (lit_surfs[lit_surf_order[0][i]]);
+	{
+		surf = lit_surfs[lit_surf_order[0][i]];
+		if (surf->samples)
+		{
+			GL_AllocSurfaceLightmap (surf);
+		}
+		else
+		{
+			surf->lightmaptexturenum = blacklm;
+			surf->light_s = blackofs[0];
+			surf->light_t = blackofs[1];
+		}
+	}
 }
 
 /*
