@@ -362,7 +362,8 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "};\n"\
 "const uint\n"\
 "	CF_USE_POLYGON_OFFSET = 1u,\n"\
-"	CF_USE_FULLBRIGHT = 2u\n"\
+"	CF_USE_FULLBRIGHT = 2u,\n"\
+"	CF_NOLIGHTMAP = 4u\n"\
 ";\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer CallBuffer\n"\
@@ -402,6 +403,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 #define WORLD_VERTEX_BUFFER \
 "layout(location=0) in vec3 in_pos;\n"\
 "layout(location=1) in vec4 in_uv;\n"\
+"layout(location=2) in ivec4 in_styles;\n"\
 "\n"\
 
 ////////////////////////////////////////////////////////////////
@@ -429,8 +431,6 @@ LIGHT_BUFFER
 WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
-"\n"
-"layout(binding=3) uniform sampler2D LightmapStyles;\n"
 "\n"
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
@@ -472,17 +472,18 @@ WORLD_VERTEX_BUFFER
 "#else\n"
 "	out_alpha = instance.alpha < 0.0 ? 1.0 : instance.alpha;\n"
 "#endif\n"
-"	vec4 styles = textureLod(LightmapStyles, in_uv.zw, 0.);\n"
-"	out_styles.x = GetLightStyle(int(styles.x * 255. + .5));\n"
-"	if (styles.y > 0.5)\n"
+"	out_styles.x = GetLightStyle(in_styles.x);\n"
+"	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
 "	else\n"
 "		out_styles.yzw = vec3\n"
 "		(\n"
-"			GetLightStyle(int(styles.y * 255. + .5)),\n"
-"			GetLightStyle(int(styles.z * 255. + .5)),\n"
-"			GetLightStyle(int(styles.w * 255. + .5))\n"
+"			GetLightStyle(in_styles.y),\n"
+"			GetLightStyle(in_styles.z),\n"
+"			GetLightStyle(in_styles.w)\n"
 "		);\n"
+"	if ((call.flags & CF_NOLIGHTMAP) != 0u)\n"
+"		out_styles.xy = vec2(1., -1.);\n"
 "#if BINDLESS\n"
 "	out_samplers.xy = call.txhandle;\n"
 "	if ((call.flags & CF_USE_FULLBRIGHT) != 0u)\n"

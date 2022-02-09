@@ -159,6 +159,7 @@ extern	qboolean	gl_clipcontrol_able;
 	x(void,			EnableVertexAttribArray, (GLuint index))\
 	x(void,			DisableVertexAttribArray, (GLuint index))\
 	x(void,			VertexAttribPointer, (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer))\
+	x(void,			VertexAttribIPointer, (GLuint index, GLint size, GLenum type, GLsizei stride, const GLvoid *pointer))\
 	x(GLint,		GetUniformLocation, (GLuint program, const GLchar *name))\
 	x(void,			GetActiveUniform, (GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name))\
 	x(void,			Uniform1i, (GLint location, GLint v0))\

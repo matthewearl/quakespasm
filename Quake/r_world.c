@@ -28,7 +28,6 @@ extern cvar_t gl_fullbrights, gl_overbright, r_oldskyleaf, r_showtris; //johnfit
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 extern gltexture_t *lightmap_texture;
-extern gltexture_t *lightmap_styles_texture;
 extern gltexture_t *skybox_cubemap;
 
 extern GLuint gl_bmodel_vbo;
@@ -409,6 +408,7 @@ static void R_FlushBModelCalls (void)
 	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, gl_bmodel_cmdbuf);
 	GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, pos));
 	GL_VertexAttribPointerFunc (1, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, st));
+	GL_VertexAttribIPointerFunc (2, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
 
 	if (gl_bindless_able)
 	{
@@ -465,7 +465,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	if (!gl_zfix.value)
 		zfix = 0;
 
-	flags = zfix | ((fb != NULL) << 1);
+	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != FALSE) << 2);
 	alpha = t ? GL_WaterAlphaForTextureType (t->type) : 1.f;
 
 	if (gl_bindless_able)
@@ -573,7 +573,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		return;
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(2);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(3);
 	if (ents[0] == cl_entities || ENTALPHA_OPAQUE (ents[0]->alpha))
 		state |= GLS_BLEND_OPAQUE;
 	else
@@ -582,14 +582,9 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
 	if (pass <= BP_ALPHATEST)
-	{
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? fbtexture : lightmap_texture);
-		GL_Bind (GL_TEXTURE3, r_fullbright_cheatsafe ? fbstylestexture : lightmap_styles_texture);
-	}
 	else if (pass == BP_SKYCUBEMAP)
-	{
 		GL_Bind (GL_TEXTURE2, skybox_cubemap);
-	}
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * count, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
@@ -669,7 +664,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GL_BeginGroup (translucent ? "Water (translucent)" : "Water (opaque)");
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(2);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(3);
 	if (translucent)
 		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
 	else

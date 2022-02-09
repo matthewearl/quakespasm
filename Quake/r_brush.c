@@ -44,9 +44,8 @@ msurface_t		**lit_surfs;
 int				*lit_surf_order[2];
 int				num_lightmap_samples;
 unsigned		*lightmap_data;
-unsigned		*lightmap_layers[MAXLIGHTMAPS];
+unsigned		*lightmap_layers[3];
 gltexture_t		*lightmap_texture;
-gltexture_t		*lightmap_styles_texture;
 int				lightmap_width;
 int				lightmap_height;
 
@@ -240,7 +239,7 @@ static void GL_FillSurfaceLightmap (msurface_t *surf)
 	int			xofs, yofs;
 	int			map;
 	byte		*src;
-	unsigned	*dst, styles;
+	unsigned	*dst;
 	int			s, t, facesize, layersize;
 
 	if (!cl.worldmodel->lightdata || !surf->samples || surf->styles[0] == 255)
@@ -259,19 +258,12 @@ static void GL_FillSurfaceLightmap (msurface_t *surf)
 
 	if (surf->styles[1] == 255) // single lightstyle
 	{
-		styles = surf->styles[0] | 0xffffff00u;
 		for (t = 0; t < tmax; t++, dst += lightmap_width)
-		{
 			for (s = 0; s < smax; s++, src += 3)
-			{
-				dst[s                ] = src[0] | (src[1] << 8) | (src[2] << 16) | 0xff000000u;
-				dst[s + layersize * 3] = styles;
-			}
-		}
+				dst[s] = src[0] | (src[1] << 8) | (src[2] << 16) | 0xff000000u;
 	}
 	else
 	{
-		styles = surf->styles[0] | (surf->styles[1] << 8) | (surf->styles[2] << 16) | (surf->styles[3] << 24);
 		for (t = 0; t < tmax; t++, dst += lightmap_width)
 		{
 			for (s = 0; s < smax; s++, src += 3)
@@ -287,7 +279,6 @@ static void GL_FillSurfaceLightmap (msurface_t *surf)
 				dst[s                ] = r;
 				dst[s + layersize    ] = g;
 				dst[s + layersize * 2] = b;
-				dst[s + layersize * 3] = styles;
 			}
 		}
 	}
@@ -314,7 +305,6 @@ static void GL_FreeLightmapData (void)
 	VEC_CLEAR (lit_surfs);
 
 	lightmap_texture = NULL; // freed by the texture manager
-	lightmap_styles_texture = NULL;
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
 	lightmap_width = 0;
@@ -476,12 +466,10 @@ void GL_BuildLightmaps (void)
 		(MAXLIGHTMAPS * lightmap_bytes * lmsize) / (float)0x100000, 100.0 * num_lightmap_samples / (MAXLIGHTMAPS * lmsize)
 	);
 
-	lightmap_data = (unsigned *) calloc (MAXLIGHTMAPS * lmsize, sizeof (*lightmap_data));
+	lightmap_data = (unsigned *) calloc (lmsize * countof (lightmap_layers), sizeof (*lightmap_data));
 
 	for (i = 0 ; i < countof (lightmap_layers); i++)
 		lightmap_layers[i] = lightmap_data + lmsize * i;
-	for (i = 0; i < lmsize; i++)
-		lightmap_layers[3][i] = 0xffffff00u; // fill styles layer with fast-path value
 
 	// compute offsets for each lightmap block
 	for (i=0; i<lightmap_count; i++)
@@ -498,14 +486,8 @@ void GL_BuildLightmaps (void)
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 		GL_FillSurfaceLightmap (lit_surfs[i]);
 
-	lightmap_styles_texture = 
-		TexMgr_LoadImage (cl.worldmodel, "lightmapstyles", lightmap_width, lightmap_height,
-			SRC_LIGHTMAP, (byte *)lightmap_layers[3], "", (src_offset_t)lightmap_layers[3],
-			TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP
-		);
-
 	lightmap_texture =
-		TexMgr_LoadImageEx (cl.worldmodel, "lightmap", lightmap_width, lightmap_height, 3,
+		TexMgr_LoadImageEx (cl.worldmodel, "lightmap", lightmap_width, lightmap_height, countof (lightmap_layers),
 			SRC_LIGHTMAP, (byte *)lightmap_layers, "", (src_offset_t)lightmap_layers,
 			TEXPREF_ARRAY | TEXPREF_ALPHA | TEXPREF_LINEAR | TEXPREF_NOPICMIP
 		);
@@ -703,12 +685,14 @@ void GL_BuildBModelVertexBuffer (void)
 
 					vert->st[2] = s;
 					vert->st[3] = t;
+					vert->styles = fa->styles[0] | (fa->styles[1] << 8) | (fa->styles[2] << 16) | (fa->styles[3] << 24);
 				}
 				else
 				{
 					// first lightmap texel is fullbright
 					vert->st[2] = 0.5f / lightmap_width;
 					vert->st[3] = 0.5f / lightmap_height;
+					vert->styles = ~0u;
 				}
 			}
 		}

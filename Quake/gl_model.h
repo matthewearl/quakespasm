@@ -139,6 +139,7 @@ typedef struct
 typedef struct glvert_s {
 	vec3_t		pos;
 	float		st[4];
+	unsigned	styles;
 } glvert_t;
 
 typedef struct msurface_s
