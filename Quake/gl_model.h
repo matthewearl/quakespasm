@@ -143,8 +143,6 @@ typedef struct glvert_s {
 
 typedef struct msurface_s
 {
-	int			visframe;		// should be drawn when node is crossed
-
 	mplane_t	*plane;
 	int			flags;
 
@@ -158,17 +156,10 @@ typedef struct msurface_s
 
 	mtexinfo_t	*texinfo;
 
-	int		vbo_firstvert;		// index of this surface's first vert in the VBO
-
-// lighting info
-	int			dlightframe;
-	unsigned int		dlightbits[(MAX_DLIGHTS + 31) >> 5];
-		// int is 32 bits, need an array for MAX_DLIGHTS > 32
+	int			vbo_firstvert;		// index of this surface's first vert in the VBO
 
 	int			lightmaptexturenum;
 	byte		styles[MAXLIGHTMAPS];
-	int			cached_light[MAXLIGHTMAPS];	// values currently used in lightmap
-	qboolean	cached_dlight;				// true if dynamic light in cache
 	byte		*samples;		// [numstyles*surfsize]
 } msurface_t;
 
