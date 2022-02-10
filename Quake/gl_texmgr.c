@@ -44,6 +44,7 @@ gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktextur
 
 unsigned int d_8to24table[256];
 unsigned int d_8to24table_fbright[256];
+unsigned int d_8to24table_alphabright[256];
 unsigned int d_8to24table_fbright_fence[256];
 unsigned int d_8to24table_nobright[256];
 unsigned int d_8to24table_nobright_fence[256];
@@ -333,8 +334,8 @@ static void TexMgr_Imagedump_f (void)
 	//loop through textures
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
-		int channels = (glt->flags & TEXPREF_ALPHA) ? 4 : 3;
-		int format   = (glt->flags & TEXPREF_ALPHA) ? GL_RGBA : GL_RGB;
+		int channels = (glt->flags & TEXPREF_HASALPHA) ? 4 : 3;
+		int format   = (glt->flags & TEXPREF_HASALPHA) ? GL_RGBA : GL_RGB;
 
 		q_strlcpy (tempname, glt->name, sizeof(tempname));
 		for (c = tempname; *c; ++c)
@@ -589,6 +590,17 @@ void TexMgr_LoadPalette (void)
 		*dst++ = 255;
 	}
 	((byte *) &d_8to24table[255]) [3] = 0;
+
+	//palette with lighting mask in alpha channel (0=fullbright, 1=lit)
+	dst = (byte *)d_8to24table_alphabright;
+	src = pal;
+	for (i = 0; i < 256; i++)
+	{
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = (i < 224) ? 255 : 0;
+	}
 
 	//fullbright palette, 0-223 are black (for additive blending)
 	src = pal + 224*3;
@@ -1141,7 +1153,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	// upload
 	GL_Bind (GL_TEXTURE0, glt);
-	internalformat = (glt->flags & TEXPREF_ALPHA) ? gl_alpha_format : gl_solid_format;
+	internalformat = (glt->flags & TEXPREF_HASALPHA) ? gl_alpha_format : gl_solid_format;
 	GL_TexImage (glt, 0, internalformat, glt->width, glt->height, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
 	// upload mipmaps
@@ -1212,7 +1224,12 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// choose palette and padbyte
-	if (glt->flags & TEXPREF_FULLBRIGHT)
+	if (glt->flags & TEXPREF_ALPHABRIGHT)
+	{
+		usepal = gl_fullbrights.value ? d_8to24table_alphabright : d_8to24table;
+		padbyte = 0;
+	}
+	else if (glt->flags & TEXPREF_FULLBRIGHT)
 	{
 		if (glt->flags & TEXPREF_ALPHA)
 			usepal = d_8to24table_fbright_fence;
@@ -1514,6 +1531,17 @@ invalid:	Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
 //
 // upload it
 //
+	if (glt->texnum)
+	{
+		if (glt->bindless_handle)
+		{
+			GL_MakeTextureHandleNonResidentARBFunc (glt->bindless_handle);
+			glt->bindless_handle = 0;
+		}
+		GL_DeleteNativeTexture (glt->texnum);
+		glGenTextures (1, &glt->texnum);
+	}
+
 	switch (glt->source_format)
 	{
 	case SRC_INDEXED:
@@ -1577,7 +1605,7 @@ void TexMgr_ReloadNobrightImages (void)
 	gltexture_t *glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)
-		if (glt->flags & TEXPREF_NOBRIGHT)
+		if (glt->flags & (TEXPREF_NOBRIGHT|TEXPREF_ALPHABRIGHT))
 			TexMgr_ReloadImage(glt, -1, -1);
 }
 
