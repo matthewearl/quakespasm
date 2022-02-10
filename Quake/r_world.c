@@ -408,7 +408,8 @@ static void R_FlushBModelCalls (void)
 	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, gl_bmodel_cmdbuf);
 	GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, pos));
 	GL_VertexAttribPointerFunc (1, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, st));
-	GL_VertexAttribIPointerFunc (2, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
+	GL_VertexAttribPointerFunc (2, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, lmofs));
+	GL_VertexAttribIPointerFunc (3, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
 
 	if (gl_bindless_able)
 	{
@@ -573,7 +574,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		return;
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(3);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
 	if (ents[0] == cl_entities || ENTALPHA_OPAQUE (ents[0]->alpha))
 		state |= GLS_BLEND_OPAQUE;
 	else
@@ -582,7 +583,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
 	if (pass <= BP_ALPHATEST)
-		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? fbtexture : lightmap_texture);
+		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 	else if (pass == BP_SKYCUBEMAP)
 		GL_Bind (GL_TEXTURE2, skybox_cubemap);
 
@@ -664,7 +665,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GL_BeginGroup (translucent ? "Water (translucent)" : "Water (opaque)");
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(3);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
 	if (translucent)
 		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
 	else
