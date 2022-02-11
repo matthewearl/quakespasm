@@ -214,27 +214,11 @@ GL_NumLightmapTaps
 */
 static int GL_NumLightmapTaps (const msurface_t *surf)
 {
-	if (!surf->samples || surf->styles[0] == 255)
-		return 0;
 	if (surf->styles[1] == 255)
 		return 1;
 	if (surf->styles[2] == 255)
 		return 2;
 	return 3;
-}
-
-/*
-========================
-GL_AllocSurfaceLightmap
-========================
-*/
-static void GL_AllocSurfaceLightmap (msurface_t *surf)
-{
-	int smax = (surf->extents[0]>>4)+1;
-	int tmax = (surf->extents[1]>>4)+1;
-	smax *= GL_NumLightmapTaps (surf);
-	surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
-	num_lightmap_samples += smax * tmax;
 }
 
 /*
@@ -422,10 +406,17 @@ static void GL_PackLitSurfaces (void)
 	// pack surfaces in sort order
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 	{
+		int smax, tmax;
+
 		surf = lit_surfs[lit_surf_order[0][i]];
+		smax = (surf->extents[0]>>4)+1;
+		tmax = (surf->extents[1]>>4)+1;
+		smax *= GL_NumLightmapTaps (surf);
+		num_lightmap_samples += smax * tmax;
+
 		if (surf->samples)
 		{
-			GL_AllocSurfaceLightmap (surf);
+			surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
 		}
 		else
 		{
@@ -488,7 +479,7 @@ void GL_BuildLightmaps (void)
 
 	Con_DPrintf (
 		"Lightmap size:   %d x %d (%d/%d blocks)\n"
-		"Lightmap memory: %.1lf MB (%.1lf%% used)\n",
+		"Lightmap memory: %.1lf MB (%.1lf%% efficiency)\n",
 		lightmap_width, lightmap_height, lightmap_count, xblocks * yblocks,
 		(lightmap_bytes * lmsize) / (float)0x100000, 100.0 * num_lightmap_samples / lmsize
 	);
