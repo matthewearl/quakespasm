@@ -116,7 +116,7 @@ static void Chart_Init (chart_t *chart, int width, int height)
 Chart_Add
 ==================
 */
-static qboolean Chart_Add (chart_t *chart, int w, int h, int *outx, int *outy)
+static qboolean Chart_Add (chart_t *chart, int w, int h, short *outx, short *outy)
 {
 	int i, x, y;
 	if (chart->width < w || chart->height < h)
@@ -170,7 +170,7 @@ static qboolean Chart_Add (chart_t *chart, int w, int h, int *outx, int *outy)
 AllocBlock -- returns a texture number and the position inside it
 ========================
 */
-static int AllocBlock (int w, int h, int *x, int *y)
+static int AllocBlock (int w, int h, short *x, short *y)
 {
 	int		texnum;
 
@@ -325,7 +325,7 @@ static void GL_PackLitSurfaces (void)
 {
 	int			i, j, k, pass, bins[256];
 	int			maxblack[2] = {0, 0};
-	int			blackofs[2];
+	short		blackofs[2];
 	int			blacklm;
 	msurface_t *surf;
 

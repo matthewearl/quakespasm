@@ -148,21 +148,19 @@ typedef struct msurface_s
 	mplane_t	*plane;
 	int			flags;
 
-	int			firstedge;	// look up in model->surfedges[], negative numbers
-	int			numedges;	// are backwards edges
+	int			vbo_firstvert;		// index of this surface's first vert in the VBO
+	int			firstedge;			// look up in model->surfedges[], negative numbers
+	short		numedges;			// are backwards edges
+
+	short		lightmaptexturenum;
+	short		extents[2];
+	short		light_s, light_t;	// gl lightmap coordinates
+
+	byte		styles[MAXLIGHTMAPS];
+	byte		*samples;			// [numstyles*surfsize]
 
 	int			texturemins[2];
-	short		extents[2];
-
-	int			light_s, light_t;	// gl lightmap coordinates
-
 	mtexinfo_t	*texinfo;
-
-	int			vbo_firstvert;		// index of this surface's first vert in the VBO
-
-	int			lightmaptexturenum;
-	byte		styles[MAXLIGHTMAPS];
-	byte		*samples;		// [numstyles*surfsize]
 } msurface_t;
 
 typedef struct mnode_s
