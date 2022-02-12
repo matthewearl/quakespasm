@@ -57,9 +57,10 @@ typedef struct gltexture_s {
 	qmodel_t		*owner;
 //managed by image loading
 	char			name[64];
-	unsigned int		width; //size of image as it exists in opengl
-	unsigned int		height; //size of image as it exists in opengl
-	unsigned int		depth; //size of image as it exists in opengl
+	unsigned short		width; //size of image as it exists in opengl
+	unsigned short		height; //size of image as it exists in opengl
+	unsigned short		depth; //size of image as it exists in opengl
+	unsigned char		compression; //compression rate (1 = uncompressed)
 	unsigned int		flags;
 	char			source_file[MAX_QPATH]; //relative filepath to data source, or "" if source is in memory
 	src_offset_t		source_offset; //byte offset into file, or memory address

@@ -164,8 +164,11 @@ cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from 
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
 
 void TexMgr_Anisotropy_f (cvar_t *var);
+void TexMgr_CompressTextures_f (cvar_t *var);
+
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t gl_texturemode;
+extern cvar_t gl_compress_textures;
 extern cvar_t r_particles;
 extern cvar_t r_dynamic;
 extern cvar_t host_maxfps;
@@ -1372,6 +1375,7 @@ void	VID_Init (void)
 		"vid_desktopfullscreen",
 		"vid_borderless",
 		"gl_texture_anisotropy",
+		"gl_compress_textures",
 	};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
@@ -1396,6 +1400,9 @@ void	VID_Init (void)
 
 	Cvar_RegisterVariable (&gl_texture_anisotropy);
 	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
+
+	Cvar_RegisterVariable (&gl_compress_textures);
+	Cvar_SetCallback (&gl_compress_textures, TexMgr_CompressTextures_f);
 
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz

@@ -25,14 +25,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "glquake.h"
 
-const int	gl_solid_format = GL_RGB;
-const int	gl_alpha_format = GL_RGBA;
+typedef struct {
+	GLenum		id;
+	int			ratio;
+} glformat_t;
+
+static const struct {
+	glformat_t	solid, alpha;
+} glformats[2] = {
+	{{GL_RGB, 1},							{GL_RGBA, 1}},
+	{{GL_COMPRESSED_RGBA_BPTC_UNORM, 4},	{GL_COMPRESSED_RGBA_BPTC_UNORM, 4}},
+};
 
 static cvar_t	r_softemu = {"r_softemu", "0", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 cvar_t			gl_texturemode = {"gl_texturemode", "", CVAR_ARCHIVE};
 cvar_t			gl_texture_anisotropy = {"gl_texture_anisotropy", "8", CVAR_ARCHIVE};
+cvar_t			gl_compress_textures = {"gl_compress_textures", "0", CVAR_ARCHIVE};
 GLint			gl_max_texture_size;
 
 softemu_t		softemu;
@@ -51,6 +61,8 @@ unsigned int d_8to24table_nobright_fence[256];
 unsigned int d_8to24table_conchars[256];
 unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
+
+static void GL_DeleteTexture (gltexture_t *texture);
 
 /*
 ================================================================================
@@ -290,27 +302,28 @@ TexMgr_Imagelist_f -- report loaded textures
 */
 static void TexMgr_Imagelist_f (void)
 {
-	float mb;
-	float texels = 0;
+	double bytes = 0;
+	double texels = 0;
 	gltexture_t	*glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
-		const char *mipstr = glt->flags & TEXPREF_MIPMAP ? "m" : " ";
+		char mip = glt->flags & TEXPREF_MIPMAP ? 'm' : ' ';
+		char comp = glt->compression > 1 ? 'c' : ' ';
 		unsigned int layers = glt->flags & TEXPREF_CUBEMAP ? glt->depth * 6 : glt->depth;
 		unsigned int s = glt->width * glt->height * layers;
 
 		if (layers > 1)
-			Con_SafePrintf ("%3i x %4i x %4i %s %s\n", layers, glt->width, glt->height, mipstr, glt->name);
+			Con_SafePrintf ("%3i x %4i x %4i %c%c %s\n", layers, glt->width, glt->height, comp, mip, glt->name);
 		else
-			Con_SafePrintf ("      %4i x %4i %s %s\n", glt->width, glt->height, mipstr, glt->name);
+			Con_SafePrintf ("      %4i x %4i %c%c %s\n", glt->width, glt->height, comp, mip, glt->name);
 		if (glt->flags & TEXPREF_MIPMAP)
 			s = (s * 4 + 3) / 3;
 		texels += s;
+		bytes += s * 4 / glt->compression;
 	}
 
-	mb = texels * 4 / 0x100000;
-	Con_Printf ("%i textures %i pixels %1.1f megabytes\n", numgltextures, (int)texels, mb);
+	Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n", numgltextures, texels * 1e-6, bytes / 0x100000);
 }
 
 /*
@@ -397,6 +410,39 @@ float TexMgr_FrameUsage (void)
 }
 
 /*
+===============
+TexMgr_CanCompress
+===============
+*/
+static qboolean TexMgr_CanCompress (gltexture_t *glt)
+{
+	return glt->source_format != SRC_LIGHTMAP && (glt->flags & TEXPREF_PERSIST) == 0;
+}
+
+/*
+===============
+TexMgr_CompressTextures_f -- called when gl_compress_textures changes
+===============
+*/
+void TexMgr_CompressTextures_f (cvar_t *var)
+{
+	qboolean compress = var->value != 0.f;
+	gltexture_t	*glt;
+
+	Con_SafePrintf ("Using %s textures\n", "uncompressed" + 2 * compress);
+
+	// In an attempt to reduce VRAM fragmentation, instead of unloading and reloading
+	// each texture sequentially, we first unload them all, then reload them
+	for (glt = active_gltextures; glt; glt = glt->next)
+		if (TexMgr_CanCompress (glt))
+			GL_DeleteTexture (glt);
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+		if (TexMgr_CanCompress (glt))
+			TexMgr_ReloadImage (glt, -1, -1);
+}
+
+/*
 ================================================================================
 
 	TEXTURE MANAGER
@@ -446,8 +492,6 @@ gltexture_t *TexMgr_NewTexture (void)
 	numgltextures++;
 	return glt;
 }
-
-static void GL_DeleteTexture (gltexture_t *texture);
 
 //ericw -- workaround for preventing TexMgr_FreeTexture during TexMgr_ReloadImages
 static qboolean in_reload_images;
@@ -1130,7 +1174,9 @@ TexMgr_LoadImage32 -- handles 32bit source data
 */
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
-	int	internalformat,	miplevel, mipwidth, mipheight, picmip;
+	int	miplevel, mipwidth, mipheight, picmip;
+	glformat_t internalformat;
+	qboolean compress;
 
 	// mipmap down
 	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
@@ -1152,9 +1198,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	}
 
 	// upload
+	compress = gl_compress_textures.value && TexMgr_CanCompress (glt);
+	internalformat = (glt->flags & TEXPREF_HASALPHA) ? glformats[compress].alpha : glformats[compress].solid;
+	glt->compression = internalformat.ratio;
 	GL_Bind (GL_TEXTURE0, glt);
-	internalformat = (glt->flags & TEXPREF_HASALPHA) ? gl_alpha_format : gl_solid_format;
-	GL_TexImage (glt, 0, internalformat, glt->width, glt->height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	GL_TexImage (glt, 0, internalformat.id, glt->width, glt->height, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
 	// upload mipmaps
 	if (glt->flags & TEXPREF_MIPMAP)
@@ -1180,7 +1228,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 					TexMgr_MipMapH (data, mipwidth, mipheight, glt->depth);
 					mipheight >>= 1;
 				}
-				GL_TexImage (glt, miplevel, internalformat, mipwidth, mipheight, GL_RGBA, GL_UNSIGNED_BYTE, data);
+				GL_TexImage (glt, miplevel, internalformat.id, mipwidth, mipheight, GL_RGBA, GL_UNSIGNED_BYTE, data);
 			}
 		}
 	}
@@ -1299,6 +1347,7 @@ TexMgr_LoadLightmap -- handles lightmap data
 static void TexMgr_LoadLightmap (gltexture_t *glt, byte *data)
 {
 	// upload it
+	glt->compression = 1;
 	GL_Bind (GL_TEXTURE0, glt);
 	GL_TexImage (glt, 0, GL_RGBA8, glt->width, glt->height, gl_lightmap_format, GL_UNSIGNED_BYTE, data);
 
@@ -1364,6 +1413,7 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 	glt->width = width;
 	glt->height = height;
 	glt->depth = depth;
+	glt->compression = 1;
 	glt->flags = flags;
 	glt->shirt = -1;
 	glt->pants = -1;
@@ -1531,16 +1581,8 @@ invalid:	Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
 //
 // upload it
 //
-	if (glt->texnum)
-	{
-		if (glt->bindless_handle)
-		{
-			GL_MakeTextureHandleNonResidentARBFunc (glt->bindless_handle);
-			glt->bindless_handle = 0;
-		}
-		GL_DeleteNativeTexture (glt->texnum);
-		glGenTextures (1, &glt->texnum);
-	}
+	GL_DeleteTexture (glt);
+	glGenTextures (1, &glt->texnum);
 
 	switch (glt->source_format)
 	{
@@ -1730,6 +1772,8 @@ GL_DeleteTexture -- ericw
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
+	if (!texture->texnum)
+		return;
 	if (texture->bindless_handle)
 	{
 		GL_MakeTextureHandleNonResidentARBFunc (texture->bindless_handle);
