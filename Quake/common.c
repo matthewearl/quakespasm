@@ -2288,6 +2288,7 @@ static void COM_Game_f (void)
 		}
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();
+		SaveList_Rebuild ();
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
 

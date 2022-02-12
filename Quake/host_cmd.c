@@ -286,6 +286,37 @@ void DemoList_Init (void)
 	}
 }
 
+//==============================================================================
+//save list management
+//==============================================================================
+
+filelist_item_t	*savelist;
+
+static void SaveList_Clear (void)
+{
+	FileList_Clear (&savelist);
+}
+
+void SaveList_Rebuild (void)
+{
+	SaveList_Clear ();
+	SaveList_Init ();
+}
+
+void SaveList_Init (void)
+{
+	char		savename[32];
+	findfile_t *find;
+
+	for (find = Sys_FindFirst (com_gamedir, "sav"); find; find = Sys_FindNext (find))
+	{
+		if (find->attribs & FA_DIRECTORY)
+			continue;
+		COM_StripExtension (find->name, savename, sizeof (savename));
+		FileList_Add (savename, &savelist);
+	}
+}
+
 /*
 ==================
 Host_Mods_f -- johnfitz
@@ -1035,6 +1066,8 @@ static void Host_Savegame_f (void)
 	}
 	fclose (f);
 	Con_Printf ("done.\n");
+
+	SaveList_Rebuild ();
 }
 
 /*
