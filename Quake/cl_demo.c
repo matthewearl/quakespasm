@@ -276,7 +276,10 @@ void CL_Record_f (void)
 		track = -1;
 	}
 
-// start the map up
+	// save the demo name here, before potentially loading a new map (which would change argv[1])
+	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
+
+	// start the map up
 	if (c > 2)
 	{
 		Cmd_ExecuteString ( va("map %s", Cmd_Argv(2)), src_command);
@@ -285,7 +288,6 @@ void CL_Record_f (void)
 	}
 
 // open the demo file
-	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".dem", sizeof(relname));
 	Con_Printf ("recording to %s.\n", relname);
 
