@@ -149,25 +149,24 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 
 /*
 ====================
-GL_CreateProgram
-
-Compiles and returns GLSL program.
+GL_CreateProgramFromSources
 ====================
 */
-static FUNC_PRINTF(3,4) GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, const char *name, ...)
+static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, const GLenum *types, const char *name, va_list argptr)
 {
-	va_list argptr;
 	char macros[1024];
 	char eval[256];
-	char *pipe = strchr (name, '|');
-	GLuint shaders[2]; // vertex, fragment
+	char *pipe;
+	int i, realcount;
+	GLuint shaders[2];
 
-	va_start (argptr, name);
+	if (count <= 0 || count > 2)
+		Sys_Error ("GL_CreateProgramFromSources: invalid source count (%d)", count);
+
 	q_vsnprintf (eval, sizeof (eval), name, argptr);
-	va_end (argptr);
-
 	macros[0] = 0;
 
+	pipe = strchr (name, '|');
 	if (pipe) // parse symbol list and generate #defines
 	{
 		char *dst = macros;
@@ -198,11 +197,33 @@ static FUNC_PRINTF(3,4) GLuint GL_CreateProgram (const GLchar *vertSource, const
 
 	name = eval;
 
-	shaders[0] = GL_CreateShader (GL_VERTEX_SHADER, vertSource, macros, name);
-	if (fragSource)
-		shaders[1] = GL_CreateShader (GL_FRAGMENT_SHADER, fragSource, macros, name);
+	realcount = 0;
+	for (i = 0; i < count; i++)
+		if (sources[i])
+			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
 
-	return GL_CreateProgramFromShaders (shaders, fragSource ? 2 : 1, name);
+	return GL_CreateProgramFromShaders (shaders, realcount, name);
+}
+
+/*
+====================
+GL_CreateProgram
+
+Compiles and returns GLSL program.
+====================
+*/
+static FUNC_PRINTF(3,4) GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, const char *name, ...)
+{
+	const GLchar *sources[2] = {vertSource, fragSource};
+	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+	va_list argptr;
+	GLuint program;
+
+	va_start (argptr, name);
+	program = GL_CreateProgramFromSources (2, sources, types, name, argptr);
+	va_end (argptr);
+
+	return program;
 }
 
 /*
@@ -212,10 +233,17 @@ GL_CreateComputeProgram
 Compiles and returns GLSL program.
 ====================
 */
-static GLuint GL_CreateComputeProgram (const GLchar *source, const char *name)
+static FUNC_PRINTF(2,3) GLuint GL_CreateComputeProgram (const GLchar *source, const char *name, ...)
 {
-	GLuint shader = GL_CreateShader (GL_COMPUTE_SHADER, source, NULL, name);
-	return GL_CreateProgramFromShaders (&shader, 1, name);
+	GLenum type = GL_COMPUTE_SHADER;
+	va_list argptr;
+	GLuint program;
+
+	va_start (argptr, name);
+	program = GL_CreateProgramFromSources (1, &source, &type, name, argptr);
+	va_end (argptr);
+
+	return program;
 }
 
 /*
