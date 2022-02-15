@@ -1967,24 +1967,33 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 
 const char *COM_ParseIntNewline(const char *buffer, int *value)
 {
-	int consumed = 0;
-	sscanf (buffer, "%i\n%n", value, &consumed);
-	return buffer + consumed;
+	char *end;
+	*value = strtol (buffer, &end, 10);
+	while (q_isspace (*end))
+		++end;
+	return end;
 }
 
 const char *COM_ParseFloatNewline(const char *buffer, float *value)
 {
-	int consumed = 0;
-	sscanf (buffer, "%f\n%n", value, &consumed);
-	return buffer + consumed;
+	char *end;
+	*value = strtof (buffer, &end);
+	while (q_isspace (*end))
+		++end;
+	return end;
 }
 
 const char *COM_ParseStringNewline(const char *buffer)
 {
-	int consumed = 0;
-	com_token[0] = '\0';
-	sscanf (buffer, "%1023s\n%n", com_token, &consumed);
-	return buffer + consumed;
+	int i;
+	for (i = 0; i < 1023; i++)
+		if (!buffer[i] || q_isspace (buffer[i]))
+			break;
+	memcpy (com_token, buffer, i);
+	com_token[i] = '\0';
+	while (q_isspace (buffer[i]))
+		++i;
+	return buffer + i;
 }
 
 /*
