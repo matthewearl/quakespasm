@@ -320,7 +320,7 @@ void Con_Init (void)
 	con_linewidth = -1;
 
 	//johnfitz -- no need to run Con_CheckResize here
-	con_linewidth = 38;
+	con_linewidth = 78;
 	con_totallines = con_buffersize / con_linewidth;//johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_backscroll = 0;
 	con_current = con_totallines - 1;
