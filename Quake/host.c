@@ -249,7 +249,7 @@ void Host_Version_f (void)
 	Con_Printf ("Quake Version %1.2f\n", VERSION);
 	Con_Printf ("QuakeSpasm Version " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("Ironwail Version " IRONWAIL_VER_STRING "\n");
-	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
+	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), sizeof (void*) * 8);
 }
 
 /* cvar callback functions : */
@@ -962,7 +962,7 @@ void Host_Init (void)
 	NET_Init ();
 	SV_Init ();
 
-	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
+	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), sizeof (void*) * 8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 
 	if (cls.state != ca_dedicated)
