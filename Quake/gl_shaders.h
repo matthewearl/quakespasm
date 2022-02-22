@@ -635,7 +635,7 @@ NOISE_FUNCTIONS
 "					dynamic_light += clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256. * l.color;\n"
 "				}\n"
 "			}\n"
-"			total_light += clamp(dynamic_light, 0., 1.);\n"
+"			total_light += max(min(dynamic_light, 1. - total_light), 0.);\n"
 "		}\n"
 "	}\n"
 "#if DITHER >= 2\n"
