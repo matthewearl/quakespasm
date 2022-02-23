@@ -816,6 +816,111 @@ void Sbar_DrawFrags (void)
 
 //=============================================================================
 
+/*
+===============
+Sbar_FacePic
+===============
+*/
+static qpic_t *Sbar_FacePic (void)
+{
+	int f, anim;
+
+	if ((cl.items & (IT_INVISIBILITY | IT_INVULNERABILITY))
+			== (IT_INVISIBILITY | IT_INVULNERABILITY))
+		return sb_face_invis_invuln;
+
+	if (cl.items & IT_QUAD)
+		return sb_face_quad;
+
+	if (cl.items & IT_INVISIBILITY)
+		return sb_face_invis;
+
+	if (cl.items & IT_INVULNERABILITY)
+		return sb_face_invuln;
+
+	if (cl.stats[STAT_HEALTH] >= 100)
+		f = 4;
+	else
+		f = cl.stats[STAT_HEALTH] / 20;
+	if (f < 0)	// in case we ever decide to draw when health <= 0
+		f = 0;
+
+	if (cl.time <= cl.faceanimtime)
+	{
+		anim = 1;
+		sb_updates = 0;		// make sure the anim gets drawn over
+	}
+	else
+		anim = 0;
+
+	return sb_faces[f][anim];
+}
+
+/*
+===============
+Sbar_AmmoPic
+===============
+*/
+static qpic_t *Sbar_AmmoPic (void)
+{
+	if (rogue)
+	{
+		if (cl.items & RIT_SHELLS)
+			return sb_ammo[0];
+		if (cl.items & RIT_NAILS)
+			return sb_ammo[1];
+		if (cl.items & RIT_ROCKETS)
+			return sb_ammo[2];
+		if (cl.items & RIT_CELLS)
+			return sb_ammo[3];
+		if (cl.items & RIT_LAVA_NAILS)
+			return rsb_ammo[0];
+		if (cl.items & RIT_PLASMA_AMMO)
+			return rsb_ammo[1];
+		if (cl.items & RIT_MULTI_ROCKETS)
+			return rsb_ammo[2];
+	}
+	else
+	{
+		if (cl.items & IT_SHELLS)
+			return sb_ammo[0];
+		if (cl.items & IT_NAILS)
+			return sb_ammo[1];
+		if (cl.items & IT_ROCKETS)
+			return sb_ammo[2];
+		if (cl.items & IT_CELLS)
+			return sb_ammo[3];
+	}
+	return NULL;
+}
+
+/*
+===============
+Sbar_ArmorPic
+===============
+*/
+static qpic_t *Sbar_ArmorPic (void)
+{
+	if (rogue)
+	{
+		if (cl.items & RIT_ARMOR3)
+			return sb_armor[2];
+		if (cl.items & RIT_ARMOR2)
+			return sb_armor[1];
+		if (cl.items & RIT_ARMOR1)
+			return sb_armor[0];
+	}
+	else
+	{
+		if (cl.items & IT_ARMOR3)
+			return sb_armor[2];
+		if (cl.items & IT_ARMOR2)
+			return sb_armor[1];
+		if (cl.items & IT_ARMOR1)
+			return sb_armor[0];
+	}
+	return NULL;
+}
 
 /*
 ===============
@@ -824,7 +929,7 @@ Sbar_DrawFace
 */
 void Sbar_DrawFace (void)
 {
-	int	f, anim;
+	int f;
 
 // PGM 01/19/97 - team color drawing
 // PGM 03/02/97 - fixed so color swatch only appears in CTF modes
@@ -875,43 +980,7 @@ void Sbar_DrawFace (void)
 	}
 // PGM 01/19/97 - team color drawing
 
-	if ((cl.items & (IT_INVISIBILITY | IT_INVULNERABILITY))
-			== (IT_INVISIBILITY | IT_INVULNERABILITY))
-	{
-		Sbar_DrawPic (112, 0, sb_face_invis_invuln);
-		return;
-	}
-	if (cl.items & IT_QUAD)
-	{
-		Sbar_DrawPic (112, 0, sb_face_quad );
-		return;
-	}
-	if (cl.items & IT_INVISIBILITY)
-	{
-		Sbar_DrawPic (112, 0, sb_face_invis );
-		return;
-	}
-	if (cl.items & IT_INVULNERABILITY)
-	{
-		Sbar_DrawPic (112, 0, sb_face_invuln);
-		return;
-	}
-
-	if (cl.stats[STAT_HEALTH] >= 100)
-		f = 4;
-	else
-		f = cl.stats[STAT_HEALTH] / 20;
-	if (f < 0)	// in case we ever decide to draw when health <= 0
-		f = 0;
-
-	if (cl.time <= cl.faceanimtime)
-	{
-		anim = 1;
-		sb_updates = 0;		// make sure the anim gets drawn over
-	}
-	else
-		anim = 0;
-	Sbar_DrawPic (112, 0, sb_faces[f][anim]);
+	Sbar_DrawPic (112, 0, Sbar_FacePic ());
 }
 
 /*
@@ -922,6 +991,7 @@ Sbar_Draw
 void Sbar_Draw (void)
 {
 	float w; //johnfitz
+	qpic_t *pic;
 
 	if (scr_con_current == vid.height)
 		return;		// console is full screen
@@ -989,28 +1059,10 @@ void Sbar_Draw (void)
 		}
 		else
 		{
-			if (rogue)
-			{
-				Sbar_DrawNum (24, 0, cl.stats[STAT_ARMOR], 3,
-								cl.stats[STAT_ARMOR] <= 25);
-				if (cl.items & RIT_ARMOR3)
-					Sbar_DrawPic (0, 0, sb_armor[2]);
-				else if (cl.items & RIT_ARMOR2)
-					Sbar_DrawPic (0, 0, sb_armor[1]);
-				else if (cl.items & RIT_ARMOR1)
-					Sbar_DrawPic (0, 0, sb_armor[0]);
-			}
-			else
-			{
-				Sbar_DrawNum (24, 0, cl.stats[STAT_ARMOR], 3
-				, cl.stats[STAT_ARMOR] <= 25);
-				if (cl.items & IT_ARMOR3)
-					Sbar_DrawPic (0, 0, sb_armor[2]);
-				else if (cl.items & IT_ARMOR2)
-					Sbar_DrawPic (0, 0, sb_armor[1]);
-				else if (cl.items & IT_ARMOR1)
-					Sbar_DrawPic (0, 0, sb_armor[0]);
-			}
+			Sbar_DrawNum (24, 0, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+			pic = Sbar_ArmorPic ();
+			if (pic)
+				Sbar_DrawPic (0, 0, pic);
 		}
 
 	// face
@@ -1021,34 +1073,9 @@ void Sbar_Draw (void)
 		, cl.stats[STAT_HEALTH] <= 25);
 
 	// ammo icon
-		if (rogue)
-		{
-			if (cl.items & RIT_SHELLS)
-				Sbar_DrawPic (224, 0, sb_ammo[0]);
-			else if (cl.items & RIT_NAILS)
-				Sbar_DrawPic (224, 0, sb_ammo[1]);
-			else if (cl.items & RIT_ROCKETS)
-				Sbar_DrawPic (224, 0, sb_ammo[2]);
-			else if (cl.items & RIT_CELLS)
-				Sbar_DrawPic (224, 0, sb_ammo[3]);
-			else if (cl.items & RIT_LAVA_NAILS)
-				Sbar_DrawPic (224, 0, rsb_ammo[0]);
-			else if (cl.items & RIT_PLASMA_AMMO)
-				Sbar_DrawPic (224, 0, rsb_ammo[1]);
-			else if (cl.items & RIT_MULTI_ROCKETS)
-				Sbar_DrawPic (224, 0, rsb_ammo[2]);
-		}
-		else
-		{
-			if (cl.items & IT_SHELLS)
-				Sbar_DrawPic (224, 0, sb_ammo[0]);
-			else if (cl.items & IT_NAILS)
-				Sbar_DrawPic (224, 0, sb_ammo[1]);
-			else if (cl.items & IT_ROCKETS)
-				Sbar_DrawPic (224, 0, sb_ammo[2]);
-			else if (cl.items & IT_CELLS)
-				Sbar_DrawPic (224, 0, sb_ammo[3]);
-		}
+		pic = Sbar_AmmoPic ();
+		if (pic)
+			Sbar_DrawPic (224, 0, pic);
 
 		Sbar_DrawNum (248, 0, cl.stats[STAT_AMMO], 3,
 					  cl.stats[STAT_AMMO] <= 10);
