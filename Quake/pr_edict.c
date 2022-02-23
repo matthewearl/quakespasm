@@ -36,6 +36,7 @@ static	ddef_t		*pr_fielddefs;
 static	ddef_t		*pr_globaldefs;
 
 qboolean	pr_alpha_supported; //johnfitz
+qboolean	pr_effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
 
 dstatement_t	*pr_statements;
 globalvars_t	*pr_global_struct;
@@ -1197,6 +1198,37 @@ void ED_LoadFromFile (const char *data)
 
 /*
 ===============
+PR_HasGlobal
+===============
+*/
+static qboolean PR_HasGlobal (const char *name, float value)
+{
+	ddef_t *g = ED_FindGlobal (name);
+	return g && G_FLOAT (g->ofs) == value;
+}
+
+
+/*
+===============
+PR_FindSupportedEffects
+
+Checks for the presence of Quake 2021 release effects flags and returns a mask
+with the correspondings bits either on or off depending on the result, in order
+to avoid conflicts (e.g. Arcane Dimensions uses bit 32 for its explosions)
+===============
+*/
+static int PR_FindSupportedEffects (void)
+{
+	qboolean isqex = 
+		PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
+		(PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT))
+	;
+	return isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT|EF_QEX_PENTALIGHT|EF_QEX_CANDLELIGHT);
+}
+
+
+/*
+===============
 PR_LoadProgs
 ===============
 */
@@ -1302,6 +1334,8 @@ void PR_LoadProgs (void)
 	pr_edict_size &= ~(sizeof(void *) - 1);
 
 	PR_InitHashTables ();
+
+	pr_effects_mask = PR_FindSupportedEffects ();
 }
 
 
