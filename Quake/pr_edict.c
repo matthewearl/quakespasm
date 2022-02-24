@@ -36,7 +36,7 @@ static	ddef_t		*pr_fielddefs;
 static	ddef_t		*pr_globaldefs;
 
 qboolean	pr_alpha_supported; //johnfitz
-qboolean	pr_effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
+int			pr_effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
 
 dstatement_t	*pr_statements;
 globalvars_t	*pr_global_struct;
