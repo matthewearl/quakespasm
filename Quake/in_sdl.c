@@ -631,7 +631,7 @@ void IN_JoyMove (usercmd_t *cmd)
 
 void IN_MouseMove(usercmd_t *cmd)
 {
-	int			dmx, dmy;
+	float		dmx, dmy;
 	qboolean	mlook = (in_mlook.state & 1) || freelook.value;
 
 	dmx = total_dx * sensitivity.value;
