@@ -603,7 +603,7 @@ VID_Changed_f -- kristian -- notify us that a value has changed that requires a 
 */
 void VID_Changed_f (cvar_t *var)
 {
-	if (vid_initialized)
+	if (vid_initialized && !vid_locked)
 		Con_SafePrintf ("%s %s will be applied after a vid_restart\n", var->name, var->string);
 	vid_changed = true;
 }
@@ -709,8 +709,8 @@ VID_Unlock -- johnfitz
 */
 static void VID_Unlock (void)
 {
-	vid_locked = false;
 	VID_SyncCvars();
+	vid_locked = false;
 }
 
 /*
