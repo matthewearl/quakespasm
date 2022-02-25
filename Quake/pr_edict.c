@@ -1204,7 +1204,7 @@ PR_HasGlobal
 static qboolean PR_HasGlobal (const char *name, float value)
 {
 	ddef_t *g = ED_FindGlobal (name);
-	return g && G_FLOAT (g->ofs) == value;
+	return g && (g->type & ~DEF_SAVEGLOBAL) == ev_float && G_FLOAT (g->ofs) == value;
 }
 
 
