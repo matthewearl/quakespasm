@@ -1118,10 +1118,7 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_ALWAYSMLOOK:
-		if (in_mlook.state & 1)
-			Cbuf_AddText("-mlook");
-		else
-			Cbuf_AddText("+mlook");
+		Cvar_SetValueQuick (&freelook, !freelook.value);
 		break;
 
 	case OPT_LOOKSPRING:	// lookspring
@@ -1241,7 +1238,7 @@ void M_Options_Draw (void)
 
 	// OPT_ALWAYSMLOOK:
 	M_Print (16, 32 + 8*OPT_ALWAYSMLOOK,	"            Mouse Look");
-	M_DrawCheckbox (220, 32 + 8*OPT_ALWAYSMLOOK, in_mlook.state & 1);
+	M_DrawCheckbox (220, 32 + 8*OPT_ALWAYSMLOOK, freelook.value);
 
 	// OPT_LOOKSPRING:
 	M_Print (16, 32 + 8*OPT_LOOKSPRING,	"            Lookspring");
