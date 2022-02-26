@@ -610,16 +610,10 @@ int SignbitsForPlane (mplane_t *out)
 GL_FrustumMatrix
 =============
 */
-#define NEARCLIP 4
-static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
+static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy, float n, float f)
 {
 	const float w = 1.0f / tanf(fovx * 0.5f);
 	const float h = 1.0f / tanf(fovy * 0.5f);
-
-	// reduce near clip distance at high FOV's to avoid seeing through walls
-	const float d = 12.f * q_min(w, h);
-	const float n = CLAMP(0.5f, d, NEARCLIP);
-	const float f = gl_farclip.value;
 
 	memset(matrix, 0, 16 * sizeof(float));
 
@@ -676,10 +670,20 @@ R_SetFrustum
 */
 void R_SetFrustum (void)
 {
+	float w, h, d;
+	float znear, zfar;
 	float logznear, logzfar;
 	float translation[16];
 	float rotation[16];
-	GL_FrustumMatrix(r_matproj, DEG2RAD(r_fovx), DEG2RAD(r_fovy));
+
+	// reduce near clip distance at high FOV's to avoid seeing through walls
+	w = 1.f / tanf (DEG2RAD (r_fovx) * 0.5f);
+	h = 1.f / tanf (DEG2RAD (r_fovy) * 0.5f);
+	d = 12.f * q_min (w, h);
+	znear = CLAMP (0.5f, d, 4.f);
+	zfar = gl_farclip.value;
+
+	GL_FrustumMatrix(r_matproj, DEG2RAD(r_fovx), DEG2RAD(r_fovy), znear, zfar);
 
 	// View matrix
 	RotationMatrix(r_matview, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
@@ -700,8 +704,8 @@ void R_SetFrustum (void)
 	ExtractFrustumPlane (r_matviewproj, 1, -1.f, false, &frustum[2]); // bottom
 	ExtractFrustumPlane (r_matviewproj, 1,  1.f, true,  &frustum[3]); // top
 
-	logznear = log2f (NEARCLIP);
-	logzfar = log2f (gl_farclip.value);
+	logznear = log2f (znear);
+	logzfar = log2f (zfar);
 	memcpy (r_framedata.viewproj, r_matviewproj, 16 * sizeof (float));
 	r_framedata.zlogscale = LIGHT_TILES_Z / (logzfar - logznear);
 	r_framedata.zlogbias = -r_framedata.zlogscale * logznear;
