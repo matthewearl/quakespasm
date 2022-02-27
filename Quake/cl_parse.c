@@ -1189,6 +1189,7 @@ void CL_ParseServerMessage (void)
 			cl.intermission = 1;
 			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
+			V_RestoreAngles ();
 			break;
 
 		case svc_finale:
@@ -1200,6 +1201,7 @@ void CL_ParseServerMessage (void)
 			SCR_CenterPrint (str);
 			Con_LogCenterPrint (str);
 			//johnfitz
+			V_RestoreAngles ();
 			break;
 
 		case svc_cutscene:
@@ -1211,6 +1213,7 @@ void CL_ParseServerMessage (void)
 			SCR_CenterPrint (str);
 			Con_LogCenterPrint (str);
 			//johnfitz
+			V_RestoreAngles ();
 			break;
 
 		case svc_sellscreen:
