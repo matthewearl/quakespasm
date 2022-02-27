@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	CLAMP(_minval, x, _maxval)		\
 	((x) < (_minval) ? (_minval) :		\
 	 (x) > (_maxval) ? (_maxval) : (x))
+#define LERP(a, b, t) ((a) + ((b)-(a))*(t))
 
 #define countof(arr) (sizeof(arr) / sizeof(arr[0]))
 
