@@ -30,9 +30,6 @@ vec4_t vec4_origin = {0,0,0,0};
 /*-----------------------------------------------------------------*/
 
 
-//#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
-#define DEG2RAD( a ) ( (a) * M_PI_DIV_180 ) //johnfitz
-
 void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
 {
 	float d;

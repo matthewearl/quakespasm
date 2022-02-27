@@ -353,7 +353,6 @@ qboolean R_CullModelForEntity (entity_t *e)
 R_EntityMatrix
 ===============
 */
-#define DEG2RAD( a ) ( (a) * M_PI_DIV_180 )
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles)
 {
 	float yaw   = DEG2RAD(angles[YAW]);
