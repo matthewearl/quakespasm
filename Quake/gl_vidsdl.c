@@ -1426,7 +1426,10 @@ void	VID_Init (void)
 		display_bpp = SDL_BITSPERPIXEL(mode.format);
 	}
 
+	Cvar_SetValueQuick (&vid_width, (float)display_width);
+	Cvar_SetValueQuick (&vid_height, (float)display_height);
 	Cvar_SetValueQuick (&vid_bpp, (float)display_bpp);
+	Cvar_SetValueQuick (&vid_refreshrate, (float)display_refreshrate);
 
 	if (CFG_OpenConfig(CONFIG_NAME) == 0 || CFG_OpenConfig("config.cfg") == 0)
 	{
