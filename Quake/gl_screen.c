@@ -797,7 +797,8 @@ void SCR_ScreenShot_f (void)
 	char	ext[4];
 	char	imagename[80];
 	char	checkname[MAX_OSPATH];
-	int	i, quality;
+	int		quality;
+	static int	i = 0;
 	qboolean	ok;
 
 	Q_strncpy (ext, "png", sizeof(ext));
@@ -828,7 +829,7 @@ void SCR_ScreenShot_f (void)
 	}
 	
 // find a file name to save it to
-	for (i=0; i<10000; i++)
+	for (; i<10000; i++)
 	{
 		q_snprintf (imagename, sizeof(imagename), SCREENSHOT_PREFIX "%04i.%s", i, ext);
 		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, imagename);
@@ -838,8 +839,10 @@ void SCR_ScreenShot_f (void)
 	if (i == 10000)
 	{
 		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
+		i = 0; // check entire sequence again next time
 		return;
 	}
+	i++; // don't recheck current index next time
 
 //get data
 	if (!(buffer = (byte *) malloc(glwidth*glheight*3)))
