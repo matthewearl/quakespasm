@@ -1669,7 +1669,10 @@ static void Host_Spawn_f (void)
 	ent = EDICT_NUM( 1 + (host_client - svs.clients) );
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
+		if (sv.loadgame)
+			MSG_WriteAngle (&host_client->message, ent->v.v_angle[i], sv.protocolflags );
+		else
+			MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
 	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags );
 
 	SV_WriteClientdataToMessage (sv_player, &host_client->message);
