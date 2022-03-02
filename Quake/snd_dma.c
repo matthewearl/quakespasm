@@ -631,22 +631,26 @@ S_UpdateAmbientSounds
 */
 static void S_UpdateAmbientSounds (void)
 {
-	mleaf_t		*l;
-	int		vol, ambient_channel;
-	channel_t	*chan;
+	mleaf_t			*l;
+	int				ambient_channel;
+	channel_t		*chan;
+	float			vol;
+	static float	levels[NUM_AMBIENTS];
 
 // no ambients when disconnected
-	if (cls.state != ca_connected)
+	if (cls.state != ca_connected || !cl.worldmodel)
+	{
+		memset (levels, 0, sizeof (levels));
 		return;
-// calc ambient sound levels
-	if (!cl.worldmodel)
-		return;
+	}
 
+// calc ambient sound levels
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
 	if (!l || !ambient_level.value)
 	{
 		for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS; ambient_channel++)
 			snd_channels[ambient_channel].sfx = NULL;
+		memset (levels, 0, sizeof (levels));
 		return;
 	}
 
@@ -656,24 +660,26 @@ static void S_UpdateAmbientSounds (void)
 		chan->sfx = ambient_sfx[ambient_channel];
 
 		vol = (int) (ambient_level.value * l->ambient_sound_level[ambient_channel]);
-		if (vol < 8)
-			vol = 0;
+		if (vol < 8.f)
+			vol = 0.f;
+		else if (vol > 255.f)
+			vol = 255.f;
 
 	// don't adjust volume too fast
-		if (chan->master_vol < vol)
+		if (levels[ambient_channel] < vol)
 		{
-			chan->master_vol += (int) (host_frametime * ambient_fade.value);
-			if (chan->master_vol > vol)
-				chan->master_vol = vol;
+			levels[ambient_channel] += host_frametime * ambient_fade.value;
+			if (levels[ambient_channel] > vol)
+				levels[ambient_channel] = vol;
 		}
-		else if (chan->master_vol > vol)
+		else if (levels[ambient_channel] > vol)
 		{
-			chan->master_vol -= (int) (host_frametime * ambient_fade.value);
-			if (chan->master_vol < vol)
-				chan->master_vol = vol;
+			levels[ambient_channel] -= host_frametime * ambient_fade.value;
+			if (levels[ambient_channel] < vol)
+				levels[ambient_channel] = vol;
 		}
 
-		chan->leftvol = chan->rightvol = chan->master_vol;
+		chan->leftvol = chan->rightvol = chan->master_vol = (int) levels[ambient_channel];
 	}
 }
 
