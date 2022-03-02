@@ -535,33 +535,33 @@ void SCR_DrawDevStats (void)
 
 	GL_SetCanvas (CANVAS_BOTTOMLEFT);
 
-	Draw_Fill (x, y*8, 19*8, 9*8, 0, 0.5); //dark rectangle
+	Draw_Fill (x, y*8, 21*8, 9*8, 0, 0.5); //dark rectangle
 
-	sprintf (str, "devstats |Curr Peak");
+	sprintf (str, "devstats | Curr  Peak");
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "---------+---------");
+	sprintf (str, "---------+-----------");
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Edicts   |%4i %4i", dev_stats.edicts, dev_peakstats.edicts);
+	sprintf (str, "Edicts   |%5i %5i", dev_stats.edicts, dev_peakstats.edicts);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Packet   |%4i %4i", dev_stats.packetsize, dev_peakstats.packetsize);
+	sprintf (str, "Packet   |%5i %5i", dev_stats.packetsize, dev_peakstats.packetsize);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Visedicts|%4i %4i", dev_stats.visedicts, dev_peakstats.visedicts);
+	sprintf (str, "Visedicts|%5i %5i", dev_stats.visedicts, dev_peakstats.visedicts);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Efrags   |%4i %4i", dev_stats.efrags, dev_peakstats.efrags);
+	sprintf (str, "Efrags   |%5i %5i", dev_stats.efrags, dev_peakstats.efrags);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Dlights  |%4i %4i", dev_stats.dlights, dev_peakstats.dlights);
+	sprintf (str, "Dlights  |%5i %5i", dev_stats.dlights, dev_peakstats.dlights);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Beams    |%4i %4i", dev_stats.beams, dev_peakstats.beams);
+	sprintf (str, "Beams    |%5i %5i", dev_stats.beams, dev_peakstats.beams);
 	Draw_String (x, (y++)*8-x, str);
 
-	sprintf (str, "Tempents |%4i %4i", dev_stats.tempents, dev_peakstats.tempents);
+	sprintf (str, "Tempents |%5i %5i", dev_stats.tempents, dev_peakstats.tempents);
 	Draw_String (x, (y++)*8-x, str);
 }
 
