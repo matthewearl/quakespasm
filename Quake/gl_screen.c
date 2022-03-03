@@ -791,6 +791,8 @@ static void SCR_ScreenShot_Usage (void)
 SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
 ==================
 */
+int screenshot_index = 0;
+
 void SCR_ScreenShot_f (void)
 {
 	byte	*buffer;
@@ -798,7 +800,6 @@ void SCR_ScreenShot_f (void)
 	char	imagename[80];
 	char	checkname[MAX_OSPATH];
 	int		quality;
-	static int	i = 0;
 	qboolean	ok;
 
 	Q_strncpy (ext, "png", sizeof(ext));
@@ -829,20 +830,20 @@ void SCR_ScreenShot_f (void)
 	}
 	
 // find a file name to save it to
-	for (; i<10000; i++)
+	for (; screenshot_index<10000; screenshot_index++)
 	{
-		q_snprintf (imagename, sizeof(imagename), SCREENSHOT_PREFIX "%04i.%s", i, ext);
+		q_snprintf (imagename, sizeof(imagename), SCREENSHOT_PREFIX "%04i.%s", screenshot_index, ext);
 		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, imagename);
 		if (Sys_FileTime(checkname) == -1)
 			break;	// file doesn't exist
 	}
-	if (i == 10000)
+	if (screenshot_index == 10000)
 	{
 		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
-		i = 0; // check entire sequence again next time
+		screenshot_index = 0; // check entire sequence again next time, in case the user has deleted some files
 		return;
 	}
-	i++; // don't recheck current index next time
+	screenshot_index++;
 
 //get data
 	if (!(buffer = (byte *) malloc(glwidth*glheight*3)))
