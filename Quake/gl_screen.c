@@ -527,7 +527,7 @@ SCR_DrawDevStats
 void SCR_DrawDevStats (void)
 {
 	char	str[40];
-	int		y = 25-9; //9=number of lines to print
+	int		y = 25-10; //10=number of lines to print
 	int		x = 0; //margin
 
 	if (!devstats.value)
@@ -535,7 +535,7 @@ void SCR_DrawDevStats (void)
 
 	GL_SetCanvas (CANVAS_BOTTOMLEFT);
 
-	Draw_Fill (x, y*8, 21*8, 9*8, 0, 0.5); //dark rectangle
+	Draw_Fill (x, y*8, 21*8, 10*8, 0, 0.5); //dark rectangle
 
 	sprintf (str, "devstats | Curr  Peak");
 	Draw_String (x, (y++)*8-x, str);
@@ -562,6 +562,9 @@ void SCR_DrawDevStats (void)
 	Draw_String (x, (y++)*8-x, str);
 
 	sprintf (str, "Tempents |%5i %5i", dev_stats.tempents, dev_peakstats.tempents);
+	Draw_String (x, (y++)*8-x, str);
+
+	sprintf (str, "GL upload|%4iK %4iK", dev_stats.gpu_upload/1024, dev_peakstats.gpu_upload/1024);
 	Draw_String (x, (y++)*8-x, str);
 }
 

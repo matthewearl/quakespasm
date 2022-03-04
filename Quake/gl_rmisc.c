@@ -789,6 +789,9 @@ void GL_DynamicBuffersEndFrame (void)
 	SDL_assert (!buf->fence);
 	buf->fence = GL_FenceSyncFunc (GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
+	dev_stats.gpu_upload = dynabuf_offset;
+	dev_peakstats.gpu_upload = q_max (dev_peakstats.gpu_upload, dev_stats.gpu_upload);
+
 	if (++dynabuf_idx == countof(dynabufs))
 		dynabuf_idx = 0;
 	dynabuf_offset = 0;

@@ -314,6 +314,7 @@ typedef struct {
 	int		tempents;
 	int		beams;
 	int		dlights;
+	int		gpu_upload;
 } devstats_t;
 extern devstats_t dev_stats, dev_peakstats;
 
