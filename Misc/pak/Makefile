@@ -7,7 +7,7 @@ INPUT := gfx/conback.lmp \
 	maps/e2m7@10a8.ent \
 	default.cfg
 
-OUTPUT := quakespasm.pak
+OUTPUT := ironwail.pak
 
 $(OUTPUT): $(INPUT)
 	./mkpak.sh $(INPUT) > $(OUTPUT)

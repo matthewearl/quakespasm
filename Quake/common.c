@@ -2100,7 +2100,7 @@ static void COM_AddGameDirectory (const char *dir)
 	int i;
 	unsigned int path_id;
 	searchpath_t *search;
-	pack_t *pak, *qspak;
+	pack_t *pak, *enginepak;
 	char pakfile[MAX_OSPATH];
 	qboolean been_here = false;
 
@@ -2140,12 +2140,12 @@ _add_path:
 		q_snprintf (pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 		pak = COM_LoadPackFile (pakfile);
 		if (i != 0 || path_id != 1 || fitzmode)
-			qspak = NULL;
+			enginepak = NULL;
 		else {
 			qboolean old = com_modified;
 			if (been_here) base = host_parms->userdir;
-			q_snprintf (pakfile, sizeof(pakfile), "%s/quakespasm.pak", base);
-			qspak = COM_LoadPackFile (pakfile);
+			q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, base);
+			enginepak = COM_LoadPackFile (pakfile);
 			com_modified = old;
 		}
 		if (pak) {
@@ -2155,10 +2155,10 @@ _add_path:
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 		}
-		if (qspak) {
+		if (enginepak) {
 			search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
 			search->path_id = path_id;
-			search->pack = qspak;
+			search->pack = enginepak;
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 		}
