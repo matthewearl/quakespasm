@@ -69,12 +69,12 @@ typedef struct {
 	wchar_t buffer[MAX_PATH];
 } wpath_t;
 
-static void WPath_Alloc (wpath_t *path, size_t size)
+static void WPath_Alloc (wpath_t *path, size_t numchars)
 {
-	if (size <= countof (path->buffer))
+	if (numchars <= countof (path->buffer))
 		path->ptr = path->buffer;
 	else
-		path->ptr = (wchar_t *) malloc (size);
+		path->ptr = (wchar_t *) malloc (numchars * sizeof (wchar_t));
 }
 
 static void WPath_Free (wpath_t *path)
