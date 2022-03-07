@@ -1016,9 +1016,6 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 
 //=============================================================================
 
-//johnfitz -- deleted SCR_BringDownConsole
-
-
 /*
 ==================
 SCR_TileClear

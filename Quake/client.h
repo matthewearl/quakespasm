@@ -296,10 +296,6 @@ void	CL_DecayLights (void);
 void CL_Init (void);
 
 void CL_EstablishConnection (const char *host);
-void CL_Signon1 (void);
-void CL_Signon2 (void);
-void CL_Signon3 (void);
-void CL_Signon4 (void);
 
 void CL_Disconnect (void);
 void CL_Disconnect_f (void);
@@ -355,8 +351,6 @@ void V_StartPitchDrift (void);
 void V_StopPitchDrift (void);
 
 void V_RenderView (void);
-//void V_UpdatePalette (void); //johnfitz
-void V_Register (void);
 void V_ParseDamage (void);
 void V_SetContentsColor (int contents);
 
