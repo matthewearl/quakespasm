@@ -872,7 +872,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	GL_UseProgram (glprogs.particles[dither]);
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
 
-	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
+	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));
 
 	VectorScale (vup, 1.5, up);
 	VectorScale (vright, 1.5, right);
