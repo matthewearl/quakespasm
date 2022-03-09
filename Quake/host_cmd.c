@@ -199,10 +199,42 @@ static void Modlist_Add (const char *name)
 	FileList_Add(name, &modlist);
 }
 
+static qboolean Modlist_Check (const char *modname)
+{
+	const char	*assetdirs[] = {"maps", "progs", "gfx", "sound"};
+	char		modpath[MAX_OSPATH];
+	char		itempath[MAX_OSPATH];
+	findfile_t	*find;
+	size_t		i;
+
+	q_snprintf (modpath, sizeof (modpath), "%s/%s", com_basedir, modname);
+
+	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
+	if (Sys_FileTime (itempath) != -1)
+		return true;
+
+	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
+	if (Sys_FileTime (itempath) != -1)
+		return true;
+
+	for (i = 0; i < countof (assetdirs); i++)
+	{
+		q_snprintf (itempath, sizeof (itempath), "%s/%s", modpath, assetdirs[i]);
+		for (find = Sys_FindFirst (itempath, NULL); find; find = Sys_FindNext (find))
+		{
+			if (!strcmp (find->name, ".") || !strcmp (find->name, ".."))
+				continue;
+			Sys_FindClose (find);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void Modlist_Init (void)
 {
 	findfile_t	*find;
-	char		mod_string[MAX_OSPATH];
 
 	for (find = Sys_FindFirst (com_basedir, NULL); find; find = Sys_FindNext (find))
 	{
@@ -214,9 +246,8 @@ void Modlist_Init (void)
 		if (!q_strcasecmp (COM_FileGetExtension (find->name), "app")) // skip .app bundles on macOS
 			continue;
 #endif
-		q_snprintf (mod_string, sizeof (mod_string), "%s/%s", com_basedir, find->name);
-		/* don't bother testing for pak files / progs.dat */
-		Modlist_Add (find->name);
+		if (Modlist_Check (find->name))
+			Modlist_Add (find->name);
 	}
 }
 
