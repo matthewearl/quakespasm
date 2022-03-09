@@ -2371,6 +2371,11 @@ static void COM_InitBaseDir (void)
 	if (COM_SetBaseDir (host_parms->basedir))
 		return;
 
+	// executable might be in its own subdirectory, try going up one level
+	q_snprintf (path, sizeof (path), "%s/..", host_parms->basedir);
+	if (COM_SetBaseDir (path))
+		return;
+
 	Sys_Error (
 		"Couldn't determine where Quake is installed.\n"
 		"Please use the -basedir option to specify a path\n"
