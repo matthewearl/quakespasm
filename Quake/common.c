@@ -2313,12 +2313,79 @@ static void COM_Game_f (void)
 
 /*
 =================
+COM_SetBaseDir
+=================
+*/
+static qboolean COM_SetBaseDir (const char *path)
+{
+	const char pak0[] = "/" GAMENAME "/pak0.pak";
+	char pakpath[countof (com_basedir)];
+	size_t i;
+
+	i = strlen (path);
+	if (i && (path[i - 1] == '/' || path[i - 1] == '\\'))
+		--i;
+	if (i + countof (pak0) > countof (pakpath))
+		return false;
+
+	memcpy (pakpath, path, i);
+	memcpy (pakpath + i, pak0, sizeof (pak0));
+	if (Sys_FileTime (pakpath) == -1)
+		return false;
+
+	memcpy (com_basedir, path, i);
+	com_basedir[i] = 0;
+
+	return true;
+}
+
+/*
+=================
+COM_InitBaseDir
+=================
+*/
+static void COM_InitBaseDir (void)
+{
+	char path[countof (com_basedir)];
+	int i;
+
+	i = COM_CheckParm ("-basedir");
+	if (i)
+	{
+		const char *dir = (i < com_argc - 1) ? com_argv[i + 1] : NULL;
+		if (!dir)
+			Sys_Error (
+				"Must specify a valid Quake directory after -basedir\n"
+				"(one that has an " GAMENAME " subdirectory containing pak0.pak)\n"
+			);
+		if (!COM_SetBaseDir (dir))
+			Sys_Error (
+				"The specified -basedir is not a valid Quake directory:\n"
+				"%s\n"
+				"doesn't have an " GAMENAME " subdirectory containing pak0.pak.\n",
+				dir
+			);
+		return;
+	}
+
+	if (COM_SetBaseDir (host_parms->basedir))
+		return;
+
+	Sys_Error (
+		"Couldn't determine where Quake is installed.\n"
+		"Please use the -basedir option to specify a path\n"
+		"(with an " GAMENAME " subdirectory containing pak0.pak)"
+	);
+}
+
+/*
+=================
 COM_InitFilesystem
 =================
 */
 void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 {
-	int i, j;
+	int i;
 	const char *p;
 
 	Cvar_RegisterVariable (&registered);
@@ -2326,18 +2393,9 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 	Cmd_AddCommand ("path", COM_Path_f);
 	Cmd_AddCommand ("game", COM_Game_f); //johnfitz
 
-	i = COM_CheckParm ("-basedir");
-	if (i && i < com_argc-1)
-		q_strlcpy (com_basedir, com_argv[i + 1], sizeof(com_basedir));
-	else
-		q_strlcpy (com_basedir, host_parms->basedir, sizeof(com_basedir));
+	COM_InitBaseDir ();
 
-	j = strlen (com_basedir);
-	if (j < 1) Sys_Error("Bad argument to -basedir");
-	if ((com_basedir[j-1] == '\\') || (com_basedir[j-1] == '/'))
-		com_basedir[j-1] = 0;
-
-	i = COM_CheckParmNext (i, "-basegame");
+	i = COM_CheckParm ("-basegame");
 	if (i)
 	{	//-basegame:
 		// a) replaces all hardcoded dirs (read: alternative to id1)
