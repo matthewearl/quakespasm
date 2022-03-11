@@ -209,6 +209,7 @@ OBJS = strlcat.obj &
 	wad.obj &
 	cmd.obj &
 	common.obj &
+	steam.obj &
 	miniz.obj &
 	crc.obj &
 	cvar.obj &

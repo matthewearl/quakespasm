@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <windows.h>
 #include <mmsystem.h>
+#include <winreg.h>
 #include <versionhelpers.h>
 
 #include "quakedef.h"
@@ -181,6 +182,37 @@ int Sys_FileTime (const char *path)
 	}
 
 	return -1;
+}
+
+qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+{
+	LSTATUS		err;
+	HKEY		key;
+	WCHAR		wpath[MAX_PATH + 1];
+	DWORD		size, type;
+
+	err = RegOpenKeyExW (HKEY_CURRENT_USER, L"Software\\Valve\\Steam", 0, KEY_READ, &key);
+	if (err != ERROR_SUCCESS)
+		return false;
+
+	// Note: string might not contain a terminating null character
+	// https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw#remarks
+
+	err = RegQueryValueExW (key, L"SteamPath", NULL, &type, NULL, &size);
+	if (err != ERROR_SUCCESS || type != REG_SZ || size > sizeof (wpath) - sizeof (wpath[0]))
+	{
+		RegCloseKey (key);
+		return false;
+	}
+
+	err = RegQueryValueExW (key, L"SteamPath", NULL, &type, (BYTE *)wpath, &size);
+	RegCloseKey (key);
+	if (err != ERROR_SUCCESS || type != REG_SZ)
+		return false;
+
+	wpath[size / sizeof (wpath[0])] = 0;
+
+	return WideCharToMultiByte (CP_UTF8, 0, wpath, -1, path, pathsize, NULL, NULL) != 0;
 }
 
 static char	cwd[1024];

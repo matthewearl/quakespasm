@@ -271,6 +271,7 @@ OBJS := strlcat.o \
 	wad.o \
 	cmd.o \
 	common.o \
+	steam.o \
 	miniz.o \
 	crc.o \
 	cvar.o \

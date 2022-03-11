@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "q_ctype.h"
+#include "steam.h"
 #include <errno.h>
 
 #include "miniz.h"
@@ -2376,6 +2377,15 @@ static void COM_InitBaseDir (void)
 	q_snprintf (path, sizeof (path), "%s/..", host_parms->basedir);
 	if (COM_SetBaseDir (path))
 		return;
+
+	if (Steam_FindGameDir (path, sizeof (path), QUAKE_STEAM_APPID))
+	{
+		if (Steam_ChooseQuakeVersion () == STEAM_VERSION_REMASTERED)
+			if ((size_t) q_strlcat (path, "/rerelease", sizeof (path)) >= sizeof (path))
+				Sys_Error ("COM_InitBaseDir: rerelease path overflow");
+		if (COM_SetBaseDir (path))
+			return;
+	}
 
 	Sys_Error (
 		"Couldn't determine where Quake is installed.\n"

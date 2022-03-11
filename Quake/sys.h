@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void Sys_Init (void);
 
+// retrieves the directory where *Steam* is installed (not Steam Quake!)
+qboolean Sys_GetSteamDir (char *path, size_t pathsize);
+
 //
 // file IO
 //

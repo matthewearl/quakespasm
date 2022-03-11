@@ -35,9 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <fcntl.h>
 #include <time.h>
 #include <dirent.h>
-#ifdef DO_USERDIRS
 #include <pwd.h>
-#endif
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #if defined(USE_SDL2)
@@ -242,6 +240,29 @@ static int Sys_NumCPUs (void)
 	return -2;
 }
 #endif
+
+qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+{
+	const char	STEAM_DIR[] = ".steam/steam";
+	const char	*home_dir = NULL;
+	struct passwd	*pwent;
+	struct stat		st;
+
+	pwent = getpwuid( getuid() );
+	if (pwent == NULL)
+		perror("getpwuid");
+	else
+		home_dir = pwent->pw_dir;
+	if (home_dir == NULL)
+		home_dir = getenv("HOME");
+	if (home_dir == NULL)
+		return false;
+
+	if ((size_t) q_snprintf (path, pathsize, "%s/%s", home_dir, STEAM_DIR) >= pathsize)
+		return false;
+
+	return stat (path, &st) == 0 && S_ISDIR (st.st_mode);
+}
 
 static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
