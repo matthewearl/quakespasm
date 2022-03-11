@@ -64,38 +64,21 @@ static int findhandle (void)
 	return -1;
 }
 
-typedef struct {
-	wchar_t *ptr;
-	wchar_t buffer[MAX_PATH];
-} wpath_t;
-
-static void WPath_Alloc (wpath_t *path, size_t numchars)
+static void UTF8ToWideString (const char *src, wchar_t *dst, size_t maxchars)
 {
-	if (numchars <= countof (path->buffer))
-		path->ptr = path->buffer;
-	else
-		path->ptr = (wchar_t *) malloc (numchars * sizeof (wchar_t));
+	if (!MultiByteToWideChar (CP_UTF8, 0, src, -1, dst, maxchars))
+		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
 }
 
-static void WPath_Free (wpath_t *path)
+static void WideStringToUTF8 (const wchar_t *src, char *dst, size_t maxbytes)
 {
-	if (path->ptr != path->buffer)
-		free (path->ptr);
-}
-
-static void WPath_FromUTF8 (const char *src, wpath_t *dst)
-{
-	int len = MultiByteToWideChar (CP_UTF8, 0, src, -1, NULL, 0);
-	if (!len)
-		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
-	WPath_Alloc (dst, len);
-	if (MultiByteToWideChar (CP_UTF8, 0, src, -1, dst->ptr, len) != len)
-		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
+	if (!WideCharToMultiByte (CP_UTF8, 0, src, -1, dst, maxbytes, NULL, NULL))
+		Sys_Error ("WideCharToMultiByte failed: %lu", GetLastError ());
 }
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
-	wpath_t	wpath;
+	wchar_t	wpath[MAX_PATH];
 	wchar_t	wmode[8];
 	int		i;
 	FILE	*f;
@@ -108,9 +91,8 @@ FILE *Sys_fopen (const char *path, const char *mode)
 	}
 	wmode[i] = 0;
 
-	WPath_FromUTF8 (path, &wpath);
-	f = _wfopen (wpath.ptr, wmode);
-	WPath_Free (&wpath);
+	UTF8ToWideString (path, wpath, countof (wpath));
+	f = _wfopen (wpath, wmode);
 
 	return f;
 }
@@ -207,24 +189,17 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
 	char *tmp;
 	size_t rc;
-	wpath_t wpath;
-	int len;
+	wchar_t wpath[MAX_PATH];
 
 	rc = GetCurrentDirectoryW (0, NULL);
 	if (rc == 0)
 		Sys_Error ("Couldn't determine current directory name length (error %lu)", GetLastError ());
-	WPath_Alloc (&wpath, rc);
-	if (!GetCurrentDirectoryW (rc, wpath.ptr))
+	if (rc >= countof (wpath))
+		Sys_Error ("Current directory name too long (%lu)", (DWORD)rc);
+	if (!GetCurrentDirectoryW (rc, wpath))
 		Sys_Error ("Couldn't determine current directory (error %lu)", GetLastError ());
 
-	len = WideCharToMultiByte (CP_UTF8, 0, wpath.ptr, -1, NULL, 0, NULL, NULL);
-	if (!len)
-		Sys_Error ("Couldn't determine UTF8 length of current directory (error %lu)", GetLastError ());
-	if ((size_t)len > dstsize)
-		Sys_Error ("Current directory name too long (%" SDL_PRIu64 " > %" SDL_PRIu64  ")", (uint64_t)len, (uint64_t)dstsize);
-	if (WideCharToMultiByte (CP_UTF8, 0, wpath.ptr, -1, dst, len, NULL, NULL) != len)
-		Sys_Error ("Couldn't convert current directory name to UTF8 (error %lu)", GetLastError ());
-	WPath_Free (&wpath);
+	WideStringToUTF8 (wpath, dst, dstsize);
 
 	tmp = dst;
 	while (*tmp != 0)
@@ -245,8 +220,7 @@ typedef struct winfindfile_s {
 
 static void Sys_FillFindData (winfindfile_t *find)
 {
-	if (!WideCharToMultiByte (CP_UTF8, 0, find->data.cFileName, -1, find->base.name, countof (find->base.name), NULL, NULL))
-		Sys_Error ("Sys_FillFindData: WideCharToMultiByte failed (%lu)", GetLastError ());
+	WideStringToUTF8 (find->data.cFileName, find->base.name, countof (find->base.name));
 	find->base.attribs = 0;
 	if (find->data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		find->base.attribs |= FA_DIRECTORY;
@@ -255,8 +229,8 @@ static void Sys_FillFindData (winfindfile_t *find)
 findfile_t *Sys_FindFirst (const char *dir, const char *ext)
 {
 	winfindfile_t		*ret;
-	char				pattern[MAX_OSPATH];
-	wpath_t				wpattern;
+	char				pattern[MAX_PATH];
+	wchar_t				wpattern[MAX_PATH];
 	HANDLE				handle;
 	WIN32_FIND_DATAW	data;
 
@@ -266,9 +240,8 @@ findfile_t *Sys_FindFirst (const char *dir, const char *ext)
 		++ext;
 	q_snprintf (pattern, sizeof (pattern), "%s/*.%s", dir, ext);
 
-	WPath_FromUTF8 (pattern, &wpattern);
-	handle = FindFirstFileW (wpattern.ptr, &data);
-	WPath_Free (&wpattern);
+	UTF8ToWideString (pattern, wpattern, countof (wpattern));
+	handle = FindFirstFileW (wpattern, &data);
 
 	if (handle == INVALID_HANDLE_VALUE)
 		return NULL;
@@ -385,13 +358,12 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
-	wpath_t wpath;
+	wchar_t wpath[MAX_PATH];
 	BOOL result;
 	DWORD err;
 
-	WPath_FromUTF8 (path, &wpath);
-	result = CreateDirectoryW (wpath.ptr, NULL);
-	WPath_Free (&wpath);
+	UTF8ToWideString (path, wpath, countof (wpath));
+	result = CreateDirectoryW (wpath, NULL);
 	if (result)
 		return;
 
