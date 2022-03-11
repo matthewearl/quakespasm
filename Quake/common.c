@@ -2096,13 +2096,12 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory (const char *dir)
 {
-	const char *base = com_basedir;
-	int i;
+	const char *basedirs[2], *base;
+	int i, j, numbasedirs;
 	unsigned int path_id;
 	searchpath_t *search;
 	pack_t *pak, *enginepak;
 	char pakfile[MAX_OSPATH];
-	qboolean been_here = false;
 
 	if (*com_gamenames)
 		q_strlcat(com_gamenames, ";", sizeof(com_gamenames));
@@ -2119,58 +2118,60 @@ static void COM_AddGameDirectory (const char *dir)
 		standard_quake = false;
 	}
 
-	q_strlcpy (com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));
-
 	// assign a path_id to this game directory
 	if (com_searchpaths)
 		path_id = com_searchpaths->path_id << 1;
-	else	path_id = 1U;
+	else
+		path_id = 1U;
 
-_add_path:
-	// add the directory to the search path
-	search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
-	search->path_id = path_id;
-	q_strlcpy (search->filename, com_gamedir, sizeof(search->filename));
-	search->next = com_searchpaths;
-	com_searchpaths = search;
+	basedirs[0] = com_basedir;
+	numbasedirs = 1;
+	if (host_parms->userdir != host_parms->basedir)
+		basedirs[numbasedirs++] = host_parms->userdir;
 
-	// add any pak files in the format pak0.pak pak1.pak, ...
-	for (i = 0; ; i++)
+	for (j = 0; j < numbasedirs; j++)
 	{
-		q_snprintf (pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
-		pak = COM_LoadPackFile (pakfile);
-		if (i != 0 || path_id != 1 || fitzmode)
-			enginepak = NULL;
-		else {
-			qboolean old = com_modified;
-			if (been_here) base = host_parms->userdir;
-			q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, base);
-			enginepak = COM_LoadPackFile (pakfile);
-			com_modified = old;
-		}
-		if (pak) {
-			search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
-			search->path_id = path_id;
-			search->pack = pak;
-			search->next = com_searchpaths;
-			com_searchpaths = search;
-		}
-		if (enginepak) {
-			search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
-			search->path_id = path_id;
-			search->pack = enginepak;
-			search->next = com_searchpaths;
-			com_searchpaths = search;
-		}
-		if (!pak) break;
-	}
+		base = basedirs[j];
+		q_snprintf (com_gamedir, sizeof (com_gamedir), "%s/%s", base, dir);
+		if (j != 0)
+			Sys_mkdir (com_gamedir);
 
-	if (!been_here && host_parms->userdir != host_parms->basedir)
-	{
-		been_here = true;
-		q_strlcpy(com_gamedir, va("%s/%s", host_parms->userdir, dir), sizeof(com_gamedir));
-		Sys_mkdir(com_gamedir);
-		goto _add_path;
+		// add the directory to the search path
+		search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+		search->path_id = path_id;
+		q_strlcpy (search->filename, com_gamedir, sizeof(search->filename));
+		search->next = com_searchpaths;
+		com_searchpaths = search;
+
+		// add any pak files in the format pak0.pak pak1.pak, ...
+		for (i = 0; ; i++)
+		{
+			q_snprintf (pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+			pak = COM_LoadPackFile (pakfile);
+			if (i != 0 || path_id != 1 || fitzmode)
+				enginepak = NULL;
+			else {
+				qboolean old = com_modified;
+				q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, base);
+				enginepak = COM_LoadPackFile (pakfile);
+				com_modified = old;
+			}
+			if (pak) {
+				search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+				search->path_id = path_id;
+				search->pack = pak;
+				search->next = com_searchpaths;
+				com_searchpaths = search;
+			}
+			if (enginepak) {
+				search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+				search->path_id = path_id;
+				search->pack = enginepak;
+				search->next = com_searchpaths;
+				com_searchpaths = search;
+			}
+			if (!pak) break;
+		}
 	}
 }
 
