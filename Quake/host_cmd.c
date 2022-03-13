@@ -199,7 +199,7 @@ static void Modlist_Add (const char *name)
 	FileList_Add(name, &modlist);
 }
 
-static qboolean Modlist_Check (const char *modname)
+static qboolean Modlist_Check (const char *modname, const char *base)
 {
 	const char	*assetdirs[] = {"maps", "progs", "gfx", "sound"};
 	char		modpath[MAX_OSPATH];
@@ -207,7 +207,7 @@ static qboolean Modlist_Check (const char *modname)
 	findfile_t	*find;
 	size_t		i;
 
-	q_snprintf (modpath, sizeof (modpath), "%s/%s", com_basedir, modname);
+	q_snprintf (modpath, sizeof (modpath), "%s/%s", base, modname);
 
 	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
 	if (Sys_FileTime (itempath) != -1)
@@ -234,20 +234,30 @@ static qboolean Modlist_Check (const char *modname)
 
 void Modlist_Init (void)
 {
+	const char	*basedirs[2];
+	int			i, numbasedirs;
 	findfile_t	*find;
 
-	for (find = Sys_FindFirst (com_basedir, NULL); find; find = Sys_FindNext (find))
+	basedirs[0] = com_basedir;
+	numbasedirs = 1;
+	if (host_parms->userdir != host_parms->basedir)
+		basedirs[numbasedirs++] = host_parms->userdir;
+
+	for (i = 0; i < numbasedirs; i++)
 	{
-		if (!(find->attribs & FA_DIRECTORY))
-			continue;
-		if (!strcmp (find->name, ".") || !strcmp (find->name, ".."))
-			continue;
+		for (find = Sys_FindFirst (basedirs[i], NULL); find; find = Sys_FindNext (find))
+		{
+			if (!(find->attribs & FA_DIRECTORY))
+				continue;
+			if (!strcmp (find->name, ".") || !strcmp (find->name, ".."))
+				continue;
 #ifndef _WIN32
-		if (!q_strcasecmp (COM_FileGetExtension (find->name), "app")) // skip .app bundles on macOS
-			continue;
+			if (!q_strcasecmp (COM_FileGetExtension (find->name), "app")) // skip .app bundles on macOS
+				continue;
 #endif
-		if (Modlist_Check (find->name))
-			Modlist_Add (find->name);
+			if (Modlist_Check (find->name, basedirs[i]))
+				Modlist_Add (find->name);
+		}
 	}
 }
 
