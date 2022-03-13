@@ -33,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma warning (push)
 #pragma warning (disable : 4091) // 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
 #endif 
-#include <ShlObj.h>
+#include <shlobj.h>
 #ifdef _MSC_VER
 #pragma warning (pop)
 #endif
