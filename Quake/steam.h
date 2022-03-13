@@ -28,7 +28,14 @@ typedef enum {
 	STEAM_VERSION_REMASTERED,
 } steamversion_t;
 
-qboolean			Steam_FindGameDir (char *path, size_t pathsize, int appid);
+typedef struct steamgame_s {
+	int		appid;
+	char	*subdir;
+	char	library[MAX_OSPATH];
+} steamgame_t;
+
+qboolean			Steam_FindGame (steamgame_t *game, int appid);
+qboolean			Steam_ResolvePath (char *path, size_t pathsize, const steamgame_t *game);
 steamversion_t		Steam_ChooseQuakeVersion (void);
 
 #endif /*_STEAM_H */

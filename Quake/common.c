@@ -2348,6 +2348,7 @@ COM_InitBaseDir
 */
 static void COM_InitBaseDir (void)
 {
+	steamgame_t steamquake;
 	char path[countof (com_basedir)];
 	int i;
 
@@ -2378,13 +2379,20 @@ static void COM_InitBaseDir (void)
 	if (COM_SetBaseDir (path))
 		return;
 
-	if (Steam_FindGameDir (path, sizeof (path), QUAKE_STEAM_APPID))
+	if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
+		Steam_ResolvePath (path, sizeof (path), &steamquake))
 	{
 		if (Steam_ChooseQuakeVersion () == STEAM_VERSION_REMASTERED)
 			if ((size_t) q_strlcat (path, "/rerelease", sizeof (path)) >= sizeof (path))
 				Sys_Error ("COM_InitBaseDir: rerelease path overflow");
+
 		if (COM_SetBaseDir (path))
+		{
+			static char nightdivedir[MAX_OSPATH];
+			if (Sys_GetSteamQuakeUserDir (nightdivedir, sizeof (nightdivedir), steamquake.library))
+				host_parms->userdir = nightdivedir;
 			return;
+		}
 	}
 
 	Sys_Error (

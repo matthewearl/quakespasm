@@ -264,6 +264,17 @@ qboolean Sys_GetSteamDir (char *path, size_t pathsize)
 	return stat (path, &st) == 0 && S_ISDIR (st.st_mode);
 }
 
+qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library)
+{
+	const char *fmt = "%s/steamapps/compatdata/2310/pfx/drive_c/users/steamuser/Saved Games/Nightdive Studios/Quake";
+	struct stat st;
+
+	if ((size_t) q_snprintf (path, pathsize, fmt, library) >= pathsize)
+		return false;
+
+	return stat (path, &st) == 0 && S_ISDIR (st.st_mode);
+}
+
 static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
 static char	userdir[MAX_OSPATH];

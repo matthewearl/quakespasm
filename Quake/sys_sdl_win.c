@@ -29,6 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winreg.h>
 #include <versionhelpers.h>
 
+#pragma warning (push)
+#pragma warning (disable : 4091) // 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
+#include <ShlObj.h>
+#pragma warning (pop)
+
 #include "quakedef.h"
 
 #include <sys/types.h>
@@ -213,6 +218,46 @@ qboolean Sys_GetSteamDir (char *path, size_t pathsize)
 	wpath[size / sizeof (wpath[0])] = 0;
 
 	return WideCharToMultiByte (CP_UTF8, 0, wpath, -1, path, pathsize, NULL, NULL) != 0;
+}
+
+// https://github.com/libsdl-org/SDL/blob/120c76c84bbce4c1bfed4e9eb74e10678bd83120/src/core/windows/SDL_windows.c#L88-L99
+static HRESULT Sys_InitCOM (void)
+{
+	HRESULT hr = CoInitializeEx (NULL, COINIT_APARTMENTTHREADED);
+	if (hr == RPC_E_CHANGED_MODE)
+		hr = CoInitializeEx (NULL, COINIT_MULTITHREADED);
+
+	/* S_FALSE means success, but someone else already initialized. */
+	/* You still need to call CoUninitialize in this case! */
+	if (hr == S_FALSE)
+		return S_OK;
+
+	return hr;
+}
+
+qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library)
+{
+	const char SUBDIR[] = "\\Nightdive Studios\\Quake";
+	PWSTR wpath;
+	HRESULT hr;
+	qboolean ret;
+
+	hr = Sys_InitCOM ();
+	if (FAILED (hr))
+		return false;
+
+	hr = SHGetKnownFolderPath (&FOLDERID_SavedGames, 0, NULL, &wpath);
+	if (FAILED (hr))
+	{
+		CoUninitialize ();
+		return false;
+	}
+
+	ret = WideCharToMultiByte (CP_UTF8, 0, wpath, -1, path, pathsize, NULL, NULL) != 0;
+	CoTaskMemFree (wpath);
+	CoUninitialize ();
+
+	return ret && (size_t) q_strlcat (path, SUBDIR, pathsize) < pathsize;
 }
 
 static char	cwd[1024];

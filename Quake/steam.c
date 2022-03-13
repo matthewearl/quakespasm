@@ -258,18 +258,23 @@ static char *Steam_ReadLibFolders (void)
 
 /*
 ========================
-Steam_FindGameDir
+Steam_FindGame
 
-Attempts to find the install dir for the given appid by parsing Steam config files
+Finds the Steam library and subdirectory for the given appid
 ========================
 */
-qboolean Steam_FindGameDir (char *path, size_t pathsize, int appid)
+qboolean Steam_FindGame (steamgame_t *game, int appid)
 {
-	char appidstr[32];
-	char *steamcfg, *manifest;
-	libsparser_t libparser;
-	acfparser_t acfparser;
-	qboolean ret = false;
+	char			appidstr[32], path[MAX_OSPATH];
+	char			*steamcfg, *manifest;
+	libsparser_t	libparser;
+	acfparser_t		acfparser;
+	size_t			liblen, sublen;
+	qboolean		ret = false;
+
+	game->appid = appid;
+	game->subdir = NULL;
+	game->library[0] = 0;
 
 	steamcfg = Steam_ReadLibFolders ();
 	if (!steamcfg)
@@ -281,7 +286,7 @@ qboolean Steam_FindGameDir (char *path, size_t pathsize, int appid)
 	if (!VDB_Parse (steamcfg, VDB_OnLibFolderProperty, &libparser))
 		goto done_cfg;
 
-	if ((size_t) q_snprintf (path, pathsize, "%s/steamapps/appmanifest_%s.acf", libparser.result, appidstr) >= pathsize)
+	if ((size_t) q_snprintf (path, sizeof (path), "%s/steamapps/appmanifest_%s.acf", libparser.result, appidstr) >= sizeof (path))
 		goto done_cfg;
 
 	manifest = (char *) COM_LoadMallocFile_TextMode_OSPath (path, NULL);
@@ -290,18 +295,40 @@ qboolean Steam_FindGameDir (char *path, size_t pathsize, int appid)
 
 	memset (&acfparser, 0, sizeof (acfparser));
 	if (!VDB_Parse (manifest, ACF_OnManifestProperty, &acfparser))
-	{
-		free (manifest);
-		goto done_cfg;
-	}
+		goto done_manifest;
 
-	ret = (size_t) q_snprintf (path, pathsize, "%s/steamapps/common/%s", libparser.result, acfparser.result) < pathsize;
+	liblen = strlen (libparser.result);
+	sublen = strlen (acfparser.result);
 
+	if (liblen + 1 + sublen + 1 > countof (game->library))
+		goto done_manifest;
+
+	memcpy (game->library, libparser.result, liblen + 1);
+	game->subdir = game->library + liblen + 1;
+	memcpy (game->subdir, acfparser.result, sublen + 1);
+	ret = true;
+
+done_manifest:
 	free (manifest);
 done_cfg:
 	free (steamcfg);
 
 	return ret;
+}
+
+/*
+========================
+Steam_ResolvePath
+
+Fills in the OS path where the game is installed
+========================
+*/
+qboolean Steam_ResolvePath (char *path, size_t pathsize, const steamgame_t *game)
+{
+	return
+		game->subdir &&
+		(size_t) q_snprintf (path, pathsize, "%s/steamapps/common/%s", game->library, game->subdir) < pathsize
+	;
 }
 
 /*
