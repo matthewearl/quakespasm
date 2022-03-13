@@ -29,10 +29,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winreg.h>
 #include <versionhelpers.h>
 
+#ifdef _MSC_VER
 #pragma warning (push)
 #pragma warning (disable : 4091) // 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
+#endif 
 #include <ShlObj.h>
+#ifdef _MSC_VER
 #pragma warning (pop)
+#endif
 
 #include "quakedef.h"
 
