@@ -406,6 +406,17 @@ float	CL_LerpPoint (void)
 
 /*
 ===============
+CL_ResetTrail
+===============
+*/
+static void CL_ResetTrail (entity_t *ent)
+{
+	ent->traildelay = 1.f / 72.f;
+	VectorCopy (ent->origin, ent->trailorg);
+}
+
+/*
+===============
 CL_RocketTrail
 
 Rate-limiting wrapper over R_RocketTrail
@@ -413,16 +424,11 @@ Rate-limiting wrapper over R_RocketTrail
 */
 static void CL_RocketTrail (entity_t *ent, int type)
 {
-	if (!(ent->lerpflags & LERP_RESETMOVE) && !ent->forcelink)
-	{
-		ent->traildelay -= cl.time - cl.oldtime;
-		if (ent->traildelay > 0.f)
-			return;
-		R_RocketTrail (ent->trailorg, ent->origin, type);
-	}
-
-	ent->traildelay = 1.f / 72.f;
-	VectorCopy (ent->origin, ent->trailorg);
+	ent->traildelay -= cl.time - cl.oldtime;
+	if (ent->traildelay > 0.f)
+		return;
+	R_RocketTrail (ent->trailorg, ent->origin, type);
+	CL_ResetTrail (ent);
 }
 
 /*
@@ -525,6 +531,9 @@ void CL_RelinkEntities (void)
 				ent->angles[j] = ent->msg_angles[1][j] + f*d;
 			}
 		}
+
+		if (ent->forcelink || ent->lerpflags & LERP_RESETMOVE)
+			CL_ResetTrail (ent);
 
 // rotate binary objects locally
 		if (ent->model->flags & EF_ROTATE)
