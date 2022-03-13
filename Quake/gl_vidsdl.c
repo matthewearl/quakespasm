@@ -797,21 +797,6 @@ static qboolean GL_FindExtension (const char *name)
 }
 
 /*
-===============
-GL_FindRequiredExtension
-
-Returns boolean instead of void to make it easier to replace with GL_FindExtension
-if the functionality becomes optional
-===============
-*/
-static qboolean GL_FindRequiredExtension (const char *name)
-{
-	if (!GL_FindExtension (name))
-		Sys_Error ("Required extension %s not found.", name);
-	return true;
-}
-
-/*
 =============
 GL_BeginGroup
 =============
