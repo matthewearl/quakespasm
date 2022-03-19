@@ -2101,8 +2101,14 @@ static void COM_AddEnginePak (void)
 	pack_t		*pak;
 	qboolean	modified = com_modified;
 
-	q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, com_basedir);
+	q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->basedir);
 	pak = COM_LoadPackFile (pakfile);
+
+	if (!pak)
+	{
+		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, com_basedir);
+		pak = COM_LoadPackFile (pakfile);
+	}
 
 	if (!pak && host_parms->userdir != host_parms->basedir)
 	{
