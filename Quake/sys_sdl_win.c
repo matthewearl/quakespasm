@@ -293,6 +293,28 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 	}
 }
 
+static char exedir[1024];
+
+static const char *Sys_GetExeDir (void)
+{
+	wchar_t wpath[MAX_PATH];
+	char *p, *slash;
+
+	if (!GetModuleFileNameW (NULL, wpath, countof (wpath)))
+		return NULL;
+
+	if (!WideCharToMultiByte (CP_UTF8, 0, wpath, -1, exedir, sizeof (exedir), NULL, NULL))
+		return NULL;
+
+	for (p = exedir, slash = NULL; *p; p++)
+		if (*p == '/' || *p == '\\')
+			slash = p;
+	if (slash)
+		*slash = 0;
+
+	return exedir;
+}
+
 typedef struct winfindfile_s {
 	findfile_t			base;
 	WIN32_FIND_DATAW	data;
@@ -408,6 +430,8 @@ void Sys_Init (void)
 	memset (cwd, 0, sizeof(cwd));
 	Sys_GetBasedir(NULL, cwd, sizeof(cwd));
 	host_parms->basedir = cwd;
+
+	host_parms->exedir = Sys_GetExeDir ();
 
 	/* userdirs not really necessary for windows guys.
 	 * can be done if necessary, though... */

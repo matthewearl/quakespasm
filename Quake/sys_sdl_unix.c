@@ -372,6 +372,21 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 }
 #endif
 
+static char exedir[MAX_OSPATH];
+
+static const char *Sys_GetExeDir (void)
+{
+	char *argv0 = host_parms->argv[0];
+	char *slash = argv0 ? strrchr (argv0, '/') : NULL;
+	if (!slash || slash - argv0 >= countof (exedir))
+		return NULL;
+
+	memcpy (exedir, argv0, slash - argv0);
+	exedir[slash - argv0] = 0;
+
+	return exedir;
+}
+
 typedef struct unixfindfile_s {
 	findfile_t		base;
 	DIR				*handle;
@@ -460,6 +475,7 @@ void Sys_Init (void)
 	memset (cwd, 0, sizeof(cwd));
 	Sys_GetBasedir(host_parms->argv[0], cwd, sizeof(cwd));
 	host_parms->basedir = cwd;
+	host_parms->exedir = Sys_GetExeDir ();
 #ifndef DO_USERDIRS
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
 #else

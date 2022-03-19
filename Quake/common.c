@@ -2098,11 +2098,20 @@ COM_AddEnginePak
 static void COM_AddEnginePak (void)
 {
 	char		pakfile[MAX_OSPATH];
-	pack_t		*pak;
+	pack_t		*pak = NULL;
 	qboolean	modified = com_modified;
 
-	q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->basedir);
-	pak = COM_LoadPackFile (pakfile);
+	if (host_parms->exedir)
+	{
+		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->exedir);
+		pak = COM_LoadPackFile (pakfile);
+	}
+
+	if (!pak)
+	{
+		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->basedir);
+		pak = COM_LoadPackFile (pakfile);
+	}
 
 	if (!pak)
 	{

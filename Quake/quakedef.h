@@ -211,6 +211,7 @@ typedef struct
 				// if user directories are enabled, basedir
 				// and userdir will point to different
 				// memory locations, otherwise to the same.
+	const char *exedir;
 	int	argc;
 	char	**argv;
 	void	*membase;
