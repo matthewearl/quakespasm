@@ -35,6 +35,8 @@ static void S_Update_ (void);
 void S_StopAllSounds (qboolean clear);
 static void S_StopAllSoundsC (void);
 
+void S_SetUnderwaterIntensity (float intensity);
+
 // =======================================================================
 // Internal sound data & structures
 // =======================================================================
@@ -78,6 +80,8 @@ cvar_t		loadas8bit = {"loadas8bit", "0", CVAR_NONE};
 
 cvar_t		sndspeed = {"sndspeed", "11025", CVAR_NONE};
 cvar_t		snd_mixspeed = {"snd_mixspeed", "44100", CVAR_NONE};
+
+cvar_t		snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE};
 
 #if defined(_WIN32)
 #define SND_FILTERQUALITY_DEFAULT "5"
@@ -182,6 +186,7 @@ void S_Init (void)
 	Cvar_RegisterVariable(&sndspeed);
 	Cvar_RegisterVariable(&snd_mixspeed);
 	Cvar_RegisterVariable(&snd_filterquality);
+	Cvar_RegisterVariable(&snd_waterfx);
 	
 	if (safemode || COM_CheckParm("-nosound"))
 		return;
@@ -626,6 +631,24 @@ void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 
 /*
 ===================
+S_UnderwaterIntensityForContents
+===================
+*/
+static float S_UnderwaterIntensityForContents (int contents)
+{
+	switch (contents)
+	{
+		case CONTENTS_WATER:
+		case CONTENTS_SLIME:
+		case CONTENTS_LAVA:
+			return 1.f;
+		default:
+			return 0.f;
+	}
+}
+
+/*
+===================
 S_UpdateAmbientSounds
 ===================
 */
@@ -641,11 +664,13 @@ static void S_UpdateAmbientSounds (void)
 	if (cls.state != ca_connected || !cl.worldmodel)
 	{
 		memset (levels, 0, sizeof (levels));
+		S_SetUnderwaterIntensity (0.f);
 		return;
 	}
 
 // calc ambient sound levels
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
+	S_SetUnderwaterIntensity (l ? S_UnderwaterIntensityForContents (l->contents) : 0.f);
 	if (!l || !ambient_level.value)
 	{
 		for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS; ambient_channel++)
