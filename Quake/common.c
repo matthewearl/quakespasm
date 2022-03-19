@@ -2092,6 +2092,38 @@ const char *COM_GetGameNames(qboolean full)
 
 /*
 =================
+COM_AddEnginePak
+=================
+*/
+static void COM_AddEnginePak (void)
+{
+	char		pakfile[MAX_OSPATH];
+	pack_t		*pak;
+	qboolean	modified = com_modified;
+
+	q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, com_basedir);
+	pak = COM_LoadPackFile (pakfile);
+
+	if (!pak && host_parms->userdir != host_parms->basedir)
+	{
+		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->userdir);
+		pak = COM_LoadPackFile (pakfile);
+	}
+
+	if (pak)
+	{
+		searchpath_t *search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+		search->path_id = com_searchpaths ? com_searchpaths->path_id : 1u;
+		search->pack = pak;
+		search->next = com_searchpaths;
+		com_searchpaths = search;
+	}
+
+	com_modified = modified;
+}
+
+/*
+=================
 COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 =================
 */
@@ -2101,7 +2133,7 @@ static void COM_AddGameDirectory (const char *dir)
 	int i, j, numbasedirs;
 	unsigned int path_id;
 	searchpath_t *search;
-	pack_t *pak, *enginepak;
+	pack_t *pak;
 	char pakfile[MAX_OSPATH];
 
 	if (*com_gamenames)
@@ -2149,29 +2181,18 @@ static void COM_AddGameDirectory (const char *dir)
 		{
 			q_snprintf (pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 			pak = COM_LoadPackFile (pakfile);
-			if (i != 0 || path_id != 1 || fitzmode)
-				enginepak = NULL;
-			else {
-				qboolean old = com_modified;
-				q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, base);
-				enginepak = COM_LoadPackFile (pakfile);
-				com_modified = old;
-			}
-			if (pak) {
-				search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
-				search->path_id = path_id;
-				search->pack = pak;
-				search->next = com_searchpaths;
-				com_searchpaths = search;
-			}
-			if (enginepak) {
-				search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
-				search->path_id = path_id;
-				search->pack = enginepak;
-				search->next = com_searchpaths;
-				com_searchpaths = search;
-			}
-			if (!pak) break;
+			if (!pak)
+				break;
+
+			search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+			search->path_id = path_id;
+			search->pack = pak;
+			search->next = com_searchpaths;
+			com_searchpaths = search;
+
+			// add engine pak after pak0.pak
+			if (i == 0 && j == 0 && path_id == 1u && !fitzmode)
+				COM_AddEnginePak ();
 		}
 	}
 }
