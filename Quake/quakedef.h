@@ -60,6 +60,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CONFIG_NAME				"ironwail.cfg"
 #define SCREENSHOT_PREFIX		"ironwail"
 #define ENGINE_PAK				"ironwail.pak"
+#define ENGINE_USERDIR_OSX		"Ironwail"
+#define ENGINE_USERDIR_UNIX		".ironwail"
 
 //define	PARANOID			// speed sapping error checking
 
