@@ -42,7 +42,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
 #endif
 
-#define IRONWAIL_VERSION		0.4
+#define IRONWAIL_VER_MAJOR		0
+#define IRONWAIL_VER_MINOR		4
 #define IRONWAIL_VER_PATCH		0
 #ifndef IRONWAIL_VER_SUFFIX
 #define IRONWAIL_VER_SUFFIX			// optional version suffix string literal like "-beta1"
@@ -53,7 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // combined version string like "0.92.1-beta1"
 #define	QUAKESPASM_VER_STRING	QS_STRINGIFY(QUAKESPASM_VERSION) "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX
-#define	IRONWAIL_VER_STRING		QS_STRINGIFY(IRONWAIL_VERSION) "." QS_STRINGIFY(IRONWAIL_VER_PATCH) IRONWAIL_VER_SUFFIX
+#define	IRONWAIL_VER_STRING		QS_STRINGIFY(IRONWAIL_VER_MAJOR) "." QS_STRINGIFY(IRONWAIL_VER_MINOR) "." QS_STRINGIFY(IRONWAIL_VER_PATCH) IRONWAIL_VER_SUFFIX
 
 #define CONSOLE_TITLE_STRING	"Ironwail " IRONWAIL_VER_STRING
 #define WINDOW_TITLE_STRING		"Quake/Ironwail " IRONWAIL_VER_STRING
@@ -67,6 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	GAMENAME	"id1"		// directory to look in by default
 
+#ifndef RC_INVOKED // skip the rest of the file when compiling resources
 #include "q_stdinc.h"
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
@@ -343,6 +345,8 @@ extern int		current_skill;	// skill level for currently loaded level (in case
 extern qboolean		isDedicated;
 
 extern int		minimum_memory;
+
+#endif /* RC_INVOKED */
 
 #endif	/* QUAKEDEFS_H */
 

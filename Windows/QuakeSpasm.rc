@@ -1,4 +1,48 @@
 #include <winresrc.h>
+#include "../Quake/quakedef.h"
 
 icon ICON "QuakeSpasm.ico"
 
+////////////////////////////////////////////////////////////////
+
+#define VER_FILEVERSION				IRONWAIL_VER_MAJOR,IRONWAIL_VER_MINOR,IRONWAIL_VER_PATCH,0
+#define VER_FILEVERSION_STR			QS_STRINGIFY(IRONWAIL_VER_MAJOR) "." QS_STRINGIFY(IRONWAIL_VER_MINOR) "." QS_STRINGIFY(IRONWAIL_VER_PATCH) IRONWAIL_VER_SUFFIX
+
+#define VER_PRODUCTVERSION			VER_FILEVERSION
+#define VER_PRODUCTVERSION_STR		VER_FILEVERSION_STR
+
+#ifdef DEBUG
+	#define VER_DEBUG				VS_FF_DEBUG
+#else
+	#define VER_DEBUG				0
+#endif
+
+////////////////////////////////////////////////////////////////
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION		VER_FILEVERSION
+PRODUCTVERSION	VER_PRODUCTVERSION
+FILEFLAGSMASK	VS_FFI_FILEFLAGSMASK
+FILEFLAGS		VER_DEBUG
+FILEOS			VOS__WINDOWS32
+FILETYPE		VFT_APP
+FILESUBTYPE		0
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904E4"
+		BEGIN
+			VALUE "FileDescription",	"Ironwail Quake engine"
+			VALUE "FileVersion",		VER_FILEVERSION_STR
+			VALUE "LegalCopyright",		"\xA9 2022"
+			VALUE "OriginalFilename",	"ironwail.exe"
+			VALUE "ProductName",		"Ironwail"
+			VALUE "ProductVersion",		VER_PRODUCTVERSION_STR
+		END
+	END
+
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1252
+	END
+END
