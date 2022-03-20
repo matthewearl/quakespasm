@@ -312,6 +312,7 @@ clean: $(MAKEFILE)
 
 install:	ironwail
 	cp ironwail /usr/local/games/quake
+	cp ironwail.pak /usr/local/games/quake
 
 #---------------------------------------------------------------
 # include dependencies (if not running 'clean' target)
