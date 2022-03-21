@@ -320,7 +320,6 @@ float VectorNormalize (vec3_t v)
 	}
 
 	return length;
-
 }
 
 void VectorInverse (vec3_t v)
