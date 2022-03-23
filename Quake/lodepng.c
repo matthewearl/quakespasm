@@ -5466,7 +5466,7 @@ static size_t ilog2i(size_t i) {
   l = ilog2(i);
   /* approximate i*log2(i): l is integer logarithm, ((i - (1u << l)) << 1u)
   linearly approximates the missing fractional part multiplied by i */
-  return i * l + ((i - (1u << l)) << 1u);
+  return i * l + ((i - ((size_t)1u << l)) << 1u);
 }
 
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
