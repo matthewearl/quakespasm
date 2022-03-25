@@ -2220,11 +2220,11 @@ static void Host_Startdemos_f (void)
 	if (!sv.active && cls.demonum != -1 && !cls.demoplayback)
 	{
 		cls.demonum = 0;
-		if (!fitzmode)
+		Cbuf_InsertText ("menu_main\n");
+		if (!fitzmode && !cl_startdemos.value)
 		{  /* QuakeSpasm customization: */
 			/* go straight to menu, no CL_NextDemo */
 			cls.demonum = -1;
-			Cbuf_InsertText("menu_main\n");
 			return;
 		}
 		CL_NextDemo ();
