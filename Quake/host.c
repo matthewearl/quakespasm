@@ -146,7 +146,7 @@ void Host_EndGame (const char *message, ...)
 	if (cls.state == ca_dedicated)
 		Sys_Error ("Host_EndGame: %s\n",string);	// dedicated servers exit
 
-	if (cls.demonum != -1)
+	if (cls.demonum != -1 && !cls.timedemo)
 		CL_NextDemo ();
 	else
 		CL_Disconnect ();
