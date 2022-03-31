@@ -156,6 +156,7 @@ cvar_t		vid_bpp = {"vid_bpp", "16", CVAR_ARCHIVE};
 cvar_t		vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 cvar_t		vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 cvar_t		vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
+cvar_t		vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t		vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 //johnfitz
@@ -594,6 +595,19 @@ static void VID_FSAA_f (cvar_t *cvar)
 		return;
 	GL_DeleteFrameBuffers ();
 	GL_CreateFrameBuffers ();
+}
+
+/*
+=================
+VID_FSAAMode_f
+
+Called when vid_fsaamode changes
+=================
+*/
+static void VID_FSAAMode_f (cvar_t *cvar)
+{
+	if (host_initialized)
+		GL_MinSampleShadingFunc (cvar->value);
 }
 
 /*
@@ -1117,6 +1131,7 @@ static void GL_SetupState (void)
 	GL_DepthRange (ZRANGE_FULL); //johnfitz -- moved here becuase gl_ztrick is gone.
 	glEnable (GL_BLEND);
 	glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	glEnable (GL_SAMPLE_SHADING);
 
 	GL_ResetState ();
 }
@@ -1371,6 +1386,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_bpp); //johnfitz
 	Cvar_RegisterVariable (&vid_vsync); //johnfitz
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
+	Cvar_RegisterVariable (&vid_fsaamode);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
@@ -1380,6 +1396,7 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
 	Cvar_SetCallback (&vid_vsync, VID_VSync_f);
 	Cvar_SetCallback (&vid_fsaa, VID_FSAA_f);
+	Cvar_SetCallback (&vid_fsaamode, VID_FSAAMode_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 
@@ -1612,6 +1629,7 @@ enum {
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
 	VID_OPT_FSAA,
+	VID_OPT_FSAA_MODE,
 	VID_OPT_SCALE,
 	VID_OPT_ANISO,
 	VID_OPT_TEXFILTER,
@@ -2115,6 +2133,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_FSAA:
 			VID_Menu_ChooseNextAA (1);
 			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
+			break;
 		case VID_OPT_SCALE:
 			VID_Menu_ChooseNextScale (1);
 			break;
@@ -2168,6 +2189,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_FSAA:
 			VID_Menu_ChooseNextAA (-1);
+			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
 			break;
 		case VID_OPT_SCALE:
 			VID_Menu_ChooseNextScale (-1);
@@ -2224,6 +2248,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_FSAA:
 			VID_Menu_ChooseNextAA (1);
+			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
 			break;
 		case VID_OPT_SCALE:
 			VID_Menu_ChooseNextScale (1);
@@ -2331,6 +2358,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_FSAA:
 			M_Print (x0, y, "      Antialiasing");
 			M_Print (x1, y, framebufs.scene.samples >= 2 ? va("%ix", framebufs.scene.samples) : "Off");
+			break;
+		case VID_OPT_FSAA_MODE:
+			M_Print (x0, y, "           AA mode");
+			M_Print (x1, y, vid_fsaamode.value ? "Full" : "Edges only");
 			break;
 		case VID_OPT_SCALE:
 			M_Print (x0, y, "      Render scale");
