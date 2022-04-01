@@ -40,11 +40,13 @@ static const struct {
 static cvar_t	r_softemu = {"r_softemu", "0", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
+cvar_t			gl_lodbias = {"gl_lodbias", "auto", CVAR_ARCHIVE };
 cvar_t			gl_texturemode = {"gl_texturemode", "", CVAR_ARCHIVE};
 cvar_t			gl_texture_anisotropy = {"gl_texture_anisotropy", "8", CVAR_ARCHIVE};
 cvar_t			gl_compress_textures = {"gl_compress_textures", "0", CVAR_ARCHIVE};
 GLint			gl_max_texture_size;
 
+static float	lodbias;
 softemu_t		softemu;
 
 #define	MAX_GLTEXTURES	4096
@@ -119,10 +121,12 @@ static void TexMgr_CreateSamplers (void)
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MIN_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_LOD_BIAS, lodbias);
 
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MIN_FILTER, glmodes[i].minfilter);
 		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_LOD_BIAS, lodbias);
 	}
 }
 
@@ -181,6 +185,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].minfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
+		glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, lodbias);
 	}
 	else
 	{
@@ -293,6 +298,29 @@ static void TexMgr_SoftEmu_f (cvar_t *var)
 	softemu = CLAMP (0, softemu, SOFTEMU_NUMMODES - 1);
 
 	TexMgr_TextureMode_f (&gl_texturemode);
+}
+
+/*
+===============
+TexMgr_LodBias_f -- called when gl_lodbias changes
+===============
+*/
+static void TexMgr_LodBias_f (cvar_t *var)
+{
+	extern cvar_t vid_fsaa, vid_fsaamode;
+	float previous = lodbias;
+
+	lodbias = var->value;
+
+	if (!q_strcasecmp (var->string, "auto"))
+		lodbias = Q_log2 (vid_fsaa.value * vid_fsaamode.value) / -2.f;
+
+	if (lodbias == previous)
+		return;
+
+	if (gl_bindless_able)
+		TexMgr_CreateSamplers ();
+	TexMgr_ApplyTextureMode ();
 }
 
 /*
@@ -742,6 +770,8 @@ void TexMgr_Init (void)
 	gl_texturemode.string = glmodes[glmode_idx].name;
 	Cvar_RegisterVariable (&gl_texturemode);
 	Cvar_SetCallback (&gl_texturemode, &TexMgr_TextureMode_f);
+	Cvar_RegisterVariable (&gl_lodbias);
+	Cvar_SetCallback (&gl_lodbias, TexMgr_LodBias_f);
 	Cvar_RegisterVariable (&r_softemu);
 	Cvar_SetCallback (&r_softemu, TexMgr_SoftEmu_f);
 	Cmd_AddCommand ("gl_describetexturemodes", &TexMgr_DescribeTextureModes_f);

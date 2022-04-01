@@ -170,6 +170,7 @@ void TexMgr_CompressTextures_f (cvar_t *var);
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t gl_texturemode;
 extern cvar_t gl_compress_textures;
+extern cvar_t gl_lodbias;
 extern cvar_t r_particles;
 extern cvar_t r_dynamic;
 extern cvar_t host_maxfps;
@@ -595,6 +596,7 @@ static void VID_FSAA_f (cvar_t *cvar)
 		return;
 	GL_DeleteFrameBuffers ();
 	GL_CreateFrameBuffers ();
+	gl_lodbias.callback (&gl_lodbias);
 }
 
 /*
@@ -606,8 +608,10 @@ Called when vid_fsaamode changes
 */
 static void VID_FSAAMode_f (cvar_t *cvar)
 {
-	if (host_initialized)
-		GL_MinSampleShadingFunc (cvar->value);
+	if (!host_initialized)
+		return;
+	GL_MinSampleShadingFunc (cvar->value);
+	gl_lodbias.callback (&gl_lodbias);
 }
 
 /*
