@@ -73,6 +73,11 @@ FILE *Sys_fopen (const char *path, const char *mode)
 	return fopen (path, mode);
 }
 
+int Sys_remove (const char *path)
+{
+	return remove (path);
+}
+
 long Sys_filelength (FILE *f)
 {
 	long		pos, end;

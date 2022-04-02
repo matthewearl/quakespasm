@@ -107,6 +107,13 @@ FILE *Sys_fopen (const char *path, const char *mode)
 	return f;
 }
 
+int Sys_remove (const char *path)
+{
+	wchar_t	wpath[MAX_PATH];
+	UTF8ToWideString (path, wpath, countof (wpath));
+	return _wremove (wpath);
+}
+
 long Sys_filelength (FILE *f)
 {
 	long		pos, end;

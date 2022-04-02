@@ -2351,6 +2351,37 @@ static void COM_Game_f (void)
 
 /*
 =================
+COM_IsFileWritable
+=================
+*/
+static qboolean COM_IsFileWritable (const char *path)
+{
+	qboolean exists = false;
+	FILE *f;
+
+	if (!path || !*path)
+		return false;
+
+	f = Sys_fopen (path, "rb");
+	if (f)
+	{
+		exists = true;
+		fclose (f);
+	}
+
+	f = Sys_fopen (path, "ab");
+	if (!f)
+		return false;
+
+	fclose (f);
+	if (!exists)
+		Sys_remove (path);
+
+	return true;
+}
+
+/*
+=================
 COM_SetBaseDir
 =================
 */
@@ -2418,15 +2449,29 @@ static void COM_InitBaseDir (void)
 	if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
 		Steam_ResolvePath (path, sizeof (path), &steamquake))
 	{
-		if (Steam_ChooseQuakeVersion () == STEAM_VERSION_REMASTERED)
+		qboolean remastered = (Steam_ChooseQuakeVersion () == STEAM_VERSION_REMASTERED);
+		if (remastered)
 			if ((size_t) q_strlcat (path, "/rerelease", sizeof (path)) >= sizeof (path))
 				Sys_Error ("COM_InitBaseDir: rerelease path overflow");
 
 		if (COM_SetBaseDir (path))
 		{
-			static char nightdivedir[MAX_OSPATH];
-			if (Sys_GetSteamQuakeUserDir (nightdivedir, sizeof (nightdivedir), steamquake.library))
-				host_parms->userdir = nightdivedir;
+			static char userdir[MAX_OSPATH];
+			if (remastered)
+			{
+				if (Sys_GetSteamQuakeUserDir (userdir, sizeof (userdir), steamquake.library))
+					host_parms->userdir = userdir;
+			}
+			else if (host_parms->userdir == host_parms->basedir)
+			{
+				char testcfg[MAX_OSPATH];
+				if ((size_t) q_snprintf (testcfg, sizeof (testcfg), "%s/" GAMENAME "/" CONFIG_NAME, path) >= sizeof (testcfg))
+					testcfg[0] = 0;
+
+				if (!COM_IsFileWritable (testcfg) &&
+					(size_t) q_strlcpy (userdir, host_parms->basedir, sizeof (userdir)) < sizeof (userdir))
+					host_parms->userdir = userdir;
+			}
 			return;
 		}
 	}
