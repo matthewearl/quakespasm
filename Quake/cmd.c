@@ -540,30 +540,26 @@ static char *Cmd_TintSubstring(const char *in, const char *substr, char *out, si
 
 /*
 ============
-Cmd_Apropos_f
+Cmd_ListAllContaining
 
 scans through each command and cvar names+descriptions for the given substring
 we don't support descriptions, so this isn't really all that useful, but even without the sake of consistency it still combines cvars+commands under a single command.
 ============
 */
-void Cmd_Apropos_f(void)
+static void Cmd_ListAllContaining (const char *substr)
 {
 	char tmpbuf[256];
 	int hits = 0;
 	cmd_function_t	*cmd;
 	cvar_t *var;
-	const char *substr = Cmd_Argv (1);
-	if (!*substr)
-	{
-		Con_SafePrintf ("%s <substring> : search through commands and cvars for the given substring\n", Cmd_Argv(0));
-		return;
-	}
+	const char *plural;
+
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
 		if (q_strcasestr(cmd->name, substr))
 		{
 			hits++;
-			Con_SafePrintf ("%s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
+			Con_SafePrintf ("   %s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
 		}
 	}
 	
@@ -572,11 +568,31 @@ void Cmd_Apropos_f(void)
 		if (q_strcasestr(var->name, substr))
 		{
 			hits++;
-			Con_SafePrintf ("%s (current value: \"%s\")\n", Cmd_TintSubstring(var->name, substr, tmpbuf, sizeof(tmpbuf)), var->string);
+			Con_SafePrintf ("   %s (current value: \"%s\")\n", Cmd_TintSubstring(var->name, substr, tmpbuf, sizeof(tmpbuf)), var->string);
 		}
 	}
+
+	plural = (hits == 1) ? "" : "s";
 	if (!hits)
-		Con_SafePrintf ("no cvars nor commands contain that substring\n");
+		Con_SafePrintf ("no cvars/commands contain '%s'\n", substr);
+	else
+		Con_SafePrintf ("%d cvar%s/command%s containing '%s'\n", hits, plural, plural, substr);
+}
+
+/*
+============
+Cmd_Apropos_f
+============
+*/
+void Cmd_Apropos_f (void)
+{
+	const char *substr = Cmd_Argv (1);
+	if (!*substr)
+	{
+		Con_SafePrintf ("%s <substring> : search through commands and cvars for the given substring\n", Cmd_Argv(0));
+		return;
+	}
+	Cmd_ListAllContaining (substr);
 }
 
 /*
@@ -825,8 +841,7 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 
 // check cvars
 	if (!Cvar_Command ())
-		Con_Printf ("Unknown command \"%s\"\n", Cmd_Argv(0));
-
+		Cmd_ListAllContaining (Cmd_Argv(0));
 }
 
 
