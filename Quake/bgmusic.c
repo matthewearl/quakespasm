@@ -80,7 +80,14 @@ static void BGM_Play_f (void)
 		BGM_Play (Cmd_Argv(1));
 	}
 	else {
-		Con_Printf ("music <musicfile>\n");
+		if (bgmstream)
+		{
+			char path[MAX_QPATH];
+			COM_StripExtension (COM_SkipPath (bgmstream->name), path, sizeof (path));
+			Con_Printf ("Playing %s, use 'music <musicfile>' to change\n", path);
+		}
+		else
+			Con_Printf ("music <musicfile>\n");
 	}
 }
 
