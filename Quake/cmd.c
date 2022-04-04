@@ -58,6 +58,17 @@ void Cmd_Wait_f (void)
 }
 
 /*
+===============
+Cmd_CfgMarker_f
+===============
+*/
+static qboolean in_cfg_exec = false;
+static void Cmd_CfgMarker_f (void)
+{
+	in_cfg_exec = false;
+}
+
+/*
 =============================================================================
 
 						COMMAND BUFFER
@@ -299,6 +310,12 @@ void Cmd_Exec_f (void)
 exec:
 	Con_Printf ("execing %s\n", path);
 
+	if (!in_cfg_exec)
+	{
+		in_cfg_exec = true;
+		// Note: this will be executed *after* the config
+		Cbuf_InsertText ("__cfgmarker");
+	}
 	Cbuf_InsertText (f);
 	Hunk_FreeToLowMark (mark);
 }
@@ -615,6 +632,8 @@ void Cmd_Init (void)
 
 	Cmd_AddCommand ("apropos", Cmd_Apropos_f);
 	Cmd_AddCommand ("find", Cmd_Apropos_f);
+
+	Cmd_AddCommand ("__cfgmarker", Cmd_CfgMarker_f);
 }
 
 /*
@@ -841,7 +860,12 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 
 // check cvars
 	if (!Cvar_Command ())
-		Cmd_ListAllContaining (Cmd_Argv(0));
+	{
+		if (in_cfg_exec)
+			Con_Printf ("Unknown command \"%s\"\n", Cmd_Argv(0));
+		else
+			Cmd_ListAllContaining (Cmd_Argv(0));
+	}
 }
 
 
