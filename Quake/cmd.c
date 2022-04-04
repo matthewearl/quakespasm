@@ -166,7 +166,7 @@ void Cbuf_Execute (void)
 	int		i;
 	char	*text;
 	char	line[1024];
-	int		quotes;
+	int		quotes, comment;
 
 	while (cmd_text.cursize && !cmd_wait)
 	{
@@ -174,11 +174,14 @@ void Cbuf_Execute (void)
 		text = (char *)cmd_text.data;
 
 		quotes = 0;
+		comment = 0;
 		for (i=0 ; i< cmd_text.cursize ; i++)
 		{
 			if (text[i] == '"')
 				quotes++;
-			if ( !(quotes&1) &&  text[i] == ';')
+			if (text[i] == '/' && text[i + 1] == '/')
+				comment = true;
+			if (!(quotes&1) && !comment && text[i] == ';')
 				break;	// don't break if inside a quoted string
 			if (text[i] == '\n')
 				break;
