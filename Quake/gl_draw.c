@@ -150,6 +150,7 @@ byte		menuplyr_pixels[4096];
 #define	MAX_SCRAPS		2
 #define	BLOCK_WIDTH		256
 #define	BLOCK_HEIGHT	256
+#define	SCRAP_PADDING	1
 
 int			scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
 byte		scrap_texels[MAX_SCRAPS][BLOCK_WIDTH*BLOCK_HEIGHT]; //johnfitz -- removed *4 after BLOCK_HEIGHT
@@ -247,7 +248,7 @@ qpic_t *Draw_PicFromWad (const char *name)
 		int		i, j, k;
 		int		texnum;
 
-		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);
+		texnum = Scrap_AllocBlock (p->width + SCRAP_PADDING, p->height + SCRAP_PADDING, &x, &y);
 		scrap_dirty = true;
 		k = 0;
 		for (i=0 ; i<p->height ; i++)
