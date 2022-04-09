@@ -57,12 +57,26 @@ typedef enum {
 	CANVAS_CONSOLE,
 	CANVAS_MENU,
 	CANVAS_SBAR,
+	CANVAS_SBAR2,
 	CANVAS_CROSSHAIR,
 	CANVAS_BOTTOMLEFT,
 	CANVAS_BOTTOMRIGHT,
 	CANVAS_TOPRIGHT,
 	CANVAS_INVALID = -1
 } canvastype;
+
+typedef struct glcanvas_s {
+	canvastype			type;
+	float				left, right, bottom, top;
+	float				scale[2];
+	float				offset[2];
+	GLubyte				color[4];
+	unsigned			blendmode;
+	struct gltexture_s	*texture;
+} glcanvas_t;
+
+extern	glcanvas_t	glcanvas;
+
 extern	cvar_t		scr_menuscale;
 extern	cvar_t		scr_sbarscale;
 extern	cvar_t		scr_conwidth;
@@ -70,6 +84,8 @@ extern	cvar_t		scr_conscale;
 extern	cvar_t		scr_scale;
 extern	cvar_t		scr_crosshairscale;
 //johnfitz
+
+extern	cvar_t		scr_hudstyle;
 
 extern int scr_tileclear_updates; //johnfitz
 

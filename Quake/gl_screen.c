@@ -88,6 +88,8 @@ cvar_t		scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t		scr_clock = {"scr_clock", "0", CVAR_NONE};
 //johnfitz
 
+cvar_t		scr_hudstyle = {"hudstyle", "2", CVAR_ARCHIVE};
+
 cvar_t		scr_viewsize = {"viewsize","100", CVAR_ARCHIVE};
 cvar_t		scr_fov = {"fov","90",CVAR_ARCHIVE};	// 10 - 170
 cvar_t		scr_fov_adapt = {"fov_adapt","1",CVAR_ARCHIVE};
@@ -308,7 +310,7 @@ static void SCR_CalcRefdef (void)
 	size = scr_viewsize.value;
 	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
-	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1) //johnfitz -- scr_sbaralpha.value
+	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || scr_hudstyle.value >= 1) //johnfitz -- scr_sbaralpha.value
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;
@@ -426,10 +428,12 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
+	Cvar_RegisterVariable (&scr_hudstyle);
 	//johnfitz
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_fov_adapt, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_viewsize, SCR_Callback_refdef);
+	Cvar_SetCallback (&scr_hudstyle, SCR_Callback_refdef);
 	Cvar_RegisterVariable (&scr_fov);
 	Cvar_RegisterVariable (&scr_fov_adapt);
 	Cvar_RegisterVariable (&scr_viewsize);
@@ -502,9 +506,20 @@ void SCR_DrawFPS (void)
 		else
 			sprintf (st, "%.2f ms", 1000.f / lastfps);
 		x = 320 - (strlen(st)<<3);
-		y = 200 - 8;
-		if (scr_clock.value) y -= 8; //make room for clock
-		GL_SetCanvas (CANVAS_BOTTOMRIGHT);
+		if (scr_hudstyle.value >= 1)
+		{
+			x = 320 - 16 - (strlen(st)<<3);
+			y = 8;
+			if (scr_clock.value) y += 8; //make room for clock
+			GL_SetCanvas (CANVAS_TOPRIGHT);
+		}
+		else
+		{
+			x = 320 - (strlen(st)<<3);
+			y = 200 - 8;
+			if (scr_clock.value) y -= 8; //make room for clock
+			GL_SetCanvas (CANVAS_BOTTOMRIGHT);
+		}
 		Draw_String (x, y, st);
 		scr_tileclear_updates = 0;
 	}
@@ -532,8 +547,16 @@ void SCR_DrawClock (void)
 		return;
 
 	//draw it
-	GL_SetCanvas (CANVAS_BOTTOMRIGHT);
-	Draw_String (320 - (strlen(str)<<3), 200 - 8, str);
+	if (scr_hudstyle.value < 1)
+	{
+		GL_SetCanvas (CANVAS_BOTTOMRIGHT);
+		Draw_String (320 - (strlen(str)<<3), 200 - 8, str);
+	}
+	else
+	{
+		GL_SetCanvas (CANVAS_TOPRIGHT);
+		Draw_String (320 - 16 - (strlen(str)<<3), 8, str);
+	}
 
 	scr_tileclear_updates = 0;
 }

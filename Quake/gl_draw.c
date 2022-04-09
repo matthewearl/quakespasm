@@ -117,12 +117,7 @@ static int numbatchquads = 0;
 static guivertex_t batchverts[4 * MAX_BATCH_QUADS];
 static GLushort batchindices[6 * MAX_BATCH_QUADS];
 
-static canvastype currentcanvas = CANVAS_NONE; //johnfitz -- for GL_SetCanvas
-static float canvasoffset[2];
-static float canvasscale[2];
-static GLubyte canvascolor[4] = {255, 255, 255, 255};
-static unsigned canvasblend = GLS_BLEND_ALPHA;
-static gltexture_t *canvastexture = NULL;
+glcanvas_t glcanvas;
 
 //==============================================================================
 //
@@ -490,8 +485,8 @@ void Draw_Flush (void)
 		return;
 
 	GL_UseProgram (glprogs.gui);
-	GL_SetState (canvasblend | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
-	GL_Bind (GL_TEXTURE0, canvastexture);
+	GL_SetState (glcanvas.blendmode | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
+	GL_Bind (GL_TEXTURE0, glcanvas.texture);
 
 	GL_Upload (GL_ARRAY_BUFFER, batchverts, sizeof(batchverts[0]) * 4 * numbatchquads, &buf, &ofs);
 	GL_BindBuffer (GL_ARRAY_BUFFER, buf);
@@ -513,10 +508,10 @@ Draw_SetTexture
 */
 static void Draw_SetTexture (gltexture_t *tex)
 {
-	if (tex == canvastexture)
+	if (tex == glcanvas.texture)
 		return;
 	Draw_Flush ();
-	canvastexture = tex;
+	glcanvas.texture = tex;
 }
 
 /*
@@ -526,10 +521,10 @@ Draw_SetBlending
 */
 static void Draw_SetBlending (unsigned blend)
 {
-	if (blend == canvasblend)
+	if (blend == glcanvas.blendmode)
 		return;
 	Draw_Flush ();
-	canvasblend = blend;
+	glcanvas.blendmode = blend;
 }
 
 /*
@@ -539,10 +534,10 @@ GL_SetCanvasColor
 */
 void GL_SetCanvasColor (float r, float g, float b, float a)
 {
-	canvascolor[0] = (int) CLAMP(0.f, r * 255.f + 0.5f, 255.f);
-	canvascolor[1] = (int) CLAMP(0.f, g * 255.f + 0.5f, 255.f);
-	canvascolor[2] = (int) CLAMP(0.f, b * 255.f + 0.5f, 255.f);
-	canvascolor[3] = (int) CLAMP(0.f, a * 255.f + 0.5f, 255.f);
+	glcanvas.color[0] = (int) CLAMP(0.f, r * 255.f + 0.5f, 255.f);
+	glcanvas.color[1] = (int) CLAMP(0.f, g * 255.f + 0.5f, 255.f);
+	glcanvas.color[2] = (int) CLAMP(0.f, b * 255.f + 0.5f, 255.f);
+	glcanvas.color[3] = (int) CLAMP(0.f, a * 255.f + 0.5f, 255.f);
 }
 
 /*
@@ -564,11 +559,11 @@ Draw_SetVertex
 */
 static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 {
-	v->pos[0] = x * canvasscale[0] + canvasoffset[0];
-	v->pos[1] = y * canvasscale[1] + canvasoffset[1];
+	v->pos[0] = x * glcanvas.scale[0] + glcanvas.offset[0];
+	v->pos[1] = y * glcanvas.scale[1] + glcanvas.offset[1];
 	v->uv[0] = s;
 	v->uv[1] = t;
-	memcpy (v->color, canvascolor, 4 * sizeof(GLubyte));
+	memcpy (v->color, glcanvas.color, 4 * sizeof(GLubyte));
 }
 
 /*
@@ -646,6 +641,9 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	glpic_t		*gl;
 	guivertex_t	*verts;
 
+	if (!pic)
+		return;
+
 	if (scrap_dirty)
 		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
@@ -656,6 +654,41 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	Draw_SetVertex (verts++, x+pic->width, y,             gl->sh, gl->tl);
 	Draw_SetVertex (verts++, x+pic->width, y+pic->height, gl->sh, gl->th);
 	Draw_SetVertex (verts++, x,            y+pic->height, gl->sl, gl->th);
+}
+
+/*
+=============
+Draw_SubPic
+=============
+*/
+void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, const float *rgb, float alpha)
+{
+	glpic_t		*gl;
+	guivertex_t	*verts;
+
+	if (!pic || alpha <= 0.0f)
+		return;
+
+	s2 += s1;
+	t2 += t1;
+
+	if (scrap_dirty)
+		Scrap_Upload ();
+	gl = (glpic_t *)pic->data;
+	Draw_SetTexture (gl->gltexture);
+
+	if (rgb)
+		GL_SetCanvasColor (rgb[0], rgb[1], rgb[2], alpha);
+	else
+		GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
+
+	verts = Draw_AllocQuad ();
+	Draw_SetVertex (verts++, x,   y,   LERP (gl->sl, gl->sh, s1), LERP (gl->tl, gl->th, t1));
+	Draw_SetVertex (verts++, x+w, y,   LERP (gl->sl, gl->sh, s2), LERP (gl->tl, gl->th, t1));
+	Draw_SetVertex (verts++, x+w, y+h, LERP (gl->sl, gl->sh, s2), LERP (gl->tl, gl->th, t2));
+	Draw_SetVertex (verts++, x,   y+h, LERP (gl->sl, gl->sh, s1), LERP (gl->tl, gl->th, t2));
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }
 
 /*
@@ -824,10 +857,14 @@ static void Draw_SetTransform (float left, float right, float bottom, float top)
 	float tx = -(right + left) / (right - left);
 	float ty = -(top + bottom) / (top - bottom);
 
-	canvasscale[0] = 2.0f / (right - left);
-	canvasscale[1] = 2.0f / (top - bottom);
-	canvasoffset[0] = tx;
-	canvasoffset[1] = ty;
+	glcanvas.left = left;
+	glcanvas.right = right;
+	glcanvas.bottom = bottom;
+	glcanvas.top = top;
+	glcanvas.scale[0] = 2.0f / (right - left);
+	glcanvas.scale[1] = 2.0f / (top - bottom);
+	glcanvas.offset[0] = tx;
+	glcanvas.offset[1] = ty;
 }
 
 /*
@@ -841,12 +878,12 @@ void GL_SetCanvas (canvastype newcanvas)
 	float s;
 	int lines;
 
-	if (newcanvas == currentcanvas)
+	if (newcanvas == glcanvas.type)
 		return;
 
 	Draw_Flush ();
-	currentcanvas = newcanvas;
-	canvastexture = NULL;
+	glcanvas.type = newcanvas;
+	glcanvas.texture = NULL;
 
 	switch(newcanvas)
 	{
@@ -868,7 +905,7 @@ void GL_SetCanvas (canvastype newcanvas)
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		if (cl.gametype == GAME_DEATHMATCH)
+		if (cl.gametype == GAME_DEATHMATCH && scr_hudstyle.value < 1)
 		{
 			Draw_SetTransform (0, glwidth / s, 48, 0);
 			glViewport (glx, gly, glwidth, 48*s);
@@ -878,6 +915,12 @@ void GL_SetCanvas (canvastype newcanvas)
 			Draw_SetTransform (0, 320, 48, 0);
 			glViewport (glx + (glwidth - 320*s) / 2, gly, 320*s, 48*s);
 		}
+		break;
+	case CANVAS_SBAR2:
+		s = q_min (glwidth / 400.0, glheight / 225.0);
+		s = CLAMP (1.0, scr_sbarscale.value, s);
+		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
+		glViewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_CROSSHAIR: //0,0 is center of viewport
 		s = CLAMP (1.0, scr_crosshairscale.value, 10.0);
@@ -895,7 +938,7 @@ void GL_SetCanvas (canvastype newcanvas)
 		glViewport (glx+glwidth-320*s, gly, 320*s, 200*s);
 		break;
 	case CANVAS_TOPRIGHT: //used by disc
-		s = 1;
+		s = (float)glwidth/vid.conwidth; //use console scale
 		Draw_SetTransform (0, 320, 200, 0);
 		glViewport (glx+glwidth-320*s, gly+glheight-200*s, 320*s, 200*s);
 		break;
@@ -911,8 +954,9 @@ GL_Set2D
 */
 void GL_Set2D (void)
 {
-	currentcanvas = CANVAS_INVALID;
-	canvastexture = NULL;
+	glcanvas.type = CANVAS_INVALID;
+	glcanvas.texture = NULL;
+	glcanvas.blendmode = GLS_BLEND_ALPHA;
 	GL_SetCanvas (CANVAS_DEFAULT);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }
