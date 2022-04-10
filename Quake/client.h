@@ -107,7 +107,8 @@ typedef struct
 	char		spawnparms[MAX_MAPSTRING];	// to restart a level
 
 // demo loop control
-	int		demonum;		// -1 = don't play demos
+	qboolean	demoloop;
+	int			demonum;		// -1 = don't play demos
 	char		demos[MAX_DEMOS][MAX_DEMONAME];	// when not playing
 
 // demo recording info must be here, because record is started before

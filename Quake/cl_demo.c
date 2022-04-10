@@ -391,7 +391,7 @@ void CL_PlayDemo_f (void)
 	if (cmd_source != src_command)
 		return;
 
-	if (Cmd_Argc() != 2)
+	if (Cmd_Argc() < 2)
 	{
 		Con_Printf ("playdemo <demoname> : plays a demo\n");
 		return;
@@ -430,6 +430,7 @@ void CL_PlayDemo_f (void)
 	cls.demoplayback = true;
 	cls.demopaused = false;
 	cls.state = ca_connected;
+	cls.demoloop = Cmd_Argc () >= 3 ? Q_atoi (Cmd_Argv (2)) != 0 : false;
 
 // get rid of the menu and/or console
 	key_dest = key_game;
