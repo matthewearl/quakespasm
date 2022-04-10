@@ -540,7 +540,7 @@ void Sbar_SoloScoreboard (void)
 	tens = seconds / 10;
 	units = seconds - 10*tens;
 	sprintf (str,"%i:%i%i", minutes, tens, units);
-	Sbar_DrawString (160 - strlen(str)*4, 12, str);
+	Sbar_DrawString ((left + right)/2 - strlen(str)*4, 12, str);
 
 	len = strlen (cl.levelname);
 	if (len > 40)
