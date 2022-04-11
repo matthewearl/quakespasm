@@ -620,7 +620,7 @@ void GL_BuildBModelVertexBuffer (void)
 				if (fa->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
 					texscalex = 1.f / 128.f; //warp animation repeats every 128
 				else
-					texscalex = 32.f; //to match r_notexture_mip
+					texscalex = 1.f / 32.f; //to match r_notexture_mip
 				texscaley = texscalex;
 				useofs = 0.f; //unlit surfaces don't use the texture offset
 				lmofs = 0.f;
