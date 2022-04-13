@@ -497,6 +497,11 @@ void GL_BuildLightmaps (void)
 	// fill reserved texel
 	lightmap_data[0] = 0xff808080u;
 
+	// unlit map? fill with 50% grey
+	if (!cl.worldmodel->lightdata)
+		for (i = 1; i < lmsize; i++)
+			lightmap_data[i] = 0xff808080u;
+
 	// fill lightmap samples
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 		GL_FillSurfaceLightmap (lit_surfs[i]);
