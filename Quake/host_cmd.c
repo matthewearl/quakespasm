@@ -986,6 +986,7 @@ Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 static void Host_SavegameComment (char *text)
 {
 	int		i;
+	char	*levelname;
 	char	kills[20];
 	char	*p1, *p2;
 
@@ -994,12 +995,13 @@ static void Host_SavegameComment (char *text)
 
 // Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
 // https://celephais.net/board/view_thread.php?id=60452&start=3666
-	p1 = strchr(cl.levelname, '\n');
-	p2 = strchr(cl.levelname, '\r');
+	levelname = cl.levelname[0] ? cl.levelname : cl.mapname;
+	p1 = strchr(levelname, '\n');
+	p2 = strchr(levelname, '\r');
 	if (p1 != NULL) *p1 = 0;
 	if (p2 != NULL) *p2 = 0;
 
-	memcpy (text, cl.levelname, q_min(strlen(cl.levelname),22)); //johnfitz -- only copy 22 chars.
+	memcpy (text, levelname, q_min(strlen(levelname),22)); //johnfitz -- only copy 22 chars.
 	sprintf (kills,"kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text+22, kills, strlen(kills));
 // convert space to _ to make stdio happy
