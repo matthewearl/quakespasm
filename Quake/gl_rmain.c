@@ -844,8 +844,13 @@ void R_SetupView (void)
 	{
 		if (!r_drawworld.value) r_drawworld_cheatsafe = false;
 
-		if (r_fullbright.value || !cl.worldmodel->lightdata) r_fullbright_cheatsafe = true;
+		if (r_fullbright.value) r_fullbright_cheatsafe = true;
 		else if (r_lightmap.value) r_lightmap_cheatsafe = true;
+	}
+	if (!cl.worldmodel->lightdata)
+	{
+		r_fullbright_cheatsafe = true;
+		r_lightmap_cheatsafe = false;
 	}
 	//johnfitz
 }
