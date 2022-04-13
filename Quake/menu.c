@@ -1615,6 +1615,55 @@ int		msgNumber;
 enum m_state_e	m_quit_prevstate;
 qboolean	wasInMenus;
 
+const char*const quitMessage [] = 
+{
+/* .........1.........2.... */
+  "  Are you gonna quit    ",
+  "  this game just like   ",
+  "   everything else?     ",
+  "                        ",
+ 
+  " Milord, methinks that  ",
+  "   thou art a lowly     ",
+  " quitter. Is this true? ",
+  "                        ",
+
+  " Do I need to bust your ",
+  "  face open for trying  ",
+  "        to quit?        ",
+  "                        ",
+
+  " Man, I oughta smack you",
+  "   for trying to quit!  ",
+  "     Press Y to get     ",
+  "      smacked out.      ",
+ 
+  " Press Y to quit like a ",
+  "   big loser in life.   ",
+  "  Press N to stay proud ",
+  "    and successful!     ",
+ 
+  "   If you press Y to    ",
+  "  quit, I will summon   ",
+  "  Satan all over your   ",
+  "      hard drive!       ",
+ 
+  "  Um, Asmodeus dislikes ",
+  " his children trying to ",
+  " quit. Press Y to return",
+  "   to your Tinkertoys.  ",
+ 
+  "  If you quit now, I'll ",
+  "  throw a blanket-party ",
+  "   for you next time!   ",
+  "                        ",
+
+  "  Leave QUAKE?  ",
+  "",
+  "",
+  "\xD9\x65s   \xCE\x6F",
+};
+
 void M_Menu_Quit_f (void)
 {
 	if (m_state == m_quit)
@@ -1625,7 +1674,7 @@ void M_Menu_Quit_f (void)
 	m_quit_prevstate = m_state;
 	m_state = m_quit;
 	m_entersound = true;
-	msgNumber = rand()&7;
+	msgNumber = (cl_confirmquit.value >= 2.f) ? rand()&7 : 8;
 }
 
 
@@ -1689,10 +1738,8 @@ qboolean M_Quit_TextEntry (void)
 
 void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 {
-	const char	msg1[] = "Leave QUAKE?";
-	const char	msg2[] = "";
-	const char	msg3[] = "Y\xE5\xF3  N\xEF";
-	int			boxlen = 0;
+	const char*const *msg = quitMessage + msgNumber*4;
+	int i, boxlen = 0;
 
 	if (wasInMenus)
 	{
@@ -1705,16 +1752,14 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 	//okay, this is kind of fucked up.  M_DrawTextBox will always act as if
 	//width is even. Also, the width and lines values are for the interior of the box,
 	//but the x and y values include the border.
-	boxlen = q_max (boxlen, sizeof (msg1));
-	boxlen = q_max (boxlen, sizeof (msg2));
-	boxlen = q_max (boxlen, sizeof (msg3));
+	for (i = 0; i < 4; i++)
+		boxlen = q_max (boxlen, strlen (msg[i]));
 	boxlen = (boxlen + 1) & ~1;
-	M_DrawTextBox	(160-4*(boxlen+2), 76, boxlen, 4);
+	M_DrawTextBox (160 - 4*(boxlen+2), 76, boxlen, 5);
 
 	//now do the text
-	M_Print			(160-4*(sizeof(msg1)-1), 88, msg1);
-	M_Print			(160-4*(sizeof(msg2)-1), 96, msg2);
-	M_PrintWhite	(160-4*(sizeof(msg3)-1), 104, msg3);
+	for (i = 0; i < 4; i++)
+		M_Print (160 - 8*((strlen(msg[i])+1)>>1), 88 + i*8, msg[i]);
 }
 
 //=============================================================================
