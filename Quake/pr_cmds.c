@@ -1716,7 +1716,7 @@ static void PF_Fixme (void)
 }
 
 
-static builtin_t pr_builtin[] =
+builtin_t pr_basebuiltins[] =
 {
 	PF_Fixme,
 	PF_makevectors,		// void(entity e) makevectors		= #1
@@ -1818,11 +1818,20 @@ static builtin_t pr_builtin[] =
 	PF_Fixme,		// void draw_worldtext (string s, vector origin, float size, float lifetime, float depthtest) = #87
 	PF_Fixme,		// void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
 	PF_Fixme,		// void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
-
-	PF_CheckPlayerEXFlags,
-	PF_Fixme,
 };
+int pr_numbasebuiltins = countof (pr_basebuiltins);
 
-builtin_t *pr_builtins = pr_builtin;
-int pr_numbuiltins = sizeof(pr_builtin)/sizeof(pr_builtin[0]);
+extbuiltin_t pr_extbuiltins[] =
+{
+	{"ex_centerprint",			PF_centerprint},			// void(entity client, string s, ...)
+	{"ex_bprint",				PF_bprint},					// void(string s, ...)
+	{"ex_sprint",				PF_sprint},					// void(entity client, string s, ...)
+	{"ex_finalefinished",		PF_finalefinished},			// float()
+	{"ex_CheckPlayerEXFlags",	PF_CheckPlayerEXFlags},		// float(entity playerEnt)
+};
+int pr_numextbuiltins = countof (pr_extbuiltins);
 
+builtin_t pr_builtins[MAX_BUILTINS];
+int pr_numbuiltins = 0;
+
+COMPILE_TIME_ASSERT (builtin_buffer_size, countof (pr_basebuiltins) + countof (pr_extbuiltins) + 1 <= MAX_BUILTINS);

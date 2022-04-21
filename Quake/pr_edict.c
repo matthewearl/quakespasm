@@ -1198,6 +1198,60 @@ void ED_LoadFromFile (const char *data)
 
 /*
 ===============
+PR_InitBuiltins
+===============
+*/
+static void PR_InitBuiltins (void)
+{
+	dfunction_t	*func;
+	const char	*name;
+	int			i, j;
+
+	if (!pr_numbuiltins) // one-time function table init
+	{
+		// add base builtins
+		memcpy (pr_builtins, pr_basebuiltins, pr_numbasebuiltins * sizeof (pr_basebuiltins[0]));
+
+		// fill all other entries with PF_Fixme
+		for (i = pr_numbasebuiltins; i < MAX_BUILTINS; i++)
+			pr_builtins[i] = pr_basebuiltins[0];
+
+		// fill top slots (excluding the very last one) with extension builtins
+		for (j = 0; j < pr_numextbuiltins; j++)
+		{
+			extbuiltin_t *ext = &pr_extbuiltins[j];
+			ext->number = MAX_BUILTINS - 1 - pr_numextbuiltins + j;
+			pr_builtins[ext->number] = ext->func;
+		}
+
+		pr_numbuiltins = MAX_BUILTINS;
+	}
+
+	// remap progs functions with id 0
+	for (i = 0; i < progs->numfunctions; i++)
+	{
+		func = &pr_functions[i];
+		if (func->first_statement || func->parm_start || func->locals)
+			continue;
+
+		name = PR_GetString (func->s_name);
+		for (j = 0; j < pr_numextbuiltins; j++)
+		{
+			extbuiltin_t *ext = &pr_extbuiltins[j];
+			if (!strcmp (name, ext->name))
+			{
+				func->first_statement = -ext->number;
+				break;
+			}
+		}
+
+		if (j == pr_numextbuiltins) // not found? use a non-zero id mapped to PF_Fixme
+			func->first_statement = -(MAX_BUILTINS-1);
+	}
+}
+
+/*
+===============
 PR_HasGlobal
 ===============
 */
@@ -1231,65 +1285,20 @@ static int PR_FindSupportedEffects (void)
 ===============
 PR_PatchRereleaseBuiltins
 
+Quake 2021 release update 1 adds bprint/sprint/centerprint builtins with new id's
+(see https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156)
+This function patches them back to use the old indices
 ===============
 */
 static void PR_PatchRereleaseBuiltins (void)
 {
 	dfunction_t *f;
-
-/* Quake 2021 release update 1 adds bprint/sprint/centerprint builtins with new ids
- * (https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156).
- * Patch them back to use the old indices: */
 	if ((f = ED_FindFunction ("centerprint")) != NULL && f->first_statement == -90)
 		f->first_statement = -73;
 	if ((f = ED_FindFunction ("bprint")) != NULL && f->first_statement == -91)
 		f->first_statement = -23;
 	if ((f = ED_FindFunction ("sprint")) != NULL && f->first_statement == -92)
 		f->first_statement = -24;
-
-/* Quake 2021 release update 3 changes rerelease-specific builtins to be looked up
-   by name rather than hardcoded builtin nums to avoid conflict with other engines.
- * (https://steamcommunity.com/games/2310/announcements/detail/3177861894960065435)
- * Patch them to use the indices: */
-	if ((f = ED_FindFunction ("ex_centerprint")) != NULL)
-		f->first_statement = -73;
-	if ((f = ED_FindFunction ("ex_bprint")) != NULL)
-		f->first_statement = -23;
-	if ((f = ED_FindFunction ("ex_sprint")) != NULL)
-		f->first_statement = -24;
-	if ((f = ED_FindFunction ("ex_finaleFinished")) != NULL)
-		f->first_statement = -79;
-
-	if ((f = ED_FindFunction ("ex_localsound")) != NULL)
-		f->first_statement = -80;
-
-	if ((f = ED_FindFunction ("ex_draw_point")) != NULL)
-		f->first_statement = -81;
-	if ((f = ED_FindFunction ("ex_draw_line")) != NULL)
-		f->first_statement = -82;
-	if ((f = ED_FindFunction ("ex_draw_arrow")) != NULL)
-		f->first_statement = -83;
-	if ((f = ED_FindFunction ("ex_draw_ray")) != NULL)
-		f->first_statement = -84;
-	if ((f = ED_FindFunction ("ex_draw_circle")) != NULL)
-		f->first_statement = -85;
-	if ((f = ED_FindFunction ("ex_draw_bounds")) != NULL)
-		f->first_statement = -86;
-	if ((f = ED_FindFunction ("ex_draw_worldtext")) != NULL)
-		f->first_statement = -87;
-	if ((f = ED_FindFunction ("ex_draw_sphere")) != NULL)
-		f->first_statement = -88;
-	if ((f = ED_FindFunction ("ex_draw_cylinder")) != NULL)
-		f->first_statement = -89;
-
-	if ((f = ED_FindFunction ("ex_CheckPlayerEXFlags")) != NULL)
-		f->first_statement = -90;
-	if ((f = ED_FindFunction ("ex_bot_movetopoint")) != NULL)
-		f->first_statement = -91;
-	if ((f = ED_FindFunction ("ex_bot_followentity")) != NULL)
-		f->first_statement = -91;
-	if ((f = ED_FindFunction ("ex_walkpathtogoal")) != NULL)
-		f->first_statement = -91;
 }
 
 
@@ -1400,6 +1409,7 @@ void PR_LoadProgs (void)
 	pr_edict_size &= ~(sizeof(void *) - 1);
 
 	PR_InitHashTables ();
+	PR_InitBuiltins ();
 	PR_PatchRereleaseBuiltins ();
 
 	pr_effects_mask = PR_FindSupportedEffects ();

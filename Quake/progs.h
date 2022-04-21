@@ -120,9 +120,23 @@ int NUM_FOR_EDICT(edict_t *e);
 
 extern	int		type_size[8];
 
+#define MAX_BUILTINS		1280
 typedef void (*builtin_t) (void);
-extern	builtin_t	*pr_builtins;
-extern	int		pr_numbuiltins;
+extern	builtin_t	pr_builtins[MAX_BUILTINS];
+extern	int			pr_numbuiltins;
+extern	builtin_t	pr_basebuiltins[];
+extern	int			pr_numbasebuiltins;
+
+typedef struct extbuiltin_s
+{
+	const char	*name;
+	builtin_t	func;
+	int			number;
+} extbuiltin_t;
+
+extern extbuiltin_t	pr_extbuiltins[];
+extern int			pr_numextbuiltins;
+
 
 extern	int		pr_argc;
 
