@@ -105,6 +105,8 @@ cvar_t		gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 cvar_t		cl_gun_fovscale = {"cl_gun_fovscale","1",CVAR_ARCHIVE}; // Qrack
 
 extern	cvar_t	crosshair;
+extern	cvar_t	con_notifyfade;
+extern	cvar_t	con_notifyfadetime;
 
 qboolean	scr_initialized;		// ready to draw
 
@@ -153,6 +155,8 @@ void SCR_CenterPrint (const char *str) //update centerprint data
 	strncpy (scr_centerstring, str, sizeof(scr_centerstring)-1);
 	scr_centertime_off = scr_centertime.value;
 	scr_centertime_start = cl.time;
+	if (!cl.intermission)
+		scr_centertime_off += q_max (0.f, con_notifyfade.value * con_notifyfadetime.value);
 
 // count the number of lines for centering
 	scr_center_lines = 1;
@@ -172,14 +176,24 @@ void SCR_DrawCenterString (void) //actually do the drawing
 	int		j;
 	int		x, y;
 	int		remaining;
+	float	alpha;
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 // the finale prints the characters one at a time
 	if (cl.intermission)
+	{
 		remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
+		alpha = 1.f;
+	}
 	else
+	{
+		float fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
 		remaining = 9999;
+		alpha = fade ? q_min (scr_centertime_off / fade, 1.f) : 1.f;
+	}
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
 
 	scr_erase_center = 0;
 	start = scr_centerstring;
@@ -214,6 +228,8 @@ void SCR_DrawCenterString (void) //actually do the drawing
 			break;
 		start++;		// skip the \n
 	} while (1);
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }
 
 void SCR_CheckDrawCenterString (void)

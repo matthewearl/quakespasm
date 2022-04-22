@@ -52,11 +52,13 @@ char		*con_text = NULL;
 cvar_t		con_notifytime = {"con_notifytime","3",CVAR_NONE};	//seconds
 cvar_t		con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; //johnfitz
 cvar_t		con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
+cvar_t		con_notifyfade = {"con_notifyfade", "0", CVAR_ARCHIVE};
+cvar_t		con_notifyfadetime = {"con_notifyfadetime", "0.5", CVAR_ARCHIVE};
 
 char		con_lastcenterstring[1024]; //johnfitz
 
 #define	NUM_CON_TIMES 4
-float		con_times[NUM_CON_TIMES];	// realtime time the line was generated
+double		con_times[NUM_CON_TIMES];	// realtime time the line was generated
 						// for transparent notify lines
 
 int			con_vislines;
@@ -331,6 +333,8 @@ void Con_Init (void)
 
 	Cvar_RegisterVariable (&con_notifytime);
 	Cvar_RegisterVariable (&con_notifycenter);
+	Cvar_RegisterVariable (&con_notifyfade);
+	Cvar_RegisterVariable (&con_notifyfadetime);
 	Cvar_RegisterVariable (&con_logcenterprint); //johnfitz
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
@@ -1073,6 +1077,26 @@ DRAWING
 
 /*
 ================
+Con_NotifyAlpha
+================
+*/
+static float Con_NotifyAlpha (double time)
+{
+	float fade;
+	if (!time)
+		return 0.f;
+	fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
+	time += con_notifytime.value + fade - realtime;
+	if (time <= 0.f)
+		return 0.f;
+	if (!fade)
+		return 1.f;
+	time = time / fade;
+	return q_min (time, 1.f);
+}
+
+/*
+================
 Con_DrawNotify
 
 Draws the last few lines of output transparently over the game top
@@ -1082,7 +1106,7 @@ void Con_DrawNotify (void)
 {
 	int	i, x, v;
 	const char	*text;
-	float	time;
+	float	alpha;
 
 	GL_SetCanvas (CANVAS_CONSOLE); //johnfitz
 	v = vid.conheight; //johnfitz
@@ -1091,16 +1115,14 @@ void Con_DrawNotify (void)
 	{
 		if (i < 0)
 			continue;
-		time = con_times[i % NUM_CON_TIMES];
-		if (time == 0)
-			continue;
-		time = realtime - time;
-		if (time > con_notifytime.value)
+		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
+		if (alpha <= 0.f)
 			continue;
 		text = con_text + (i % con_totallines)*con_linewidth;
 
 		clearnotify = 0;
 
+		GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
 		if (con_notifycenter.value)
 		{
 			int len = con_linewidth;
@@ -1112,6 +1134,7 @@ void Con_DrawNotify (void)
 		else
 			for (x = 0; x < con_linewidth; x++)
 				Draw_Character ((x+1)<<3, v, text[x]);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 
 		v += 8;
 
