@@ -82,6 +82,7 @@ cvar_t	developer = {"developer","0",CVAR_NONE};
 cvar_t	temp1 = {"temp1","0",CVAR_NONE};
 
 cvar_t devstats = {"devstats","0",CVAR_NONE}; //johnfitz -- track developer statistics that vary every frame
+cvar_t cl_titlestats = {"cl_titlestats","1",CVAR_ARCHIVE};
 
 cvar_t	campaign = {"campaign","0",CVAR_NONE}; // for the 2021 rerelease
 cvar_t	horde = {"horde","0",CVAR_NONE}; // for the 2021 rerelease
@@ -280,6 +281,8 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
 	Cvar_SetCallback (&max_edicts, Max_Edicts_f);
 	Cvar_RegisterVariable (&devstats); //johnfitz
+
+	Cvar_RegisterVariable (&cl_titlestats);
 
 	Cvar_RegisterVariable (&sys_ticrate);
 	Cvar_RegisterVariable (&serverprofile);
@@ -722,7 +725,7 @@ GetGameSummary
 */
 static void GetGameSummary (summary_t *s)
 {
-	if (cls.state != ca_connected || cls.signon != SIGNONS)
+	if (!cl_titlestats.value || cls.state != ca_connected || cls.signon != SIGNONS)
 	{
 		s->map[0] = 0;
 		memset (&s->stats, 0, sizeof (s->stats));
