@@ -51,6 +51,10 @@ vec3_t	r_origin;
 float r_fovx, r_fovy; //johnfitz -- rendering fov may be different becuase of r_waterwarp and r_stereo
 qboolean water_warp;
 
+extern byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+extern qboolean SV_EdictInPVS (edict_t *test, byte *pvs);
+extern qboolean SV_BoxInPVS (vec3_t mins, vec3_t maxs, byte *pvs, mnode_t *node);
+
 //
 // screen size info
 //
@@ -1077,6 +1081,7 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 static void R_ShowBoundingBoxes (void)
 {
 	extern		edict_t *sv_player;
+	byte		*pvs;
 	vec3_t		mins,maxs;
 	edict_t		*ed;
 	int			i;
@@ -1086,14 +1091,30 @@ static void R_ShowBoundingBoxes (void)
 
 	GL_BeginGroup ("Show bounding boxes");
 
+	if (r_showbboxes.value >= 2)
+	{
+		vec3_t org;
+		VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, org);
+		pvs = SV_FatPVS (org, sv.worldmodel);
+	}
+	else
+		pvs = NULL;
+
 	for (i=0, ed=NEXT_EDICT(sv.edicts) ; i<sv.num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
 		if (ed == sv_player)
-			continue; //don't draw player's own bbox
+			continue;
 
-//		if (r_showbboxes.value != 2)
-//			if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
-//				continue; //don't draw if not in pvs
+		if (pvs)
+		{
+			qboolean inpvs =
+				ed->num_leafs ?
+					SV_EdictInPVS (ed, pvs) :
+					SV_BoxInPVS (ed->v.absmin, ed->v.absmax, pvs, sv.worldmodel->nodes)
+			;
+			if (!inpvs)
+				continue;
+		}
 
 		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
 		{

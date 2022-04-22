@@ -526,6 +526,20 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) //johnfitz -- added worldmode
 
 /*
 =============
+SV_EdictInPVS
+=============
+*/
+qboolean SV_EdictInPVS (edict_t *test, byte *pvs)
+{
+	int i;
+	for (i = 0 ; i < test->num_leafs ; i++)
+		if (pvs[test->leafnums[i] >> 3] & (1 << (test->leafnums[i] & 7)))
+			return true;
+	return false;
+}
+
+/*
+=============
 SV_VisibleToClient -- johnfitz
 
 PVS test encapsulated in a nice function
@@ -535,16 +549,11 @@ qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmode
 {
 	byte	*pvs;
 	vec3_t	org;
-	int		i;
 
 	VectorAdd (client->v.origin, client->v.view_ofs, org);
 	pvs = SV_FatPVS (org, worldmodel);
 
-	for (i=0 ; i < test->num_leafs ; i++)
-		if (pvs[test->leafnums[i] >> 3] & (1 << (test->leafnums[i]&7) ))
-			return true;
-
-	return false;
+	return SV_EdictInPVS (test, pvs);
 }
 
 //=============================================================================

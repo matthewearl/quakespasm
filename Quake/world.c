@@ -420,6 +420,40 @@ void SV_FindTouchedLeafs (edict_t *ent, mnode_t *node)
 
 /*
 ===============
+SV_BoxInPVS
+===============
+*/
+qboolean SV_BoxInPVS (vec3_t mins, vec3_t maxs, byte *pvs, mnode_t *node)
+{
+	mplane_t	*splitplane;
+	mleaf_t		*leaf;
+	int			sides;
+	int			leafnum;
+
+	if (node->contents == CONTENTS_SOLID)
+		return false;
+
+	if (node->contents < 0)
+	{
+		leaf = (mleaf_t *)node;
+		leafnum = leaf - sv.worldmodel->leafs - 1;
+		return pvs[leafnum >> 3] & (1 << (leafnum & 7));
+	}
+
+	splitplane = node->plane;
+	sides = BOX_ON_PLANE_SIDE(mins, maxs, splitplane);
+
+	if (sides & 1 && SV_BoxInPVS (mins, maxs, pvs, node->children[0]))
+		return true;
+
+	if (sides & 2 && SV_BoxInPVS (mins, maxs, pvs, node->children[1]))
+		return true;
+
+	return false;
+}
+
+/*
+===============
 SV_LinkEdict
 
 ===============
