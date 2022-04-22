@@ -1753,7 +1753,7 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 	//width is even. Also, the width and lines values are for the interior of the box,
 	//but the x and y values include the border.
 	for (i = 0; i < 4; i++)
-		boxlen = q_max (boxlen, strlen (msg[i]));
+		boxlen = q_max (boxlen, (int)strlen (msg[i]));
 	boxlen = (boxlen + 1) & ~1;
 	M_DrawTextBox (160 - 4*(boxlen+2), 76, boxlen, 5);
 
