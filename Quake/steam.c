@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // steam.c -- steam config parsing
 
 #include "quakedef.h"
+#include "q_ctype.h"
 #include "steam.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -50,7 +51,7 @@ Parses a quoted string (potentially with escape sequences)
 static char *VDB_ParseString (char **buf)
 {
 	char *ret, *write;
-	while (isspace (**buf))
+	while (q_isspace (**buf))
 		++*buf;
 
 	if (**buf != '"')
@@ -110,7 +111,7 @@ static qboolean VDB_ParseEntry (char **buf, vdbcontext_t *ctx)
 {
 	char *name;
 
-	while (isspace (**buf))
+	while (q_isspace (**buf))
 		++*buf;
 	if (!**buf) // end of buffer
 		return true;
@@ -119,7 +120,7 @@ static qboolean VDB_ParseEntry (char **buf, vdbcontext_t *ctx)
 	if (!name)
 		return false;
 
-	while (isspace (**buf))
+	while (q_isspace (**buf))
 		++*buf;
 
 	if (**buf == '"') // key-value pair
@@ -140,7 +141,7 @@ static qboolean VDB_ParseEntry (char **buf, vdbcontext_t *ctx)
 
 		while (**buf)
 		{
-			while (isspace (**buf))
+			while (q_isspace (**buf))
 				++*buf;
 
 			if (**buf == '}')
