@@ -74,26 +74,30 @@ const char *svc_strings[] =
 	"",	// 35
 	"",	// 36
 	"svc_skybox", // 37					// [string] skyname
-	"", // 38
+	"svc_botchat", // 38 (2021 RE-RELEASE)
 	"", // 39
 	"svc_bf", // 40						// no data
 	"svc_fog", // 41					// [byte] density [byte] red [byte] green [byte] blue [float] time
 	"svc_spawnbaseline2", //42			// support for large modelindex, large framenum, alpha, using flags
 	"svc_spawnstatic2", // 43			// support for large modelindex, large framenum, alpha, using flags
 	"svc_spawnstaticsound2", //	44		// [coord3] [short] samp [byte] vol [byte] aten
-	"", // 45
-	"", // 46
-	"", // 47
-	"", // 48
-	"", // 49
-	"", // 50
-	"", // 51
-	"svc_achievement", // 52 -- used by the 2021 rerelease
-	"", // 53
-	"", // 54
-	"", // 55
 //johnfitz
+
+// 2021 RE-RELEASE:
+	"svc_setviews", // 45
+	"svc_updateping", // 46
+	"svc_updatesocial", // 47
+	"svc_updateplinfo", // 48
+	"svc_rawprint", // 49
+	"svc_servervars", // 50
+	"svc_seq", // 51
+	"svc_achievement", // 52
+	"svc_chat", // 53
+	"svc_levelcompleted", // 54
+	"svc_backtolobby", // 55
+	"svc_localsound" // 56
 };
+#define	NUM_SVC_STRINGS	(sizeof(svc_strings) / sizeof(svc_strings[0]))
 
 qboolean warn_about_nehahra_protocol; //johnfitz
 
@@ -983,13 +987,15 @@ void CL_ParseServerMessage (void)
 			continue;
 		}
 
-		SHOWNET(svc_strings[cmd]);
+		if (cmd < (int)NUM_SVC_STRINGS) {
+			SHOWNET(svc_strings[cmd]);
+		}
 
 	// other commands
 		switch (cmd)
 		{
 		default:
-			Host_Error ("Illegible server message, previous was %s", svc_strings[lastcmd]); //johnfitz -- added svc_strings[lastcmd]
+			Host_Error ("Illegible server message %d (previous was %s)", cmd, svc_strings[lastcmd]); //johnfitz -- added svc_strings[lastcmd]
 			break;
 
 		case svc_nop:

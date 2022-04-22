@@ -661,15 +661,6 @@ static void PF_sound (void)
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
 
-	if (volume < 0 || volume > 255)
-		Host_Error ("SV_StartSound: volume = %i", volume);
-
-	if (attenuation < 0 || attenuation > 4)
-		Host_Error ("SV_StartSound: attenuation = %f", attenuation);
-
-	if (channel < 0 || channel > 7)
-		Host_Error ("SV_StartSound: channel = %i", channel);
-
 	SV_StartSound (entity, channel, sample, volume, attenuation);
 }
 
@@ -1698,7 +1689,7 @@ static void PF_changelevel (void)
 
 /*
 ==============
-PF_finalefinished -- used by 2021 release.
+for 2021 re-release:
 ==============
 */
 static void PF_finalefinished (void)
@@ -1708,6 +1699,10 @@ static void PF_finalefinished (void)
 static void PF_CheckPlayerEXFlags (void)
 {
 	G_FLOAT(OFS_RETURN) = 0;
+}
+static void PF_walkpathtogoal (void)
+{
+	G_FLOAT(OFS_RETURN) = 0; /* PATH_ERROR */
 }
 
 static void PF_Fixme (void)
@@ -1806,7 +1801,7 @@ builtin_t pr_basebuiltins[] =
 
 	PF_setspawnparms,
 
-	// 2021 release
+	// 2021 re-release
 	PF_finalefinished,	// float() finaleFinished = #79
 	PF_Fixme,		// void localsound (entity client, string sample) = #80
 	PF_Fixme,		// void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
@@ -1828,6 +1823,7 @@ extbuiltin_t pr_extbuiltins[] =
 	{"ex_sprint",				PF_sprint},					// void(entity client, string s, ...)
 	{"ex_finalefinished",		PF_finalefinished},			// float()
 	{"ex_CheckPlayerEXFlags",	PF_CheckPlayerEXFlags},		// float(entity playerEnt)
+	{"ex_walkpathtogoal",		PF_walkpathtogoal},			// float(float movedist, vector goal)
 };
 int pr_numextbuiltins = countof (pr_extbuiltins);
 
