@@ -51,6 +51,7 @@ char		*con_text = NULL;
 
 cvar_t		con_notifytime = {"con_notifytime","3",CVAR_NONE};	//seconds
 cvar_t		con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; //johnfitz
+cvar_t		con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
 
 char		con_lastcenterstring[1024]; //johnfitz
 
@@ -329,6 +330,7 @@ void Con_Init (void)
 	Con_Printf ("Console initialized.\n");
 
 	Cvar_RegisterVariable (&con_notifytime);
+	Cvar_RegisterVariable (&con_notifycenter);
 	Cvar_RegisterVariable (&con_logcenterprint); //johnfitz
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
@@ -1099,8 +1101,17 @@ void Con_DrawNotify (void)
 
 		clearnotify = 0;
 
-		for (x = 0; x < con_linewidth; x++)
-			Draw_Character ((x+1)<<3, v, text[x]);
+		if (con_notifycenter.value)
+		{
+			int len = con_linewidth;
+			while (len > 0 && text[len - 1] == ' ')
+				--len;
+			for (x = 0; x < len; x++)
+				Draw_Character ((con_linewidth - len)*4 + x*8, v + 16, text[x]);
+		}
+		else
+			for (x = 0; x < con_linewidth; x++)
+				Draw_Character ((x+1)<<3, v, text[x]);
 
 		v += 8;
 
