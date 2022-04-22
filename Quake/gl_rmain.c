@@ -1033,7 +1033,7 @@ static void R_EmitLine (const vec3_t a, const vec3_t b, uint32_t color)
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 ================
 */
-static void R_EmitWirePoint (const vec3_t origin)
+static void R_EmitWirePoint (const vec3_t origin, uint32_t color)
 {
 	const float Size = 8.f;
 	int i;
@@ -1044,7 +1044,7 @@ static void R_EmitWirePoint (const vec3_t origin)
 		VectorCopy (origin, b);
 		a[i] -= Size;
 		b[i] += Size;
-		R_EmitLine (a, b, -1);
+		R_EmitLine (a, b, color);
 	}
 }
 
@@ -1055,7 +1055,7 @@ R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 */
 static const uint16_t boxidx[12*2] = { 0,1, 0,2, 0,4, 1,3, 1,5, 2,3, 2,6, 3,7, 4,5, 4,6, 5,7, 6,7, };
 
-static void R_EmitWireBox (const vec3_t mins, const vec3_t maxs)
+static void R_EmitWireBox (const vec3_t mins, const vec3_t maxs, uint32_t color)
 {
 	int i;
 	debugvert_t v[8];
@@ -1065,7 +1065,7 @@ static void R_EmitWireBox (const vec3_t mins, const vec3_t maxs)
 		v[i].pos[0] = i & 1 ? mins[0] : maxs[0];
 		v[i].pos[1] = i & 2 ? mins[1] : maxs[1];
 		v[i].pos[2] = i & 4 ? mins[2] : maxs[2];
-		v[i].color = -1;
+		v[i].color = color;
 	}
 
 	R_AddDebugGeometry (v, countof (v), boxidx, countof (boxidx));
@@ -1081,17 +1081,20 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 static void R_ShowBoundingBoxes (void)
 {
 	extern		edict_t *sv_player;
+	qmodel_t	*model;
 	byte		*pvs;
 	vec3_t		mins,maxs;
 	edict_t		*ed;
-	int			i;
+	int			i, mode;
+	uint32_t	color;
 
 	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
 
 	GL_BeginGroup ("Show bounding boxes");
 
-	if (r_showbboxes.value >= 2)
+	mode = abs ((int)r_showbboxes.value);
+	if (mode >= 2)
 	{
 		vec3_t org;
 		VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, org);
@@ -1116,17 +1119,36 @@ static void R_ShowBoundingBoxes (void)
 				continue;
 		}
 
+		if (r_showbboxes.value > 0.f)
+		{
+			color = 0xff800080;
+			if (ed->v.modelindex)
+			{
+				model = sv.models[(int)ed->v.modelindex];
+				switch (model->type)
+				{
+					case mod_brush:  color = 0xffff8080; break;
+					case mod_alias:  color = 0xff408080; break;
+					case mod_sprite: color = 0xff4040ff; break;
+					default:
+						break;
+				}
+			}
+		}
+		else
+			color = 0xffffffff;
+
 		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
 		{
 			//point entity
-			R_EmitWirePoint (ed->v.origin);
+			R_EmitWirePoint (ed->v.origin, color);
 		}
 		else
 		{
 			//box entity
 			VectorAdd (ed->v.mins, ed->v.origin, mins);
 			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
-			R_EmitWireBox (mins, maxs);
+			R_EmitWireBox (mins, maxs, color);
 		}
 	}
 
