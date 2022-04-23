@@ -527,7 +527,10 @@ void Sbar_SoloScoreboard (void)
 		q_snprintf (str, sizeof(str), "skill %i", (int)(skill.value + 0.5));
 		Sbar_DrawString ((left + right)/2 - strlen(str)*4, 12, str);
 
-		q_snprintf (str, sizeof(str), "%s (%s)", cl.levelname, cl.mapname);
+		if (cl.levelname[0])
+			q_snprintf (str, sizeof(str), "%s (%s)", cl.levelname, cl.mapname);
+		else
+			q_strlcpy (str, cl.mapname, sizeof(str));
 		len = strlen (str);
 		if (len > 40)
 			Sbar_DrawScrollString (0, 4, 320, str);
@@ -542,11 +545,11 @@ void Sbar_SoloScoreboard (void)
 	sprintf (str,"%i:%i%i", minutes, tens, units);
 	Sbar_DrawString ((left + right)/2 - strlen(str)*4, 12, str);
 
-	len = strlen (cl.levelname);
+	len = q_strlcpy (str, cl.levelname[0] ? cl.levelname : cl.mapname, sizeof(str));
 	if (len > 40)
-		Sbar_DrawScrollString (0, 4, 320, cl.levelname);
+		Sbar_DrawScrollString (0, 4, 320, str);
 	else
-		Sbar_DrawString (160 - len*4, 4, cl.levelname);
+		Sbar_DrawString (160 - len*4, 4, str);
 }
 
 /*
