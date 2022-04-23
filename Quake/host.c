@@ -766,7 +766,9 @@ static void UpdateWindowTitle (void)
 	{
 		char title[1024];
 		q_snprintf (title, sizeof (title),
-			"%s (%s)  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING,
+			cl.levelname[0] ?
+				"%s (%s)  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING :
+				"%s%s  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING,
 			cl.levelname, current.map,
 			current.stats.skill,
 			current.stats.monsters, current.stats.total_monsters,
