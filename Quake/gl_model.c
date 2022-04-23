@@ -2438,7 +2438,9 @@ visdone:
 		//johnfitz
 
 		mod->numleafs = bm->visleafs;
-		mod->sortkey = (atoi (mod->name + 1) & MODSORT_MODELMASK) << MODSORT_FRAMEBITS;
+		// don't overwrite sort key for main model, otherwise we break instancing for bmodel items (e.g. ammo)
+		if (i)
+			mod->sortkey = (i & MODSORT_MODELMASK) << MODSORT_FRAMEBITS;
 		Mod_FindUsedTextures (mod);
 
 		if (i < mod->numsubmodels-1)
