@@ -286,7 +286,7 @@ void R_SetupAliasLighting (entity_t	*e)
 		lightcolor[2] = 256.0f;
 	}
 
-	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
+	VectorScale (lightcolor, gl_overbright_models.value ? 1.0f/200.0f : 0.5f/200.0f, lightcolor);
 }
 
 /*
