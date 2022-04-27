@@ -1081,7 +1081,6 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 static void R_ShowBoundingBoxes (void)
 {
 	extern		edict_t *sv_player;
-	qmodel_t	*model;
 	byte		*pvs;
 	vec3_t		mins,maxs;
 	edict_t		*ed;
@@ -1121,11 +1120,11 @@ static void R_ShowBoundingBoxes (void)
 
 		if (r_showbboxes.value > 0.f)
 		{
+			int modelindex = (int)ed->v.modelindex;
 			color = 0xff800080;
-			if (ed->v.modelindex)
+			if (modelindex >= 0 && modelindex < MAX_MODELS && sv.models[modelindex])
 			{
-				model = sv.models[(int)ed->v.modelindex];
-				switch (model->type)
+				switch (sv.models[modelindex]->type)
 				{
 					case mod_brush:  color = 0xffff8080; break;
 					case mod_alias:  color = 0xff408080; break;
