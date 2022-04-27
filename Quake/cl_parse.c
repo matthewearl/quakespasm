@@ -197,6 +197,23 @@ void CL_ParseStartSoundPacket(void)
 
 /*
 ==================
+CL_ParseLocalSound - for 2021 rerelease
+==================
+*/
+void CL_ParseLocalSound(void)
+{
+	int field_mask, sound_num;
+
+	field_mask = MSG_ReadByte();
+	sound_num = (field_mask&SND_LARGESOUND) ? MSG_ReadShort() : MSG_ReadByte();
+	if (sound_num >= MAX_SOUNDS)
+		Host_Error ("CL_ParseLocalSound: %i > MAX_SOUNDS", sound_num);
+
+	S_LocalSound (cl.sound_precache[sound_num]->name);
+}
+
+/*
+==================
 CL_KeepaliveMessage
 
 When the client is taking a long time to load stuff, send keepalive messages
@@ -306,7 +323,7 @@ void CL_ParseServerInfo (void)
 		}
 	}
 	else cl.protocolflags = 0;
-	
+
 // parse maxclients
 	cl.maxclients = MSG_ReadByte ();
 	if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD)
@@ -340,7 +357,7 @@ void CL_ParseServerInfo (void)
 		str = MSG_ReadString ();
 		if (!str[0])
 			break;
-		if (nummodels==MAX_MODELS)
+		if (nummodels == MAX_MODELS)
 		{
 			Host_Error ("Server sent too many model precaches");
 		}
@@ -360,7 +377,7 @@ void CL_ParseServerInfo (void)
 		str = MSG_ReadString ();
 		if (!str[0])
 			break;
-		if (numsounds==MAX_SOUNDS)
+		if (numsounds == MAX_SOUNDS)
 		{
 			Host_Error ("Server sent too many sound precaches");
 		}
@@ -826,7 +843,7 @@ void CL_ParseClientdata (void)
 	else
 		cl.viewent.alpha = ENTALPHA_DEFAULT;
 	//johnfitz
-    
+
 	//johnfitz -- lerping
 	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
 	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
@@ -938,6 +955,41 @@ void CL_ParseStaticSound (int version) //johnfitz -- added argument
 }
 
 
+#if 0	/* for debugging. from fteqw. */
+static void CL_DumpPacket (void)
+{
+	int			i, pos;
+	unsigned char	*packet = net_message.data;
+
+	Con_Printf("CL_DumpPacket, BEGIN:\n");
+	pos = 0;
+	while (pos < net_message.cursize)
+	{
+		Con_Printf("%5i ", pos);
+		for (i = 0; i < 16; i++)
+		{
+			if (pos >= net_message.cursize)
+				Con_Printf(" X ");
+			else	Con_Printf("%2x ", packet[pos]);
+			pos++;
+		}
+		pos -= 16;
+		for (i = 0; i < 16; i++)
+		{
+			if (pos >= net_message.cursize)
+				Con_Printf("X");
+			else if (packet[pos] == 0)
+				Con_Printf(".");
+			else	Con_Printf("%c", packet[pos]);
+			pos++;
+		}
+		Con_Printf("\n");
+	}
+
+	Con_Printf("CL_DumpPacket, --- END ---\n");
+}
+#endif	/* CL_DumpPacket */
+
 #define SHOWNET(x) if(cl_shownet.value==2)Con_Printf ("%3i:%s\n", msg_readcount-1, x);
 
 /*
@@ -959,6 +1011,8 @@ void CL_ParseServerMessage (void)
 		Con_Printf ("%i ",net_message.cursize);
 	else if (cl_shownet.value == 2)
 		Con_Printf ("------------------\n");
+
+//	cl.onground = false;	// unless the server says otherwise
 
 //
 // parse the message
@@ -995,6 +1049,7 @@ void CL_ParseServerMessage (void)
 		switch (cmd)
 		{
 		default:
+		//	CL_DumpPacket ();
 			Host_Error ("Illegible server message %d (previous was %s)", cmd, svc_strings[lastcmd]); //johnfitz -- added svc_strings[lastcmd]
 			break;
 
@@ -1257,6 +1312,9 @@ void CL_ParseServerMessage (void)
 		case svc_achievement:
 			str = MSG_ReadString();
 			Con_DPrintf("Ignoring svc_achievement (%s)\n", str);
+			break;
+		case svc_localsound:
+			CL_ParseLocalSound();
 			break;
 		}
 

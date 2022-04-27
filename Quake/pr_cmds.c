@@ -91,7 +91,8 @@ static char *PF_VarString (int	first)
 	{
 		if (!dev_overflows.varstring || dev_overflows.varstring + CONSOLE_RESPAM_TIME < realtime)
 		{
-			Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n", (int) s, (int)(sizeof(out) - 1));
+			Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n",
+								(int) s, (int)(sizeof(out) - 1));
 			dev_overflows.varstring = realtime;
 		}
 	}
@@ -1689,7 +1690,7 @@ static void PF_changelevel (void)
 
 /*
 ==============
-for 2021 re-release:
+2021 re-release
 ==============
 */
 static void PF_finalefinished (void)
@@ -1703,6 +1704,19 @@ static void PF_CheckPlayerEXFlags (void)
 static void PF_walkpathtogoal (void)
 {
 	G_FLOAT(OFS_RETURN) = 0; /* PATH_ERROR */
+}
+static void PF_localsound (void)
+{
+	const char	*sample;
+	int		entnum;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	sample = G_STRING(OFS_PARM1);
+	if (entnum < 1 || entnum > svs.maxclients) {
+		Con_Printf ("tried to localsound to a non-client\n");
+		return;
+	}
+	SV_LocalSound (&svs.clients[entnum-1], sample);
 }
 
 static void PF_Fixme (void)
@@ -1803,7 +1817,7 @@ builtin_t pr_basebuiltins[] =
 
 	// 2021 re-release
 	PF_finalefinished,	// float() finaleFinished = #79
-	PF_Fixme,		// void localsound (entity client, string sample) = #80
+	PF_localsound,		// void localsound (entity client, string sample) = #80
 	PF_Fixme,		// void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
 	PF_Fixme,		// void draw_line (vector start, vector end, float colormap, float lifetime, float depthtest) = #82
 	PF_Fixme,		// void draw_arrow (vector start, vector end, float colormap, float size, float lifetime, float depthtest) = #83
@@ -1824,6 +1838,7 @@ extbuiltin_t pr_extbuiltins[] =
 	{"ex_finalefinished",		PF_finalefinished},			// float()
 	{"ex_CheckPlayerEXFlags",	PF_CheckPlayerEXFlags},		// float(entity playerEnt)
 	{"ex_walkpathtogoal",		PF_walkpathtogoal},			// float(float movedist, vector goal)
+	{"ex_localsound",			PF_localsound},				// void(entity client, string sample)
 };
 int pr_numextbuiltins = countof (pr_extbuiltins);
 

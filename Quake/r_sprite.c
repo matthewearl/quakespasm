@@ -102,7 +102,7 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	// are positive, so we don't have to worry about division by 0
 		targettime = time - ((int)(time / fullinterval)) * fullinterval;
 
-		for (i=0 ; i<(numframes-1) ; i++)
+		for (i = 0; i < (numframes-1); i++)
 		{
 			if (pintervals[i] > targettime)
 				break;
@@ -180,8 +180,6 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	float			*s_up, *s_right;
 	float			angle, sr, cr;
 	spritevert_t	*verts;
-
-	//TODO: frustum cull it?
 
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;

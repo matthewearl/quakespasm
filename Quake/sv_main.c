@@ -229,15 +229,13 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 	{
 		if (sv.protocol == PROTOCOL_NETQUAKE)
 			return; //don't send any info protocol can't support
-		else
-			field_mask |= SND_LARGEENTITY;
+		field_mask |= SND_LARGEENTITY;
 	}
 	if (sound_num >= 256 || channel >= 8)
 	{
 		if (sv.protocol == PROTOCOL_NETQUAKE)
 			return; //don't send any info protocol can't support
-		else
-			field_mask |= SND_LARGESOUND;
+		field_mask |= SND_LARGESOUND;
 	}
 	//johnfitz
 
@@ -265,6 +263,42 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 
 	for (i = 0; i < 3; i++)
 		MSG_WriteCoord (&sv.datagram, entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]), sv.protocolflags);
+}
+
+/*
+==================
+SV_LocalSound - for 2021 rerelease
+==================
+*/
+void SV_LocalSound (client_t *client, const char *sample)
+{
+	int	sound_num, field_mask;
+
+	for (sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num]; sound_num++)
+	{
+		if (!strcmp(sample, sv.sound_precache[sound_num]))
+			break;
+	}
+	if (sound_num == MAX_SOUNDS || !sv.sound_precache[sound_num])
+	{
+		Con_Printf ("SV_LocalSound: %s not precached\n", sample);
+		return;
+	}
+
+	field_mask = 0;
+	if (sound_num >= 256)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE)
+			return;
+		field_mask = SND_LARGESOUND;
+	}
+
+	MSG_WriteByte (&client->message, svc_localsound);
+	MSG_WriteByte (&client->message, field_mask);
+	if (field_mask & SND_LARGESOUND)
+		MSG_WriteShort (&client->message, sound_num);
+	else
+		MSG_WriteByte (&client->message, sound_num);
 }
 
 /*

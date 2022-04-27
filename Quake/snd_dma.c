@@ -150,10 +150,8 @@ void S_Startup (void)
 	}
 	else
 	{
-		Con_Printf("Audio: %d bit, %s, %d Hz\n",
-				shm->samplebits,
-				(shm->channels == 2) ? "stereo" : "mono",
-				shm->speed);
+		Con_Printf("Audio: %d bit, %s, %d Hz\n", shm->samplebits,
+				(shm->channels == 2) ? "stereo" : "mono", shm->speed);
 	}
 }
 
@@ -202,13 +200,13 @@ void S_Init (void)
 	i = COM_CheckParm("-sndspeed");
 	if (i && i < com_argc-1)
 	{
-		Cvar_SetQuick (&sndspeed, com_argv[i+1]);
+		Cvar_SetQuick (&sndspeed, com_argv[i + 1]);
 	}
-	
+
 	i = COM_CheckParm("-mixspeed");
 	if (i && i < com_argc-1)
 	{
-		Cvar_SetQuick (&snd_mixspeed, com_argv[i+1]);
+		Cvar_SetQuick (&snd_mixspeed, com_argv[i + 1]);
 	}
 
 	if (host_parms->memsize < 0x800000)
@@ -280,13 +278,13 @@ static sfx_t *S_FindName (const char *name)
 	if (!name)
 		Sys_Error ("S_FindName: NULL");
 
-	if (Q_strlen(name) >= MAX_QPATH)
+	if (strlen(name) >= MAX_QPATH)
 		Sys_Error ("Sound name too long: %s", name);
 
 // see if already loaded
 	for (i = 0; i < num_sfx; i++)
 	{
-		if (!Q_strcmp(known_sfx[i].name, name))
+		if (!strcmp(known_sfx[i].name, name))
 		{
 			return &known_sfx[i];
 		}
@@ -1008,7 +1006,7 @@ static void S_Play (void)
 	while (i < Cmd_Argc())
 	{
 		q_strlcpy(name, Cmd_Argv(i), sizeof(name));
-		if (!Q_strrchr(Cmd_Argv(i), '.'))
+		if (!strrchr(Cmd_Argv(i), '.'))
 		{
 			q_strlcat(name, ".wav", sizeof(name));
 		}
@@ -1030,12 +1028,12 @@ static void S_PlayVol (void)
 	while (i < Cmd_Argc())
 	{
 		q_strlcpy(name, Cmd_Argv(i), sizeof(name));
-		if (!Q_strrchr(Cmd_Argv(i), '.'))
+		if (!strrchr(Cmd_Argv(i), '.'))
 		{
 			q_strlcat(name, ".wav", sizeof(name));
 		}
 		sfx = S_PrecacheSound(name);
-		vol = Q_atof(Cmd_Argv(i + 1));
+		vol = atof(Cmd_Argv(i + 1));
 		S_StartSound(hash++, 0, sfx, listener_origin, vol, 1.0);
 		i += 2;
 	}
