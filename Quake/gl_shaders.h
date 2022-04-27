@@ -1013,6 +1013,8 @@ ALIAS_INSTANCE_BUFFER
 "	float dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
 "	float dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
 "	out_color = clamp(inst.LightColor * vec4(vec3(mix(dot1, dot2, inst.Blend)), 1.0), 0.0, 1.0);\n"
+"	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
+"	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -1050,8 +1052,6 @@ NOISE_FUNCTIONS
 "#else\n"
 "	result.rgb = mix(result.rgb, result.rgb * in_color.rgb, result.a);\n"
 "#endif\n"
-"	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
-"	result.rgb = ldexp(result.rgb, ivec3(overbright));\n"
 "	result.a = in_color.a; // FIXME: This will make almost transparent things cut holes though heavy fog\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	result.rgb += textureLod(FullbrightTex, uv, 0.).rgb;\n"
