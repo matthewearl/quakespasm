@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 #include "quakedef.h"
+#include "q_ctype.h"
 
 int 		con_linewidth;
 
@@ -852,7 +853,7 @@ const char *FindCompletion (const char *partial, filelist_item_t *filelist, int 
 
 	for (file = filelist, init = 0; file; file = file->next)
 	{
-		if (!strncmp(file->name, partial, plen))
+		if (!q_strncasecmp (file->name, partial, plen))
 		{
 			if (init == 0)
 			{
@@ -864,7 +865,7 @@ const char *FindCompletion (const char *partial, filelist_item_t *filelist, int 
 			{ // find max common
 				i_matched = matched;
 				i_name = file->name;
-				while (*i_matched && (*i_matched == *i_name))
+				while (*i_matched && (q_tolower(*i_matched) == q_tolower(*i_name)))
 				{
 					i_matched++;
 					i_name++;
@@ -881,7 +882,7 @@ const char *FindCompletion (const char *partial, filelist_item_t *filelist, int 
 	{
 		for (file = filelist; file; file = file->next)
 		{
-			if (!strncmp(file->name, partial, plen))
+			if (!q_strncasecmp (file->name, partial, plen))
 				Con_SafePrintf ("   %s\n", file->name);
 		}
 		Con_SafePrintf ("\n");
@@ -910,15 +911,15 @@ void BuildTabList (const char *partial)
 
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for ( ; cvar ; cvar=cvar->next)
-		if (!Q_strncmp (partial, cvar->name, len))
+		if (!q_strncasecmp (partial, cvar->name, len))
 			AddToTabList (cvar->name, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (!Q_strncmp (partial,cmd->name, len))
+		if (!q_strncasecmp (partial,cmd->name, len))
 			AddToTabList (cmd->name, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)
-		if (!Q_strncmp (partial, alias->name, len))
+		if (!q_strncasecmp (partial, alias->name, len))
 			AddToTabList (alias->name, "alias");
 }
 
@@ -960,8 +961,8 @@ void Con_TabComplete (void)
 	// for (like "map ") and a list of all the maps.
 		arg_completion_type_t arg_completion = arg_completion_types[j];
 		const char *command_name = arg_completion.command;
-		
-		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
+
+		if (!q_strncasecmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
 		{
 			int nummatches = 0;
 			const char *matched_map = FindCompletion(partial, *arg_completion.filelist, &nummatches);
@@ -1033,7 +1034,7 @@ void Con_TabComplete (void)
 		match = keydown[K_SHIFT] ? t->prev->name : t->name;
 		do
 		{
-			if (!Q_strcmp(t->name, partial))
+			if (!q_strcasecmp (t->name, partial))
 			{
 				match = keydown[K_SHIFT] ? t->prev->name : t->next->name;
 				break;
