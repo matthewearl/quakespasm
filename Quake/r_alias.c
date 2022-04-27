@@ -286,7 +286,7 @@ void R_SetupAliasLighting (entity_t	*e)
 		lightcolor[2] = 256.0f;
 	}
 
-	VectorScale (lightcolor, gl_overbright_models.value ? 1.0f/200.0f : 0.5f/200.0f, lightcolor);
+	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
 }
 
 /*
@@ -338,7 +338,13 @@ void R_FlushAliasInstances (void)
 		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
 	GL_SetState (state);
 
-	memcpy(ibuf.global.fog, r_framedata.fogdata, 4 * sizeof(float));
+	memcpy (ibuf.global.fog, r_framedata.fogdata, 3 * sizeof (float));
+	// use fog density sign bit as overbright flag
+	ibuf.global.fog[3] =
+		gl_overbright_models.value ?
+			-fabs (r_framedata.fogdata[3]) :
+			 fabs (r_framedata.fogdata[3])
+	;
 
 	ibuf_size = sizeof(ibuf.global) + sizeof(ibuf.inst[0]) * ibuf.count;
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
