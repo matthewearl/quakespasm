@@ -821,11 +821,13 @@ display client's position and angles
 */
 void CL_Viewpos_f (void)
 {
+	char buf[256];
 	if (cls.state != ca_connected)
 		return;
 #if 0
 	//camera position
-	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
+	q_snprintf (buf, sizeof (buf),
+		"Viewpos: (%i %i %i) %i %i %i",
 		(int)r_refdef.vieworg[0],
 		(int)r_refdef.vieworg[1],
 		(int)r_refdef.vieworg[2],
@@ -834,14 +836,21 @@ void CL_Viewpos_f (void)
 		(int)r_refdef.viewangles[ROLL]);
 #else
 	//player position
-	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
+	q_snprintf (buf, sizeof (buf),
+		"Viewpos: (%i %i %i) %i %i %i",
 		(int)cl_entities[cl.viewentity].origin[0],
 		(int)cl_entities[cl.viewentity].origin[1],
 		(int)cl_entities[cl.viewentity].origin[2],
 		(int)cl.viewangles[PITCH],
 		(int)cl.viewangles[YAW],
-		(int)cl.viewangles[ROLL]);
+		(int)cl.viewangles[ROLL]
+	);
 #endif
+	Con_Printf ("%s\n", buf);
+
+	if (Cmd_Argc () >= 2 && !q_strcasecmp (Cmd_Argv (1), "copy"))
+		if (SDL_SetClipboardText (buf) < 0)
+			Con_Printf ("Clipboard copy failed: %s\n", SDL_GetError ());
 }
 
 /*
