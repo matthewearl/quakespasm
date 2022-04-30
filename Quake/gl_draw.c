@@ -568,13 +568,13 @@ static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 
 /*
 ================
-Draw_CharacterQuad -- johnfitz -- seperate function to spit out verts
+Draw_CharacterQuadEx -- johnfitz -- seperate function to spit out verts
 ================
 */
-void Draw_CharacterQuad (int x, int y, char num)
+void Draw_CharacterQuadEx (int x, int y, int dim, char num)
 {
 	int				row, col;
-	float			frow, fcol, size;
+	float			frow, fcol, fsize;
 	guivertex_t		*verts;
 
 	row = num>>4;
@@ -582,23 +582,33 @@ void Draw_CharacterQuad (int x, int y, char num)
 
 	frow = row*0.0625;
 	fcol = col*0.0625;
-	size = 0.0625;
+	fsize = 0.0625;
 
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, x,   y,   fcol,        frow);
-	Draw_SetVertex (verts++, x+8, y,   fcol + size, frow);
-	Draw_SetVertex (verts++, x+8, y+8, fcol + size, frow + size);
-	Draw_SetVertex (verts++, x,   y+8, fcol,        frow + size);
+	Draw_SetVertex (verts++, x,     y,     fcol,         frow);
+	Draw_SetVertex (verts++, x+dim, y,     fcol + fsize, frow);
+	Draw_SetVertex (verts++, x+dim, y+dim, fcol + fsize, frow + fsize);
+	Draw_SetVertex (verts++, x,     y+dim, fcol,         frow + fsize);
 }
 
 /*
 ================
-Draw_Character -- johnfitz -- modified to call Draw_CharacterQuad
+Draw_CharacterQuad
 ================
 */
-void Draw_Character (int x, int y, int num)
+void Draw_CharacterQuad (int x, int y, char num)
 {
-	if (y <= -8)
+	Draw_CharacterQuadEx (x, y, 8, num);
+}
+
+/*
+================
+Draw_CharacterEx
+================
+*/
+void Draw_CharacterEx (int x, int y, int dim, int num)
+{
+	if (y <= -dim)
 		return;			// totally off screen
 
 	num &= 255;
@@ -607,17 +617,27 @@ void Draw_Character (int x, int y, int num)
 		return; //don't waste verts on spaces
 
 	Draw_SetTexture (char_texture);
-	Draw_CharacterQuad (x, y, (char) num);
+	Draw_CharacterQuadEx (x, y, dim, (char) num);
 }
 
 /*
 ================
-Draw_String -- johnfitz -- modified to call Draw_CharacterQuad
+Draw_Character
 ================
 */
-void Draw_String (int x, int y, const char *str)
+void Draw_Character (int x, int y, int num)
 {
-	if (y <= -8)
+	Draw_CharacterEx (x, y, 8, (char) num);
+}
+
+/*
+================
+Draw_StringEx
+================
+*/
+void Draw_StringEx (int x, int y, int dim, const char *str)
+{
+	if (y <= -dim)
 		return;			// totally off screen
 
 	Draw_SetTexture (char_texture);
@@ -625,10 +645,20 @@ void Draw_String (int x, int y, const char *str)
 	while (*str)
 	{
 		if (*str != 32) //don't waste verts on spaces
-			Draw_CharacterQuad (x, y, *str);
+			Draw_CharacterQuadEx (x, y, dim, *str);
 		str++;
-		x += 8;
+		x += dim;
 	}
+}
+
+/*
+================
+Draw_String
+================
+*/
+void Draw_String (int x, int y, const char *str)
+{
+	Draw_StringEx (x, y, 8, str);
 }
 
 /*

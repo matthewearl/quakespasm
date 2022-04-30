@@ -338,6 +338,8 @@ void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
 void SaveList_Rebuild (void);
 
+void M_CheckMods (void);
+
 extern int		current_skill;	// skill level for currently loaded level (in case
 					//  the user changes the cvar while the level is
 					//  running, this reflects the level actually in use)

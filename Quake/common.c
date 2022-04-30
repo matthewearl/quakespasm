@@ -2338,6 +2338,7 @@ static void COM_Game_f (void)
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
+		M_CheckMods ();
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
 
@@ -2761,6 +2762,24 @@ unsigned COM_HashString (const char *str)
 	while (*str)
 	{
 		hash ^= *str++;
+		hash *= 0x01000193u;
+	}
+	return hash;
+}
+
+/*
+================
+COM_HashBlock
+Computes the FNV-1a hash of a memory block
+================
+*/
+unsigned COM_HashBlock (const void *data, size_t size)
+{
+	const byte *ptr = (const byte *)data;
+	unsigned hash = 0x811c9dc5u;
+	while (size--)
+	{
+		hash ^= *ptr++;
 		hash *= 0x01000193u;
 	}
 	return hash;

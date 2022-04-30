@@ -1,4 +1,5 @@
 INPUT := gfx/conback.lmp \
+	gfx/menumods.lmp \
 	default.cfg
 
 OUTPUT := ironwail.pak

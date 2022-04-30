@@ -22,12 +22,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "q_ctype.h"
 
 void (*vid_menucmdfn)(void); //johnfitz
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
 
 enum m_state_e m_state;
+extern qboolean	keydown[256];
 
 void M_Menu_Main_f (void);
 	void M_Menu_SinglePlayer_f (void);
@@ -43,6 +45,7 @@ void M_Menu_Main_f (void);
 	void M_Menu_Options_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Video_f (void);
+	void M_Menu_Mods_f (void);
 	void M_Menu_Help_f (void);
 	void M_Menu_Quit_f (void);
 
@@ -60,6 +63,7 @@ void M_Main_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
 		void M_Video_Draw (void);
+	void M_Mods_Draw (void);
 	void M_Help_Draw (void);
 	void M_Quit_Draw (void);
 
@@ -77,6 +81,7 @@ void M_Main_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
 		void M_Video_Key (int key);
+	void M_Mods_Key (int key);
 	void M_Help_Key (int key);
 	void M_Quit_Key (int key);
 
@@ -107,24 +112,34 @@ void M_DrawCharacter (int cx, int line, int num)
 	Draw_Character (cx, line, num);
 }
 
-void M_Print (int cx, int cy, const char *str)
+void M_PrintEx (int cx, int cy, int dim, const char *str)
 {
 	while (*str)
 	{
-		M_DrawCharacter (cx, cy, (*str)+128);
+		Draw_CharacterEx (cx, cy, dim, (*str)+128);
 		str++;
-		cx += 8;
+		cx += dim;
+	}
+}
+
+void M_Print (int cx, int cy, const char *str)
+{
+	M_PrintEx (cx, cy, 8, str);
+}
+
+void M_PrintWhiteEx (int cx, int cy, int dim, const char *str)
+{
+	while (*str)
+	{
+		Draw_CharacterEx (cx, cy, dim, *str);
+		str++;
+		cx += dim;
 	}
 }
 
 void M_PrintWhite (int cx, int cy, const char *str)
 {
-	while (*str)
-	{
-		M_DrawCharacter (cx, cy, *str);
-		str++;
-		cx += 8;
-	}
+	M_PrintWhiteEx (cx, cy, 8, str);
 }
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
@@ -135,6 +150,15 @@ void M_DrawTransPic (int x, int y, qpic_t *pic)
 void M_DrawPic (int x, int y, qpic_t *pic)
 {
 	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
+}
+
+void M_DrawSubpic (int x, int y, qpic_t *pic, int left, int top, int width, int height)
+{
+	float s1 = left   / (float)pic->width;
+	float t1 = top    / (float)pic->height;
+	float s2 = width  / (float)pic->width;
+	float t2 = height / (float)pic->height;
+	Draw_SubPic (x, y, width, height, pic, s1, t1, s2, t2, NULL, 1.f);
 }
 
 void M_DrawTransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom) //johnfitz -- more parameters
@@ -197,6 +221,29 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	M_DrawTransPic (cx, cy+8, p);
 }
 
+void M_DrawQuakeBar (int x, int y, int cols)
+{
+	M_DrawCharacter (x, y, '\35');
+	x += 8;
+	cols -= 2;
+	while (cols-- > 0)
+	{
+		M_DrawCharacter (x, y, '\36');
+		x += 8;
+	}
+	M_DrawCharacter (x, y, '\37');
+}
+
+void M_DrawEllipsisBar (int x, int y, int cols)
+{
+	while (cols > 0)
+	{
+		M_DrawCharacter (x, y, '.' | 128);
+		cols -= 2;
+		x += 16;
+	}
+}
+
 //=============================================================================
 
 int m_save_demonum;
@@ -238,8 +285,19 @@ void M_ToggleMenu_f (void)
 /* MAIN MENU */
 
 int	m_main_cursor;
-#define	MAIN_ITEMS	5
+int m_main_mods;
 
+enum
+{
+	MAIN_SINGLEPLAYER,
+	MAIN_MULTIPLAYER,
+	MAIN_OPTIONS,
+	MAIN_MODS,
+	MAIN_HELP,
+	MAIN_QUIT,
+
+	MAIN_ITEMS,
+};
 
 void M_Menu_Main_f (void)
 {
@@ -252,22 +310,49 @@ void M_Menu_Main_f (void)
 	key_dest = key_menu;
 	m_state = m_main;
 	m_entersound = true;
+
+	// When switching to a mod with a custom UI the 'Mods' option
+	// is no longer available in the main menu, so we move the cursor
+	// to 'Options' to nudge the player toward the secondary location.
+	// TODO (maybe): inform the user about the missing option
+	// and its alternative location?
+	if (!m_main_mods && m_main_cursor == MAIN_MODS)
+	{
+		extern int options_cursor;
+		m_main_cursor = MAIN_OPTIONS;
+		options_cursor = 3; // OPT_MODS
+	}
 }
 
 
 void M_Main_Draw (void)
 {
-	int		f;
+	int		cursor, f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp") );
+
+	p = Draw_CachePic ("gfx/mainmenu.lmp");
+	if (m_main_mods)
+	{
+		int split = 60;
+		M_DrawSubpic (72, 32, p, 0, 0, p->width, split);
+		if (m_main_mods > 0)
+			M_DrawTransPic (72, 32 + split, Draw_CachePic ("gfx/menumods.lmp"));
+		else
+			M_PrintEx (74, 32 + split + 1, 16, "MODS");
+		M_DrawSubpic (72, 32 + split + 20, p, 0, split, p->width, p->height - split);
+	}
+	else
+		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
 
 	f = (int)(realtime * 10)%6;
-
-	M_DrawTransPic (54, 32 + m_main_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	cursor = m_main_cursor;
+	if (!m_main_mods && cursor > MAIN_MODS)
+		--cursor;
+	M_DrawTransPic (54, 32 + cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
 }
 
 
@@ -291,12 +376,16 @@ void M_Main_Key (int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (++m_main_cursor >= MAIN_ITEMS)
 			m_main_cursor = 0;
+		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
+			++m_main_cursor;
 		break;
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		if (--m_main_cursor < 0)
 			m_main_cursor = MAIN_ITEMS - 1;
+		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
+			--m_main_cursor;
 		break;
 
 	case K_ENTER:
@@ -306,27 +395,62 @@ void M_Main_Key (int key)
 
 		switch (m_main_cursor)
 		{
-		case 0:
+		case MAIN_SINGLEPLAYER:
 			M_Menu_SinglePlayer_f ();
 			break;
 
-		case 1:
+		case MAIN_MULTIPLAYER:
 			M_Menu_MultiPlayer_f ();
 			break;
 
-		case 2:
+		case MAIN_OPTIONS:
 			M_Menu_Options_f ();
 			break;
 
-		case 3:
+		case MAIN_HELP:
 			M_Menu_Help_f ();
 			break;
 
-		case 4:
+		case MAIN_MODS:
+			M_Menu_Mods_f ();
+			break;
+
+		case MAIN_QUIT:
 			M_Menu_Quit_f ();
 			break;
 		}
 	}
+}
+
+//=============================================================================
+
+void M_CheckMods (void)
+{
+	unsigned int id_mods, id_main;
+	int h, length;
+
+	m_main_mods = 0;
+	if (!COM_FileExists ("gfx/menumods.lmp", &id_mods))
+		return;
+
+	length = COM_OpenFile ("gfx/mainmenu.lmp", &h, &id_main);
+	if (length == 26888)
+	{
+		int mark = Hunk_LowMark ();
+		byte* data = (byte*) Hunk_Alloc (length);
+		if (length == Sys_FileRead (h, data, length))
+		{
+			unsigned int hash = COM_HashBlock (data, length);
+			if (hash == 0x136bc7fd || hash == 0x90555cb4)
+				m_main_mods = 1;
+		}
+		Hunk_FreeToLowMark (mark);
+	}
+
+	if (id_mods >= id_main)
+		m_main_mods = 1;
+
+	COM_CloseFile (h);
 }
 
 //=============================================================================
@@ -976,6 +1100,7 @@ enum
 	OPT_CUSTOMIZE = 0,
 	OPT_CONSOLE,	// 1
 	OPT_DEFAULTS,	// 2
+	OPT_MODS,
 	OPT_SCALE,
 	OPT_SCRSIZE,
 	OPT_GAMMA,
@@ -1186,6 +1311,9 @@ void M_Options_Draw (void)
 	// OPT_DEFAULTS:
 	M_Print (16, 32 + 8*OPT_DEFAULTS,	"          Reset config");
 
+	// OPT_MODS
+	M_Print (16, 32 + 8*OPT_MODS,		"                  Mods");
+
 	// OPT_SCALE:
 	M_Print (16, 32 + 8*OPT_SCALE,		"                 Scale");
 	l = (vid.width / 320.0) - 1;
@@ -1294,6 +1422,9 @@ void M_Options_Key (int k)
 				Cbuf_AddText ("resetcfg\n");
 				Cbuf_AddText ("exec default.cfg\n");
 			}
+			break;
+		case OPT_MODS:
+			M_Menu_Mods_f ();
 			break;
 		case OPT_VIDEO:
 			M_Menu_Video_f ();
@@ -2584,6 +2715,342 @@ void M_ServerList_Key (int k)
 }
 
 //=============================================================================
+/* Listbox */
+
+typedef struct
+{
+	int			cursor;
+	int			numitems;
+	int			viewsize;
+	int			scroll;
+} menulist_t;
+
+void M_List_CheckIntegrity (const menulist_t *list)
+{
+	SDL_assert (list->numitems >= 0);
+	SDL_assert (list->cursor >= 0);
+	SDL_assert (list->cursor < list->numitems);
+	SDL_assert (list->scroll >= 0);
+	SDL_assert (list->scroll < list->numitems);
+	SDL_assert (list->viewsize > 0);
+}
+
+void M_List_AutoScroll (menulist_t *list)
+{
+	if (list->numitems <= list->viewsize)
+		return;
+	if (list->cursor < list->scroll + 1)
+		list->scroll = list->cursor;
+	else if (list->cursor >= list->scroll + list->viewsize)
+		list->scroll = list->cursor - list->viewsize + 1;
+}
+
+void M_List_CenterCursor (menulist_t *list)
+{
+	if (list->cursor >= list->viewsize)
+	{
+		if (list->cursor + list->viewsize >= list->numitems)
+			list->scroll = list->numitems - list->viewsize; // last page, scroll to the end
+		else
+			list->scroll = list->cursor - list->viewsize / 2; // keep centered
+		list->scroll = CLAMP (0, list->scroll, list->numitems - list->viewsize);
+	}
+	else
+		list->scroll = 0;
+}
+
+int M_List_GetOverflow (const menulist_t *list)
+{
+	return list->numitems - list->viewsize;
+}
+
+void M_List_GetScrollbar (const menulist_t *list, int *y, int *size)
+{
+	if (list->numitems <= list->viewsize)
+	{
+		*y = 0;
+		*size = 0;
+		return;
+	}
+
+	*size = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
+	*size = q_max (*size, 2);
+	*y = (int)(list->scroll / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
+}
+
+void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
+{
+	*first = list->scroll;
+	*count = q_min (list->scroll + list->viewsize, list->numitems) - list->scroll;
+}
+
+qboolean M_List_IsItemVisible (const menulist_t *list, int i)
+{
+	int first, count;
+	M_List_GetVisibleRange (list, &first, &count);
+	return (unsigned)(i - first) < (unsigned)count;
+}
+
+qboolean M_List_Key (menulist_t *list, int key)
+{
+	switch (key)
+	{
+	case K_HOME:
+	case K_KP_HOME:
+		S_LocalSound ("misc/menu1.wav");
+		list->cursor = 0;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_END:
+	case K_KP_END:
+		S_LocalSound ("misc/menu1.wav");
+		list->cursor = list->numitems - 1;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_PGDN:
+	case K_KP_PGDN:
+		S_LocalSound ("misc/menu1.wav");
+		if (list->cursor - list->scroll < list->viewsize - 1)
+			list->cursor = list->scroll + list->viewsize - 1;
+		else
+			list->cursor += list->viewsize - 1;
+		list->cursor = q_min (list->cursor, list->numitems - 1);
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_PGUP:
+	case K_KP_PGUP:
+		S_LocalSound ("misc/menu1.wav");
+		if (list->cursor > list->scroll)
+			list->cursor = list->scroll;
+		else
+			list->cursor -= list->viewsize - 1;
+		list->cursor = q_max (list->cursor, 0);
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_UPARROW:
+	case K_KP_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (--list->cursor < 0)
+			list->cursor = list->numitems - 1;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_DOWNARROW:
+	case K_KP_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (++list->cursor >= list->numitems)
+			list->cursor = 0;
+		M_List_AutoScroll (list);
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int idx, char c))
+{
+	int i, j, dir;
+
+	if (!(key >= 'a' && key <= 'z') &&
+		!(key >= 'A' && key <= 'Z') &&
+		!(key >= '0' && key <= '9'))
+		return false;
+
+	if (list->numitems <= 0)
+		return false;
+
+	S_LocalSound ("misc/menu1.wav");
+
+	key = q_tolower (key);
+	dir = keydown[K_SHIFT] ? -1 : 1;
+
+	for (i = 1, j = list->cursor + dir; i < list->numitems; i++, j += dir)
+	{
+		j = (j + list->numitems) % list->numitems; // avoid negative mod
+		if (match_fn (j, (char)key))
+		{
+			list->cursor = j;
+			M_List_AutoScroll (list);
+			break;
+		}
+	}
+
+	return true;
+}
+
+//=============================================================================
+/* Mods menu */
+
+#define MAX_MODS		4096
+#define MAX_VIS_MODS	18
+
+typedef struct
+{
+	const char	*name;
+	qboolean	active;
+} moditem_t;
+
+static struct
+{
+	menulist_t			list;
+	enum m_state_e		prev;
+	moditem_t			items[MAX_MODS];
+} modsmenu;
+
+static qboolean M_Mods_IsActive (const char *game)
+{
+	extern char com_gamenames[];
+	const char *list, *end, *p;
+
+	if (!q_strcasecmp (game, GAMENAME))
+		return !*com_gamenames;
+
+	list = com_gamenames;
+	while (*list)
+	{
+		end = list;
+		while (*end && *end != ';')
+			end++;
+
+		p = game;
+		while (*p && list != end)
+			if (q_tolower (*p) == q_tolower (*list))
+				p++, list++;
+			else
+				break;
+
+		if (!*p && list == end)
+			return true;
+
+		list = end;
+		if (*list)
+			list++;
+	}
+
+	return false;
+}
+
+static void M_Mods_Add (const char *name)
+{
+	moditem_t *mod = &modsmenu.items[modsmenu.list.numitems];
+	mod->name = name;
+	mod->active = M_Mods_IsActive (name);
+	if (mod->active && modsmenu.list.cursor == -1)
+		modsmenu.list.cursor = modsmenu.list.numitems;
+	modsmenu.list.numitems++;
+}
+
+static void M_Mods_Init (void)
+{
+	filelist_item_t *item;
+
+	modsmenu.list.viewsize = MAX_VIS_MODS;
+	modsmenu.list.cursor = -1;
+	modsmenu.list.scroll = 0;
+	modsmenu.list.numitems = 0;
+
+	for (item = modlist; item && modsmenu.list.numitems < MAX_MODS; item = item->next)
+		M_Mods_Add (item->name);
+
+	if (modsmenu.list.cursor == -1)
+		modsmenu.list.cursor = 0;
+
+	M_List_CenterCursor (&modsmenu.list);
+}
+
+void M_Menu_Mods_f (void)
+{
+	IN_Deactivate(modestate == MS_WINDOWED);
+	key_dest = key_menu;
+	modsmenu.prev = m_state;
+	m_state = m_mods;
+	m_entersound = true;
+	M_Mods_Init ();
+}
+
+void M_Mods_Draw (void)
+{
+	const char *str;
+	int x, y, i, j, cols;
+	int firstvis, numvis;
+
+	x = 64;
+	y = 32;
+	cols = 28;
+
+	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	Draw_StringEx (x, y - 28, 12, "Mods");
+	M_DrawQuakeBar (x - 8, y - 16, cols + 2);
+
+	M_List_GetVisibleRange (&modsmenu.list, &firstvis, &numvis);
+	for (i = 0; i < numvis; i++)
+	{
+		int idx = i + firstvis;
+		int mask = modsmenu.items[idx].active ? 0 : 128;
+		for (j = 0; j < cols - 1 && modsmenu.items[idx].name[j]; j++)
+			M_DrawCharacter (x + j*8, y + i*8, modsmenu.items[idx].name[j] | mask);
+
+		if (idx == modsmenu.list.cursor)
+			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
+	}
+
+	if (M_List_GetOverflow (&modsmenu.list) > 0)
+	{
+		int scrollbary, scrollbarh;
+		M_List_GetScrollbar (&modsmenu.list, &scrollbary, &scrollbarh);
+		M_DrawTextBox (x + cols*8 - 12, y + scrollbary*8 - 4, 0, scrollbarh - 1);
+
+		str = va("%d-%d of %d", firstvis + 1, firstvis + numvis, modsmenu.list.numitems);
+		M_Print (x + (cols - strlen (str))*8, y - 24, str);
+
+		if (modsmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (modsmenu.list.scroll + modsmenu.list.viewsize < modsmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + modsmenu.list.viewsize*8, cols);
+	}
+}
+
+qboolean M_Mods_Match (int index, char initial)
+{
+	return q_tolower (modsmenu.items[index].name[0]) == initial;
+}
+
+void M_Mods_Key (int key)
+{
+	if (M_List_Key (&modsmenu.list, key))
+		return;
+
+	if (M_List_CycleMatch (&modsmenu.list, key, M_Mods_Match))
+		return;
+
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+		if (modsmenu.prev == m_options)
+			M_Menu_Options_f ();
+		else
+			M_Menu_Main_f ();
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+		Cbuf_AddText (va ("game %s\n", modsmenu.items[modsmenu.list.cursor].name));
+		M_Menu_Main_f ();
+		break;
+
+	default:
+		break;
+	}
+}
+
+//=============================================================================
 /* Credits menu -- used by the 2021 re-release */
 
 void M_Menu_Credits_f (void)
@@ -2610,6 +3077,7 @@ void M_Init (void)
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
+	Cmd_AddCommand ("menu_mods", M_Menu_Mods_f);
 }
 
 
@@ -2678,6 +3146,10 @@ void M_Draw (void)
 
 	case m_video:
 		M_Video_Draw ();
+		break;
+
+	case m_mods:
+		M_Mods_Draw ();
 		break;
 
 	case m_help:
@@ -2766,6 +3238,10 @@ void M_Keydown (int key)
 
 	case m_video:
 		M_Video_Key (key);
+		return;
+
+	case m_mods:
+		M_Mods_Key (key);
 		return;
 
 	case m_help:
