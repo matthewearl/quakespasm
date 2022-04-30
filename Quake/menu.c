@@ -3020,12 +3020,19 @@ qboolean M_Mods_Match (int index, char initial)
 	return q_tolower (modsmenu.items[index].name[0]) == initial;
 }
 
+void M_Mods_Char (int key)
+{
+	M_List_CycleMatch (&modsmenu.list, key, M_Mods_Match);
+}
+
+qboolean M_Mods_TextEntry (void)
+{
+	return true;
+}
+
 void M_Mods_Key (int key)
 {
 	if (M_List_Key (&modsmenu.list, key))
-		return;
-
-	if (M_List_CycleMatch (&modsmenu.list, key, M_Mods_Match))
 		return;
 
 	switch (key)
@@ -3284,6 +3291,9 @@ void M_Charinput (int key)
 	case m_lanconfig:
 		M_LanConfig_Char (key);
 		return;
+	case m_mods:
+		M_Mods_Char (key);
+		return;
 	default:
 		return;
 	}
@@ -3300,6 +3310,8 @@ qboolean M_TextEntry (void)
 		return M_Quit_TextEntry ();
 	case m_lanconfig:
 		return M_LanConfig_TextEntry ();
+	case m_mods:
+		return M_Mods_TextEntry ();
 	default:
 		return false;
 	}
