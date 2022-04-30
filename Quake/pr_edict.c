@@ -1244,9 +1244,6 @@ static void PR_InitBuiltins (void)
 				break;
 			}
 		}
-
-		if (j == pr_numextbuiltins) // not found? use a non-zero id mapped to PF_Fixme
-			func->first_statement = -(MAX_BUILTINS-1);
 	}
 }
 
