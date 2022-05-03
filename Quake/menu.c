@@ -245,6 +245,175 @@ void M_DrawEllipsisBar (int x, int y, int cols)
 }
 
 //=============================================================================
+/* Listbox */
+
+typedef struct
+{
+	int			cursor;
+	int			numitems;
+	int			viewsize;
+	int			scroll;
+} menulist_t;
+
+void M_List_CheckIntegrity (const menulist_t *list)
+{
+	SDL_assert (list->numitems >= 0);
+	SDL_assert (list->cursor >= 0);
+	SDL_assert (list->cursor < list->numitems);
+	SDL_assert (list->scroll >= 0);
+	SDL_assert (list->scroll < list->numitems);
+	SDL_assert (list->viewsize > 0);
+}
+
+void M_List_AutoScroll (menulist_t *list)
+{
+	if (list->numitems <= list->viewsize)
+		return;
+	if (list->cursor < list->scroll + 1)
+		list->scroll = list->cursor;
+	else if (list->cursor >= list->scroll + list->viewsize)
+		list->scroll = list->cursor - list->viewsize + 1;
+}
+
+void M_List_CenterCursor (menulist_t *list)
+{
+	if (list->cursor >= list->viewsize)
+	{
+		if (list->cursor + list->viewsize >= list->numitems)
+			list->scroll = list->numitems - list->viewsize; // last page, scroll to the end
+		else
+			list->scroll = list->cursor - list->viewsize / 2; // keep centered
+		list->scroll = CLAMP (0, list->scroll, list->numitems - list->viewsize);
+	}
+	else
+		list->scroll = 0;
+}
+
+int M_List_GetOverflow (const menulist_t *list)
+{
+	return list->numitems - list->viewsize;
+}
+
+void M_List_GetScrollbar (const menulist_t *list, int *y, int *size)
+{
+	if (list->numitems <= list->viewsize)
+	{
+		*y = 0;
+		*size = 0;
+		return;
+	}
+
+	*size = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
+	*size = q_max (*size, 2);
+	*y = (int)(list->scroll / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
+}
+
+void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
+{
+	*first = list->scroll;
+	*count = q_min (list->scroll + list->viewsize, list->numitems) - list->scroll;
+}
+
+qboolean M_List_IsItemVisible (const menulist_t *list, int i)
+{
+	int first, count;
+	M_List_GetVisibleRange (list, &first, &count);
+	return (unsigned)(i - first) < (unsigned)count;
+}
+
+qboolean M_List_Key (menulist_t *list, int key)
+{
+	switch (key)
+	{
+	case K_HOME:
+	case K_KP_HOME:
+		S_LocalSound ("misc/menu1.wav");
+		list->cursor = 0;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_END:
+	case K_KP_END:
+		S_LocalSound ("misc/menu1.wav");
+		list->cursor = list->numitems - 1;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_PGDN:
+	case K_KP_PGDN:
+		S_LocalSound ("misc/menu1.wav");
+		if (list->cursor - list->scroll < list->viewsize - 1)
+			list->cursor = list->scroll + list->viewsize - 1;
+		else
+			list->cursor += list->viewsize - 1;
+		list->cursor = q_min (list->cursor, list->numitems - 1);
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_PGUP:
+	case K_KP_PGUP:
+		S_LocalSound ("misc/menu1.wav");
+		if (list->cursor > list->scroll)
+			list->cursor = list->scroll;
+		else
+			list->cursor -= list->viewsize - 1;
+		list->cursor = q_max (list->cursor, 0);
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_UPARROW:
+	case K_KP_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (--list->cursor < 0)
+			list->cursor = list->numitems - 1;
+		M_List_AutoScroll (list);
+		return true;
+
+	case K_DOWNARROW:
+	case K_KP_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (++list->cursor >= list->numitems)
+			list->cursor = 0;
+		M_List_AutoScroll (list);
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int idx, char c))
+{
+	int i, j, dir;
+
+	if (!(key >= 'a' && key <= 'z') &&
+		!(key >= 'A' && key <= 'Z') &&
+		!(key >= '0' && key <= '9'))
+		return false;
+
+	if (list->numitems <= 0)
+		return false;
+
+	S_LocalSound ("misc/menu1.wav");
+
+	key = q_tolower (key);
+	dir = keydown[K_SHIFT] ? -1 : 1;
+
+	for (i = 1, j = list->cursor + dir; i < list->numitems; i++, j += dir)
+	{
+		j = (j + list->numitems) % list->numitems; // avoid negative mod
+		if (match_fn (j, (char)key))
+		{
+			list->cursor = j;
+			M_List_AutoScroll (list);
+			break;
+		}
+	}
+
+	return true;
+}
+
+//=============================================================================
 
 int m_save_demonum;
 
@@ -1470,32 +1639,46 @@ void M_Options_Key (int k)
 //=============================================================================
 /* KEYS MENU */
 
-const char *bindnames[][2] =
+static const char* const bindnames[][2] =
 {
-	{"+attack",		"attack"},
-	{"impulse 10",		"next weapon"},
-	{"impulse 12",		"prev weapon"},
-	{"+jump",		"jump / swim up"},
-	{"+forward",		"walk forward"},
-	{"+back",		"backpedal"},
-	{"+left",		"turn left"},
-	{"+right",		"turn right"},
-	{"+speed",		"run"},
-	{"+moveleft",		"step left"},
-	{"+moveright",		"step right"},
-	{"+strafe",		"sidestep"},
-	{"+lookup",		"look up"},
-	{"+lookdown",		"look down"},
-	{"centerview",		"center view"},
-	{"+mlook",		"mouse look"},
-	{"+klook",		"keyboard look"},
-	{"+moveup",		"swim up"},
-	{"+movedown",		"swim down"}
+	{"+forward",		"Move forward"},
+	{"+back",			"Move backward"},
+	{"+moveleft",		"Move left"},
+	{"+moveright",		"Move right"},
+	{"+left",			"Turn left"},
+	{"+right",			"Turn right"},
+	{"+jump",			"Jump / swim up"},
+	{"+moveup",			"Swim up"},
+	{"+movedown",		"Swim down"},
+	{"+speed",			"Run"},
+	{"+strafe",			"Sidestep"},
+	{"+lookup",			"Look up"},
+	{"+lookdown",		"Look down"},
+	{"centerview",		"Center view"},
+	{"+mlook",			"Mouse look"},
+	{"+klook",			"Keyboard look"},
+	{"+attack",			"Attack"},
+	{"impulse 10",		"Next weapon"},
+	{"impulse 12",		"Previous weapon"},
+	{"impulse 1",		"Axe"},
+	{"impulse 2",		"Shotgun"},
+	{"impulse 3",		"Super Shotgun"},
+	{"impulse 4",		"Nailgun"},
+	{"impulse 5",		"Super Nailgun"},
+	{"impulse 6",		"Grenade Launcher"},
+	{"impulse 7",		"Rocket Launcher"},
+	{"impulse 8",		"Thunderbolt"},
+	{"impulse 225",		"Laser Cannon"},
+	{"impulse 226",		"Mjolnir"},
 };
 
 #define	NUMCOMMANDS	(sizeof(bindnames)/sizeof(bindnames[0]))
 
-static int	keys_cursor;
+static struct
+{
+	menulist_t list;
+} keysmenu;
+
 static qboolean	bind_grab;
 
 void M_Menu_Keys_f (void)
@@ -1504,6 +1687,10 @@ void M_Menu_Keys_f (void)
 	key_dest = key_menu;
 	m_state = m_keys;
 	m_entersound = true;
+	keysmenu.list.cursor = 0;
+	keysmenu.list.scroll = 0;
+	keysmenu.list.numitems = hipnotic ? NUMCOMMANDS : NUMCOMMANDS - 2;
+	keysmenu.list.viewsize = 17;
 }
 
 
@@ -1555,7 +1742,8 @@ extern qpic_t	*pic_up, *pic_down;
 
 void M_Keys_Draw (void)
 {
-	int		i, x, y;
+	int		firstvis, numvis;
+	int		i, x, y, cols;
 	int		keys[3];
 	const char	*name;
 	qpic_t	*p;
@@ -1568,43 +1756,64 @@ void M_Keys_Draw (void)
 	else
 		M_Print (18, 32, "Enter to change, backspace to clear");
 
-// search for known bindings
-	for (i = 0; i < (int)NUMCOMMANDS; i++)
-	{
-		y = 48 + 8*i;
+	x = 0;
+	y = 56;
+	cols = 40;
 
-		M_Print (16, y, bindnames[i][1]);
+	if (M_List_GetOverflow (&keysmenu.list) > 0)
+	{
+		if (keysmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (keysmenu.list.scroll + keysmenu.list.viewsize < keysmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + keysmenu.list.viewsize*8, cols);
+	}
+
+	// search for known bindings
+	M_List_GetVisibleRange (&keysmenu.list, &firstvis, &numvis);
+	while (numvis-- > 0)
+	{
+		void (*print_fn) (int cx, int cy, const char *text);
+
+		i = firstvis++;
+		print_fn = (i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
+
+		print_fn (0, y, bindnames[i][1]);
 
 		M_FindKeysForCommand (bindnames[i][0], keys);
 
 		if (keys[0] == -1)
 		{
-			M_Print (140, y, "???");
+			print_fn (136, y, "???");
 		}
 		else
 		{
 			name = Key_KeynumToString (keys[0]);
-			M_Print (140, y, name);
+			print_fn (136, y, name);
 			x = strlen(name) * 8;
 			if (keys[1] != -1)
 			{
 				name = Key_KeynumToString (keys[1]);
-				M_Print (140 + x + 8, y, "or");
-				M_Print (140 + x + 32, y, name);
+				M_Print (136 + x + 8, y, "or");
+				print_fn (136 + x + 32, y, name);
 				x = x + 32 + strlen(name) * 8;
 				if (keys[2] != -1)
 				{
-					M_Print (140 + x + 8, y, "or");
-					M_Print (140 + x + 32, y, Key_KeynumToString (keys[2]));
+					M_Print (136 + x + 8, y, "or");
+					print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
 				}
 			}
 		}
-	}
 
-	if (bind_grab)
-		M_DrawCharacter (130, 48 + keys_cursor*8, '=');
-	else
-		M_DrawCharacter (130, 48 + keys_cursor*8, 12+((int)(realtime*4)&1));
+		if (i == keysmenu.list.cursor)
+		{
+			if (bind_grab)
+				M_DrawCharacter (128, y, '=');
+			else
+				M_DrawCharacter (128, y, 12+((int)(realtime*4)&1));
+		}
+
+		y += 8;
+	}
 }
 
 
@@ -1618,7 +1827,7 @@ void M_Keys_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		if ((k != K_ESCAPE) && (k != '`'))
 		{
-			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keys_cursor][0]);
+			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keysmenu.list.cursor][0]);
 			Cbuf_InsertText (cmd);
 		}
 
@@ -1627,6 +1836,9 @@ void M_Keys_Key (int k)
 		return;
 	}
 
+	if (M_List_Key (&keysmenu.list, k))
+		return;
+
 	switch (k)
 	{
 	case K_ESCAPE:
@@ -1634,29 +1846,13 @@ void M_Keys_Key (int k)
 		M_Menu_Options_f ();
 		break;
 
-	case K_LEFTARROW:
-	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
-		keys_cursor--;
-		if (keys_cursor < 0)
-			keys_cursor = NUMCOMMANDS-1;
-		break;
-
-	case K_DOWNARROW:
-	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
-		keys_cursor++;
-		if (keys_cursor >= (int)NUMCOMMANDS)
-			keys_cursor = 0;
-		break;
-
 	case K_ENTER:		// go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
-		M_FindKeysForCommand (bindnames[keys_cursor][0], keys);
+		M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
 		S_LocalSound ("misc/menu2.wav");
 		if (keys[2] != -1)
-			M_UnbindCommand (bindnames[keys_cursor][0]);
+			M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		bind_grab = true;
 		IN_Activate(); // activate to allow mouse key binding
 		break;
@@ -1664,7 +1860,7 @@ void M_Keys_Key (int k)
 	case K_BACKSPACE:	// delete bindings
 	case K_DEL:
 		S_LocalSound ("misc/menu2.wav");
-		M_UnbindCommand (bindnames[keys_cursor][0]);
+		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		break;
 	}
 }
@@ -2712,175 +2908,6 @@ void M_ServerList_Key (int k)
 		break;
 	}
 
-}
-
-//=============================================================================
-/* Listbox */
-
-typedef struct
-{
-	int			cursor;
-	int			numitems;
-	int			viewsize;
-	int			scroll;
-} menulist_t;
-
-void M_List_CheckIntegrity (const menulist_t *list)
-{
-	SDL_assert (list->numitems >= 0);
-	SDL_assert (list->cursor >= 0);
-	SDL_assert (list->cursor < list->numitems);
-	SDL_assert (list->scroll >= 0);
-	SDL_assert (list->scroll < list->numitems);
-	SDL_assert (list->viewsize > 0);
-}
-
-void M_List_AutoScroll (menulist_t *list)
-{
-	if (list->numitems <= list->viewsize)
-		return;
-	if (list->cursor < list->scroll + 1)
-		list->scroll = list->cursor;
-	else if (list->cursor >= list->scroll + list->viewsize)
-		list->scroll = list->cursor - list->viewsize + 1;
-}
-
-void M_List_CenterCursor (menulist_t *list)
-{
-	if (list->cursor >= list->viewsize)
-	{
-		if (list->cursor + list->viewsize >= list->numitems)
-			list->scroll = list->numitems - list->viewsize; // last page, scroll to the end
-		else
-			list->scroll = list->cursor - list->viewsize / 2; // keep centered
-		list->scroll = CLAMP (0, list->scroll, list->numitems - list->viewsize);
-	}
-	else
-		list->scroll = 0;
-}
-
-int M_List_GetOverflow (const menulist_t *list)
-{
-	return list->numitems - list->viewsize;
-}
-
-void M_List_GetScrollbar (const menulist_t *list, int *y, int *size)
-{
-	if (list->numitems <= list->viewsize)
-	{
-		*y = 0;
-		*size = 0;
-		return;
-	}
-
-	*size = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
-	*size = q_max (*size, 2);
-	*y = (int)(list->scroll / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
-}
-
-void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
-{
-	*first = list->scroll;
-	*count = q_min (list->scroll + list->viewsize, list->numitems) - list->scroll;
-}
-
-qboolean M_List_IsItemVisible (const menulist_t *list, int i)
-{
-	int first, count;
-	M_List_GetVisibleRange (list, &first, &count);
-	return (unsigned)(i - first) < (unsigned)count;
-}
-
-qboolean M_List_Key (menulist_t *list, int key)
-{
-	switch (key)
-	{
-	case K_HOME:
-	case K_KP_HOME:
-		S_LocalSound ("misc/menu1.wav");
-		list->cursor = 0;
-		M_List_AutoScroll (list);
-		return true;
-
-	case K_END:
-	case K_KP_END:
-		S_LocalSound ("misc/menu1.wav");
-		list->cursor = list->numitems - 1;
-		M_List_AutoScroll (list);
-		return true;
-
-	case K_PGDN:
-	case K_KP_PGDN:
-		S_LocalSound ("misc/menu1.wav");
-		if (list->cursor - list->scroll < list->viewsize - 1)
-			list->cursor = list->scroll + list->viewsize - 1;
-		else
-			list->cursor += list->viewsize - 1;
-		list->cursor = q_min (list->cursor, list->numitems - 1);
-		M_List_AutoScroll (list);
-		return true;
-
-	case K_PGUP:
-	case K_KP_PGUP:
-		S_LocalSound ("misc/menu1.wav");
-		if (list->cursor > list->scroll)
-			list->cursor = list->scroll;
-		else
-			list->cursor -= list->viewsize - 1;
-		list->cursor = q_max (list->cursor, 0);
-		M_List_AutoScroll (list);
-		return true;
-
-	case K_UPARROW:
-	case K_KP_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
-		if (--list->cursor < 0)
-			list->cursor = list->numitems - 1;
-		M_List_AutoScroll (list);
-		return true;
-
-	case K_DOWNARROW:
-	case K_KP_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
-		if (++list->cursor >= list->numitems)
-			list->cursor = 0;
-		M_List_AutoScroll (list);
-		return true;
-
-	default:
-		return false;
-	}
-}
-
-qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int idx, char c))
-{
-	int i, j, dir;
-
-	if (!(key >= 'a' && key <= 'z') &&
-		!(key >= 'A' && key <= 'Z') &&
-		!(key >= '0' && key <= '9'))
-		return false;
-
-	if (list->numitems <= 0)
-		return false;
-
-	S_LocalSound ("misc/menu1.wav");
-
-	key = q_tolower (key);
-	dir = keydown[K_SHIFT] ? -1 : 1;
-
-	for (i = 1, j = list->cursor + dir; i < list->numitems; i++, j += dir)
-	{
-		j = (j + list->numitems) % list->numitems; // avoid negative mod
-		if (match_fn (j, (char)key))
-		{
-			list->cursor = j;
-			M_List_AutoScroll (list);
-			break;
-		}
-	}
-
-	return true;
 }
 
 //=============================================================================
