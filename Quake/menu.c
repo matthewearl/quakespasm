@@ -1698,11 +1698,9 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 {
 	int		count;
 	int		j;
-	int		l;
 	char	*b;
 
 	threekeys[0] = threekeys[1] = threekeys[2] = -1;
-	l = strlen(command);
 	count = 0;
 
 	for (j = 0; j < MAX_KEYS; j++)
@@ -1710,7 +1708,7 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 		b = keybindings[j];
 		if (!b)
 			continue;
-		if (!strncmp (b, command, l) )
+		if (!strcmp (b, command) )
 		{
 			threekeys[count] = j;
 			count++;
