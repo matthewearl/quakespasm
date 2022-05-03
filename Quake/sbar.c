@@ -414,15 +414,15 @@ void Sbar_DrawNum (int x, int y, int num, int digits, int color)
 Sbar_DrawSmallNum
 =============
 */
-void Sbar_DrawSmallNum (int x, int y, int num, qboolean color)
+void Sbar_DrawSmallNum (int x, int y, int num)
 {
 	char	str[12];
-	int		i, mask = color ? 128 : 0;
+	int		i;
 
 	sprintf (str, "%3i", CLAMP (0, num, 999));
 	for (i = 0; i < 3; i++)
 		if (str[i] != ' ')
-			Sbar_DrawCharacter (x + i*8, y, str[i] | mask);
+			Sbar_DrawCharacter (x + i*8, y, 18 + str[i] - '0');
 }
 
 //=============================================================================
@@ -690,7 +690,7 @@ void Sbar_DrawInventory (void)
 
 // ammo counts
 	for (i = 0; i < 4; i++)
-		Sbar_DrawSmallNum (48*i + 10, -24, cl.stats[STAT_SHELLS+i], true);
+		Sbar_DrawSmallNum (48*i + 10, -24, cl.stats[STAT_SHELLS+i]);
 
 	flashon = 0;
 	// items
@@ -900,7 +900,7 @@ void Sbar_DrawInventory2 (void)
 				Draw_SubPic (x, y + 24 - 10 * i, ITEM_WIDTH*2, 10, pic, i * (2*48/320.f), 0.f, 2*48/320.f, 10/24.f, NULL, scr_sbaralpha.value);
 
 			for (i = 0; i < 4; i++)
-				Sbar_DrawSmallNum (x + 11 + ITEM_WIDTH * (i&1), y - 10 * (i>>1), cl.stats[STAT_SHELLS+i], true);
+				Sbar_DrawSmallNum (x + 11 + ITEM_WIDTH * (i&1), y - 10 * (i>>1), cl.stats[STAT_SHELLS+i]);
 		}
 		else // bottom center, 4x1
 		{
@@ -908,7 +908,7 @@ void Sbar_DrawInventory2 (void)
 			y = (int)(glcanvas.bottom - 9 + 0.5f);
 			Draw_SubPic (x, y, 192, 10, pic, 0.f, 0.f, 192/320.f, 10/24.f, NULL, scr_sbaralpha.value);
 			for (i = 0; i < 4; i++)
-				Sbar_DrawSmallNum (x + 10 + 48*i, y - 24, cl.stats[STAT_SHELLS+i], true);
+				Sbar_DrawSmallNum (x + 10 + 48*i, y - 24, cl.stats[STAT_SHELLS+i]);
 		}
 	}
 
