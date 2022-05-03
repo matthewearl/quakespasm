@@ -1270,12 +1270,13 @@ enum
 	OPT_CONSOLE,	// 1
 	OPT_DEFAULTS,	// 2
 	OPT_MODS,
+	OPT_HUDSTYLE,
+	OPT_SBALPHA,
 	OPT_SCALE,
 	OPT_SCRSIZE,
 	OPT_GAMMA,
 	OPT_CONTRAST,
 	OPT_MOUSESPEED,
-	OPT_SBALPHA,
 	OPT_SNDVOL,
 	OPT_MUSICVOL,
 	OPT_MUSICEXT,
@@ -1375,6 +1376,10 @@ void M_AdjustSliders (int dir)
 		if (f < 0)	f = 0;
 		else if (f > 1)	f = 1;
 		Cvar_SetValue ("volume", f);
+		break;
+
+	case OPT_HUDSTYLE:	// hud style
+		Cvar_SetValueQuick (&scr_hudstyle, ((int) q_max (scr_hudstyle.value, 0.f) + 3 + dir) % 3);
 		break;
 
 	case OPT_ALWAYRUN:	// always run
@@ -1510,9 +1515,18 @@ void M_Options_Draw (void)
 	M_DrawSlider (220, 32 + 8*OPT_MOUSESPEED, r);
 
 	// OPT_SBALPHA:
-	M_Print (16, 32 + 8*OPT_SBALPHA,	"       Statusbar alpha");
+	M_Print (16, 32 + 8*OPT_SBALPHA,	"             HUD alpha");
 	r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
 	M_DrawSlider (220, 32 + 8*OPT_SBALPHA, r);
+
+	// OPT_HUDSTYLE
+	M_Print (16, 32 + 8*OPT_HUDSTYLE,	"                   HUD");
+	if (scr_hudstyle.value < 1)
+		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Classic");
+	else if (scr_hudstyle.value < 2)
+		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Modern 1");
+	else
+		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Modern 2");
 
 	// OPT_SNDVOL:
 	M_Print (16, 32 + 8*OPT_SNDVOL,		"          Sound Volume");
