@@ -1804,12 +1804,12 @@ void M_Keys_Draw (void)
 			if (keys[1] != -1)
 			{
 				name = Key_KeynumToString (keys[1]);
-				M_Print (136 + x + 8, y, "or");
+				print_fn (136 + x + 8, y, "or");
 				print_fn (136 + x + 32, y, name);
 				x = x + 32 + strlen(name) * 8;
 				if (keys[2] != -1)
 				{
-					M_Print (136 + x + 8, y, "or");
+					print_fn (136 + x + 8, y, "or");
 					print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
 				}
 			}
