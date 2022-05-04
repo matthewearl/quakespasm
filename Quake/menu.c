@@ -294,18 +294,17 @@ int M_List_GetOverflow (const menulist_t *list)
 	return list->numitems - list->viewsize;
 }
 
-void M_List_GetScrollbar (const menulist_t *list, int *y, int *size)
+void M_List_DrawScrollbar (int cx, int cy, const menulist_t *list)
 {
+	int y, h;
 	if (list->numitems <= list->viewsize)
-	{
-		*y = 0;
-		*size = 0;
 		return;
-	}
 
-	*size = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
-	*size = q_max (*size, 2);
-	*y = (int)(list->scroll * 8 / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
+	h = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
+	h = q_max (h, 2);
+	y = (int)(list->scroll * 8 / (float)(list->numitems - list->viewsize) * (list->viewsize - h) + 0.5f);
+
+	M_DrawTextBox (cx - 4, cy + y - 4, 0, h - 1);
 }
 
 void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
@@ -3040,9 +3039,7 @@ void M_Mods_Draw (void)
 
 	if (M_List_GetOverflow (&modsmenu.list) > 0)
 	{
-		int scrollbary, scrollbarh;
-		M_List_GetScrollbar (&modsmenu.list, &scrollbary, &scrollbarh);
-		M_DrawTextBox (x + cols*8 - 12, y + scrollbary - 4, 0, scrollbarh - 1);
+		M_List_DrawScrollbar (x + cols*8 - 8, y, &modsmenu.list);
 
 		str = va("%d-%d of %d", firstvis + 1, firstvis + numvis, modsmenu.list.numitems);
 		M_Print (x + (cols - strlen (str))*8, y - 24, str);
