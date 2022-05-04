@@ -305,7 +305,7 @@ void M_List_GetScrollbar (const menulist_t *list, int *y, int *size)
 
 	*size = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
 	*size = q_max (*size, 2);
-	*y = (int)(list->scroll / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
+	*y = (int)(list->scroll * 8 / (float)(list->numitems - list->viewsize) * (list->viewsize - *size) + 0.5f);
 }
 
 void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
@@ -3042,7 +3042,7 @@ void M_Mods_Draw (void)
 	{
 		int scrollbary, scrollbarh;
 		M_List_GetScrollbar (&modsmenu.list, &scrollbary, &scrollbarh);
-		M_DrawTextBox (x + cols*8 - 12, y + scrollbary*8 - 4, 0, scrollbarh - 1);
+		M_DrawTextBox (x + cols*8 - 12, y + scrollbary - 4, 0, scrollbarh - 1);
 
 		str = va("%d-%d of %d", firstvis + 1, firstvis + numvis, modsmenu.list.numitems);
 		M_Print (x + (cols - strlen (str))*8, y - 24, str);
