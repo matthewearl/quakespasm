@@ -1734,17 +1734,14 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 void M_UnbindCommand (const char *command)
 {
 	int		j;
-	int		l;
 	char	*b;
-
-	l = strlen(command);
 
 	for (j = 0; j < MAX_KEYS; j++)
 	{
 		b = keybindings[j];
 		if (!b)
 			continue;
-		if (!strncmp (b, command, l) )
+		if (!strcmp (b, command) )
 			Key_SetBinding (j, NULL);
 	}
 }
