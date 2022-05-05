@@ -1788,6 +1788,13 @@ void M_Keys_Draw (void)
 		print_fn (0, y, bindnames[i][1]);
 
 		M_FindKeysForCommand (bindnames[i][0], keys);
+		// If we already have 3 keys bound to this action
+		// they will all be unbound when a new one is assigned.
+		// We show this outcome to the user before it actually
+		// occurs so they have a chance to abort the process
+		// and keep the existing key bindings.
+		if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
+			keys[0] = -1;
 
 		if (keys[0] == -1)
 		{
@@ -1835,6 +1842,9 @@ void M_Keys_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		if ((k != K_ESCAPE) && (k != '`'))
 		{
+			M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
+			if (keys[2] != -1)
+				M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keysmenu.list.cursor][0]);
 			Cbuf_InsertText (cmd);
 		}
@@ -1857,10 +1867,7 @@ void M_Keys_Key (int k)
 	case K_ENTER:		// go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
-		M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
 		S_LocalSound ("misc/menu2.wav");
-		if (keys[2] != -1)
-			M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		bind_grab = true;
 		IN_Activate(); // activate to allow mouse key binding
 		break;
