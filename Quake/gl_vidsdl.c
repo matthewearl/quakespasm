@@ -1924,9 +1924,17 @@ static void VID_Menu_ChooseNextAA (int dir)
 	int samples = Q_nextPow2 (framebufs.scene.samples);
 
 	if (dir < 0)
+	{
 		samples <<= 1;
+		if (samples > framebufs.max_samples)
+			samples = 1;
+	}
 	else
+	{
 		samples >>= 1;
+		if (samples < 1)
+			samples = framebufs.max_samples;
+	}
 
 	Cvar_SetValueQuick (&vid_fsaa, CLAMP (1, samples, framebufs.max_samples));
 }
@@ -1943,9 +1951,17 @@ static void VID_Menu_ChooseNextAnisotropy (int dir)
 	int aniso = Q_nextPow2 (q_max (1, (int)gl_texture_anisotropy.value));
 
 	if (dir < 0)
+	{
 		aniso <<= 1;
+		if (aniso > gl_max_anisotropy)
+			aniso = 1;
+	}
 	else
+	{
 		aniso >>= 1;
+		if (aniso < 1)
+			aniso = gl_max_anisotropy;
+	}
 
 	Cvar_SetValueQuick (&gl_texture_anisotropy, CLAMP (1, aniso, gl_max_anisotropy));
 }
@@ -1959,9 +1975,9 @@ chooses next scale in order, then updates r_scale cvar
 */
 static void VID_Menu_ChooseNextScale (int dir)
 {
-	int scale = r_refdef.scale - dir;
-
-	Cvar_SetValueQuick (&r_scale, CLAMP (1, scale, vid.maxscale));
+	// cycle [1..vid_maxscale]
+	int scale = 1 + (r_refdef.scale - 1 + vid.maxscale - dir) % vid.maxscale;
+	Cvar_SetValueQuick (&r_scale, scale);
 }
 
 static const char *const texfilters[][2] =
@@ -2165,7 +2181,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle r_dynamic\n");
 			break;
 		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 3 2 1 0 0\n");
+			Cbuf_AddText ("cycle r_softemu 3 2 1 0\n");
 			break;
 		case VID_OPT_FPSLIMIT:
 			VID_Menu_ChooseNextFPSLimit (1);
@@ -2223,7 +2239,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle r_dynamic\n");
 			break;
 		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 0 1 2 3 3\n");
+			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
 			break;
 		case VID_OPT_FPSLIMIT:
 			VID_Menu_ChooseNextFPSLimit (-1);
@@ -2259,16 +2275,16 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
 		case VID_OPT_FSAA:
-			VID_Menu_ChooseNextAA (1);
+			VID_Menu_ChooseNextAA (-1);
 			break;
 		case VID_OPT_FSAA_MODE:
 			Cbuf_AddText ("toggle vid_fsaamode\n");
 			break;
 		case VID_OPT_SCALE:
-			VID_Menu_ChooseNextScale (1);
+			VID_Menu_ChooseNextScale (-1);
 			break;
 		case VID_OPT_ANISO:
-			VID_Menu_ChooseNextAnisotropy (1);
+			VID_Menu_ChooseNextAnisotropy (-1);
 			break;
 		case VID_OPT_TEXFILTER:
 			VID_Menu_ChooseNextTexFilter ();
@@ -2283,7 +2299,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle r_dynamic\n");
 			break;
 		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 0 1 2 3 3\n");
+			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
 			break;
 		case VID_OPT_FPSLIMIT:
 			VID_Menu_ChooseNextFPSLimit (-1);
