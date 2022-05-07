@@ -899,12 +899,34 @@ static void Draw_SetTransform (float left, float right, float bottom, float top)
 
 /*
 ================
+Draw_GetMenuTransform
+================
+*/
+void Draw_GetMenuTransform (vrect_t *bounds, vrect_t *viewport)
+{
+	float s;
+	s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
+	s = CLAMP (1.0, scr_menuscale.value, s);
+	// ericw -- doubled width to 640 to accommodate long keybindings
+	bounds->x = 0;
+	bounds->y = 0;
+	bounds->width = 640;
+	bounds->height = 200;
+	viewport->x = glx + (glwidth - 320*s) / 2;
+	viewport->y = gly + (glheight - 200*s) / 2;
+	viewport->width = 640*s;
+	viewport->height = 200*s;
+}
+
+/*
+================
 GL_SetCanvas -- johnfitz -- support various canvas types
 ================
 */
 void GL_SetCanvas (canvastype newcanvas)
 {
 	extern vrect_t scr_vrect;
+	vrect_t bounds, viewport;
 	float s;
 	int lines;
 
@@ -927,11 +949,9 @@ void GL_SetCanvas (canvastype newcanvas)
 		glViewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_MENU:
-		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
-		s = CLAMP (1.0, scr_menuscale.value, s);
-		// ericw -- doubled width to 640 to accommodate long keybindings
-		Draw_SetTransform (0, 640, 200, 0);
-		glViewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 640*s, 200*s);
+		Draw_GetMenuTransform (&bounds, &viewport);
+		Draw_SetTransform (bounds.x, bounds.x+bounds.width, bounds.y+bounds.height, bounds.y);
+		glViewport (viewport.x, viewport.y, viewport.width, viewport.height);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);

@@ -45,6 +45,8 @@ qpic_t *Draw_CachePic (const char *path);
 void Draw_Flush (void);
 void Draw_NewGame (void);
 
+void Draw_GetMenuTransform (struct vrect_s *bounds, struct vrect_s *viewport);
+
 void GL_SetCanvas (canvastype newcanvas); //johnfitz
 void GL_SetCanvasColor (float r, float g, float b, float a);
 

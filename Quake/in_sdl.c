@@ -79,6 +79,8 @@ static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 	case SDL_MOUSEMOTION:
 	// case SDL_MOUSEBUTTONDOWN:
 	// case SDL_MOUSEBUTTONUP:
+		if (key_dest == key_menu)
+			M_Mousemove (event->motion.x, event->motion.y);
 		return 0;
 	}
 
@@ -888,6 +890,8 @@ void IN_SendKeyEvents (void)
 							event.button.button);
 				break;
 			}
+			if (key_dest == key_menu)
+				M_Mousemove (event.button.x, event.button.y);
 			Key_Event(buttonremap[event.button.button - 1], event.button.state == SDL_PRESSED);
 			break;
 

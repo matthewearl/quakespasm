@@ -1060,6 +1060,8 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 		 lastkey != K_ESCAPE &&
 		 lastkey != K_ABUTTON &&
 		 lastkey != K_BBUTTON &&
+		 lastkey != K_MOUSE2 &&
+		 lastkey != K_MOUSE4 &&
 		 time2 <= time1);
 	Key_EndInputGrab ();
 

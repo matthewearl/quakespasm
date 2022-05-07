@@ -27,9 +27,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 void (*vid_menucmdfn)(void); //johnfitz
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
+void (*vid_menumousefn)(int cx, int cy);
 
 enum m_state_e m_state;
 extern qboolean	keydown[256];
+int m_mousex, m_mousey;
 
 void M_Menu_Main_f (void);
 	void M_Menu_SinglePlayer_f (void);
@@ -84,6 +86,24 @@ void M_Main_Key (int key);
 	void M_Mods_Key (int key);
 	void M_Help_Key (int key);
 	void M_Quit_Key (int key);
+
+void M_Main_Mousemove (int cx, int cy);
+	void M_SinglePlayer_Mousemove (int cx, int cy);
+		void M_Load_Mousemove (int cx, int cy);
+		void M_Save_Mousemove (int cx, int cy);
+	void M_MultiPlayer_Mousemove (int cx, int cy);
+		void M_Setup_Mousemove (int cx, int cy);
+		void M_Net_Mousemove (int cx, int cy);
+		void M_LanConfig_Mousemove (int cx, int cy);
+		void M_GameOptions_Mousemove (int cx, int cy);
+		//void M_Search_Mousemove (int cx, int cy);
+		void M_ServerList_Mousemove (int cx, int cy);
+	void M_Options_Mousemove (int cx, int cy);
+		void M_Keys_Mousemove (int cx, int cy);
+		void M_Video_Mousemove (int cx, int cy);
+	void M_Mods_Mousemove (int cx, int cy);
+	//void M_Help_Mousemove (int cx, int cy);
+	//void M_Quit_Mousemove (int cx, int cy);
 
 qboolean	m_entersound;		// play after drawing a frame, so caching
 								// won't disrupt the sound
@@ -245,6 +265,40 @@ void M_DrawEllipsisBar (int x, int y, int cols)
 }
 
 //=============================================================================
+/* Mouse helpers */
+
+void M_ForceMousemove (void)
+{
+	int x, y;
+	SDL_GetMouseState (&x, &y);
+	M_Mousemove (x, y);
+}
+
+void M_UpdateCursor (int mousey, int starty, int itemheight, int numitems, int *cursor)
+{
+	int pos = (mousey - starty) / itemheight;
+	if (pos > numitems - 1)
+		pos = numitems - 1;
+	if (pos < 0)
+		pos = 0;
+	*cursor = pos;
+}
+
+void M_UpdateCursorWithTable (int mousey, const int *table, int numitems, int *cursor)
+{
+	int i, dy;
+	for (i = 0; i < numitems; i++)
+	{
+		dy = mousey - table[i];
+		if (dy >= 0 && dy < 8)
+		{
+			*cursor = i;
+			break;
+		}
+	}
+}
+
+//=============================================================================
 /* Listbox */
 
 typedef struct
@@ -294,17 +348,46 @@ int M_List_GetOverflow (const menulist_t *list)
 	return list->numitems - list->viewsize;
 }
 
-void M_List_DrawScrollbar (int cx, int cy, const menulist_t *list)
+// Note: y is in pixels, height is in chars!
+qboolean M_List_GetScrollbar (const menulist_t *list, int *y, int *height)
+{
+	if (list->numitems <= list->viewsize)
+	{
+		*y = *height = 0;
+		return false;
+	}
+
+	*height = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
+	*height = q_max (*height, 2);
+	*y = (int)(list->scroll * 8 / (float)(list->numitems - list->viewsize) * (list->viewsize - *height) + 0.5f);
+
+	return true;
+}
+
+void M_List_DrawScrollbar (const menulist_t *list, int cx, int cy)
 {
 	int y, h;
-	if (list->numitems <= list->viewsize)
+	if (!M_List_GetScrollbar (list, &y, &h))
 		return;
-
-	h = (int)(list->viewsize * list->viewsize / (float)list->numitems + 0.5f);
-	h = q_max (h, 2);
-	y = (int)(list->scroll * 8 / (float)(list->numitems - list->viewsize) * (list->viewsize - h) + 0.5f);
-
 	M_DrawTextBox (cx - 4, cy + y - 4, 0, h - 1);
+}
+
+qboolean M_List_UseScrollbar (menulist_t *list, int yrel)
+{
+	int scrolly, scrollh, range;
+	if (!M_List_GetScrollbar (list, &scrolly, &scrollh))
+		return false;
+
+	yrel -= scrollh * 4; // half the thumb height, in pixels
+	range = (list->viewsize - scrollh) * 8;
+	list->scroll = (int)(yrel * (float)(list->numitems - list->viewsize) / range + 0.5f);
+
+	if (list->scroll > list->numitems - list->viewsize)
+		list->scroll = list->numitems - list->viewsize;
+	if (list->scroll < 0)
+		list->scroll = 0;
+
+	return true;
 }
 
 void M_List_GetVisibleRange (const menulist_t *list, int *first, int *count)
@@ -368,6 +451,22 @@ qboolean M_List_Key (menulist_t *list, int key)
 		M_List_AutoScroll (list);
 		return true;
 
+	case K_MWHEELUP:
+		list->scroll -= 3;
+		if (list->scroll < 0)
+			list->scroll = 0;
+		M_ForceMousemove ();
+		return true;
+
+	case K_MWHEELDOWN:
+		list->scroll += 3;
+		if (list->scroll > list->numitems - list->viewsize)
+			list->scroll = list->numitems - list->viewsize;
+		if (list->scroll < 0)
+			list->scroll = 0;
+		M_ForceMousemove ();
+		return true;
+
 	case K_DOWNARROW:
 	case K_KP_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
@@ -411,6 +510,24 @@ qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int
 
 	return true;
 }
+
+void M_List_Mousemove (menulist_t *list, int yrel)
+{
+	int firstvis, numvis;
+	M_List_GetVisibleRange (list, &firstvis, &numvis);
+	if (!numvis)
+		return;
+	yrel /= 8;
+	if (yrel < 0)
+		return;
+	if (yrel >= numvis)
+		return;
+	yrel += firstvis;
+	if (list->cursor == yrel)
+		return;
+	list->cursor = yrel;
+}
+
 
 //=============================================================================
 
@@ -530,6 +647,8 @@ void M_Main_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		IN_Activate();
 		key_dest = key_game;
 		m_state = m_none;
@@ -559,6 +678,7 @@ void M_Main_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_entersound = true;
 
 		switch (m_main_cursor)
@@ -588,6 +708,13 @@ void M_Main_Key (int key)
 			break;
 		}
 	}
+}
+
+void M_Main_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 20, MAIN_ITEMS - !m_main_mods, &m_main_cursor);
+	if (m_main_cursor >= MAIN_MODS && !m_main_mods)
+		++m_main_cursor;
 }
 
 //=============================================================================
@@ -659,6 +786,8 @@ void M_SinglePlayer_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Main_f ();
 		break;
 
@@ -677,6 +806,7 @@ void M_SinglePlayer_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_entersound = true;
 
 		switch (m_singleplayer_cursor)
@@ -704,6 +834,12 @@ void M_SinglePlayer_Key (int key)
 			break;
 		}
 	}
+}
+
+
+void M_SinglePlayer_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 20, SINGLEPLAYER_ITEMS, &m_singleplayer_cursor);
 }
 
 //=============================================================================
@@ -811,12 +947,15 @@ void M_Load_Key (int k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_SinglePlayer_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		S_LocalSound ("misc/menu2.wav");
 		if (!loadable[load_cursor])
 			return;
@@ -857,12 +996,15 @@ void M_Save_Key (int k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_SinglePlayer_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_state = m_none;
 		IN_Activate();
 		key_dest = key_game;
@@ -885,6 +1027,16 @@ void M_Save_Key (int k)
 			load_cursor = 0;
 		break;
 	}
+}
+
+void M_Load_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
+}
+
+void M_Save_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
 }
 
 //=============================================================================
@@ -929,6 +1081,8 @@ void M_MultiPlayer_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Main_f ();
 		break;
 
@@ -947,6 +1101,7 @@ void M_MultiPlayer_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_entersound = true;
 		switch (m_multiplayer_cursor)
 		{
@@ -965,6 +1120,12 @@ void M_MultiPlayer_Key (int key)
 			break;
 		}
 	}
+}
+
+
+void M_MultiPlayer_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 20, MULTIPLAYER_ITEMS, &m_multiplayer_cursor);
 }
 
 //=============================================================================
@@ -1038,6 +1199,8 @@ void M_Setup_Key (int k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_MultiPlayer_f ();
 		break;
 
@@ -1056,6 +1219,8 @@ void M_Setup_Key (int k)
 		break;
 
 	case K_LEFTARROW:
+	//case K_MOUSE2:
+	case K_MWHEELDOWN:
 		if (setup_cursor < 2)
 			return;
 		S_LocalSound ("misc/menu3.wav");
@@ -1065,6 +1230,7 @@ void M_Setup_Key (int k)
 			setup_bottom = setup_bottom - 1;
 		break;
 	case K_RIGHTARROW:
+	case K_MWHEELUP:
 		if (setup_cursor < 2)
 			return;
 forward:
@@ -1078,6 +1244,7 @@ forward:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		if (setup_cursor == 0 || setup_cursor == 1)
 			return;
 
@@ -1150,6 +1317,12 @@ void M_Setup_Char (int k)
 qboolean M_Setup_TextEntry (void)
 {
 	return (setup_cursor == 0 || setup_cursor == 1);
+}
+
+
+void M_Setup_Mousemove (int cx, int cy)
+{
+	M_UpdateCursorWithTable (cy, setup_cursor_table, NUM_SETUP_CMDS, &setup_cursor);
 }
 
 //=============================================================================
@@ -1231,6 +1404,8 @@ again:
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_MultiPlayer_f ();
 		break;
 
@@ -1249,6 +1424,7 @@ again:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_entersound = true;
 		M_Menu_LanConfig_f ();
 		break;
@@ -1258,6 +1434,16 @@ again:
 		goto again;
 	if (m_net_cursor == 1 && !tcpipAvailable)
 		goto again;
+}
+
+
+void M_Net_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 20, m_net_items, &m_net_cursor);
+	if (m_net_cursor == 0 && !ipxAvailable)
+		m_net_cursor = 1;
+	if (m_net_cursor == 1 && !tcpipAvailable)
+		m_net_cursor = 0;
 }
 
 //=============================================================================
@@ -1301,7 +1487,9 @@ enum
 
 #define	SLIDER_RANGE	10
 
-int		options_cursor;
+int options_cursor;
+qboolean slider_grab;
+float target_scale_frac;
 
 void M_Menu_Options_f (void)
 {
@@ -1309,6 +1497,7 @@ void M_Menu_Options_f (void)
 	key_dest = key_menu;
 	m_state = m_options;
 	m_entersound = true;
+	slider_grab = false;
 }
 
 
@@ -1467,10 +1656,100 @@ void M_DrawCheckbox (int x, int y, int on)
 		M_Print (x, y, "off");
 }
 
+qboolean M_SetSliderValue (int option, float f)
+{
+	float l;
+	f = CLAMP (0.f, f, 1.f);
+
+	switch (option)
+	{
+	case OPT_SCALE:	// console and menu scale
+		target_scale_frac = f;
+		// Delay the actual update until we release the mouse button
+		// to keep the UI layout stable while adjusting the scale
+		if (!slider_grab)
+		{
+			l = (vid.width / 320.0) - 1;
+			f = l > 0 ? f * l + 1 : 0;
+			Cvar_SetValue ("scr_conscale", f);
+			Cvar_SetValue ("scr_menuscale", f);
+			Cvar_SetValue ("scr_sbarscale", f);
+			Cvar_SetValue ("scr_crosshairscale", f);
+		}
+		return true;
+	case OPT_SCRSIZE:	// screen size
+		f = f * (120 - 30) + 30;
+		if (f >= 100)
+			f = floor (f / 10 + 0.5) * 10;
+		Cvar_SetValue ("viewsize", f);
+		return true;
+	case OPT_GAMMA:	// gamma
+		f = 1.f - f * 0.5f;
+		Cvar_SetValue ("gamma", f);
+		return true;
+	case OPT_CONTRAST:	// contrast
+		f += 1.f;
+		Cvar_SetValue ("contrast", f);
+		return true;
+	case OPT_MOUSESPEED:	// mouse speed
+		f = f * 10.f + 1.f;
+		Cvar_SetValue ("sensitivity", f);
+		return true;
+	case OPT_SBALPHA:	// statusbar alpha
+		f = 1.f - f;
+		Cvar_SetValue ("scr_sbaralpha", f);
+		return true;
+	case OPT_MUSICVOL:	// music volume
+		Cvar_SetValue ("bgmvolume", f);
+		return true;
+	case OPT_SNDVOL:	// sfx volume
+		Cvar_SetValue ("volume", f);
+		return true;
+	default:
+		return false;
+	}
+}
+
+float M_MouseToSliderFraction (int cx)
+{
+	float f;
+	f = (cx - 4) / (float)((SLIDER_RANGE - 1) * 8);
+	return CLAMP (0.f, f, 1.f);
+}
+
+void M_ReleaseSliderGrab (void)
+{
+	if (!slider_grab)
+		return;
+	slider_grab = false;
+	S_LocalSound ("misc/menu1.wav");
+	if (options_cursor == OPT_SCALE)
+		M_SetSliderValue (OPT_SCALE, target_scale_frac);
+}
+
+qboolean M_SliderClick (int cx, int cy)
+{
+	cx -= 220;
+	if (cx < -12 || cx > SLIDER_RANGE*8+4)
+		return false;
+	// HACK: we set the flag to true before updating the slider
+	// to avoid changing the UI scale and implicitly the layout
+	if (options_cursor == OPT_SCALE)
+		slider_grab = true;
+	if (!M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx)))
+		return false;
+	slider_grab = true;
+	S_LocalSound ("misc/menu3.wav");
+	return true;
+}
+
 void M_Options_Draw (void)
 {
 	float		r, l;
 	qpic_t	*p;
+
+	if (slider_grab && !keydown[K_MOUSE1])
+		M_ReleaseSliderGrab ();
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/p_option.lmp");
@@ -1491,6 +1770,8 @@ void M_Options_Draw (void)
 	M_Print (16, 32 + 8*OPT_SCALE,		"                 Scale");
 	l = (vid.width / 320.0) - 1;
 	r = l > 0 ? (scr_conscale.value - 1) / l : 0;
+	if (slider_grab && options_cursor == OPT_SCALE)
+		r = target_scale_frac;
 	M_DrawSlider (220, 32 + 8*OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
@@ -1577,16 +1858,36 @@ void M_Options_Draw (void)
 
 void M_Options_Key (int k)
 {
+	if (!keydown[K_MOUSE1])
+		M_ReleaseSliderGrab ();
+
+	if (slider_grab)
+	{
+		switch (k)
+		{
+		case K_ESCAPE:
+		case K_BBUTTON:
+		case K_MOUSE4:
+		case K_MOUSE2:
+			M_ReleaseSliderGrab ();
+			break;
+		}
+		return;
+	}
+
 	switch (k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Main_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	enter:
 		m_entersound = true;
 		switch (options_cursor)
 		{
@@ -1632,11 +1933,19 @@ void M_Options_Key (int k)
 		break;
 
 	case K_LEFTARROW:
+	case K_MWHEELDOWN:
+	//case K_MOUSE2:
 		M_AdjustSliders (-1);
 		break;
 
 	case K_RIGHTARROW:
+	case K_MWHEELUP:
 		M_AdjustSliders (1);
+		break;
+
+	case K_MOUSE1:
+		if (!M_SliderClick (m_mousex, m_mousey))
+			goto enter;
 		break;
 	}
 
@@ -1647,6 +1956,22 @@ void M_Options_Key (int k)
 		else
 			options_cursor = 0;
 	}
+}
+
+void M_Options_Mousemove (int cx, int cy)
+{
+	if (slider_grab)
+	{
+		if (!keydown[K_MOUSE1])
+		{
+			M_ReleaseSliderGrab ();
+			return;
+		}
+		M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx - 220));
+		return;
+	}
+
+	M_UpdateCursor (cy, 32, 8, OPTIONS_ITEMS, &options_cursor);
 }
 
 //=============================================================================
@@ -1861,14 +2186,18 @@ void M_Keys_Key (int k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Options_f ();
 		break;
 
 	case K_ENTER:		// go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		S_LocalSound ("misc/menu2.wav");
 		bind_grab = true;
+		M_List_AutoScroll (&keysmenu.list);
 		IN_Activate(); // activate to allow mouse key binding
 		break;
 
@@ -1878,6 +2207,12 @@ void M_Keys_Key (int k)
 		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		break;
 	}
+}
+
+
+void M_Keys_Mousemove (int cx, int cy)
+{
+	M_List_Mousemove (&keysmenu.list, cy - 56);
 }
 
 //=============================================================================
@@ -1898,6 +2233,11 @@ void M_Video_Draw (void)
 void M_Video_Key (int key)
 {
 	(*vid_menukeyfn) (key);
+}
+
+void M_Video_Mousemove (int cx, int cy)
+{
+	(*vid_menumousefn) (cx, cy);
 }
 
 //=============================================================================
@@ -1930,11 +2270,15 @@ void M_Help_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Main_f ();
 		break;
 
 	case K_UPARROW:
 	case K_RIGHTARROW:
+	case K_MWHEELDOWN:
+	case K_MOUSE1:
 		m_entersound = true;
 		if (++help_page >= NUM_HELP_PAGES)
 			help_page = 0;
@@ -1942,6 +2286,8 @@ void M_Help_Key (int key)
 
 	case K_DOWNARROW:
 	case K_LEFTARROW:
+	case K_MWHEELUP:
+	//case K_MOUSE2:
 		m_entersound = true;
 		if (--help_page < 0)
 			help_page = NUM_HELP_PAGES-1;
@@ -2022,7 +2368,9 @@ void M_Menu_Quit_f (void)
 
 void M_Quit_Key (int key)
 {
-	if (key == K_ESCAPE)
+	if (key == K_ESCAPE ||
+		key == K_MOUSE2 ||
+		key == K_MOUSE4)
 	{
 		if (wasInMenus)
 		{
@@ -2207,6 +2555,8 @@ void M_LanConfig_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Net_f ();
 		break;
 
@@ -2227,6 +2577,7 @@ void M_LanConfig_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		if (lanConfig_cursor == 0)
 			break;
 
@@ -2321,6 +2672,12 @@ void M_LanConfig_Char (int key)
 qboolean M_LanConfig_TextEntry (void)
 {
 	return (lanConfig_cursor == 0 || lanConfig_cursor == 2);
+}
+
+
+void M_LanConfig_Mousemove (int cx, int cy)
+{
+	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, NUM_LANCONFIG_CMDS - StartingGame, &lanConfig_cursor);
 }
 
 //=============================================================================
@@ -2719,6 +3076,8 @@ void M_GameOptions_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_Net_f ();
 		break;
 
@@ -2737,6 +3096,7 @@ void M_GameOptions_Key (int key)
 		break;
 
 	case K_LEFTARROW:
+	//case K_MOUSE2:
 		if (gameoptions_cursor == 0)
 			break;
 		S_LocalSound ("misc/menu3.wav");
@@ -2753,6 +3113,7 @@ void M_GameOptions_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		S_LocalSound ("misc/menu2.wav");
 		if (gameoptions_cursor == 0)
 		{
@@ -2775,6 +3136,12 @@ void M_GameOptions_Key (int key)
 		M_NetStart_Change (1);
 		break;
 	}
+}
+
+
+void M_GameOptions_Mousemove (int cx, int cy)
+{
+	M_UpdateCursorWithTable (cy, gameoptions_cursor_table, NUM_GAMEOPTIONS, &gameoptions_cursor);
 }
 
 //=============================================================================
@@ -2885,6 +3252,8 @@ void M_ServerList_Key (int k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		M_Menu_LanConfig_f ();
 		break;
 
@@ -2911,6 +3280,7 @@ void M_ServerList_Key (int k)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		S_LocalSound ("misc/menu2.wav");
 		m_return_state = m_state;
 		m_return_onerror = true;
@@ -2925,6 +3295,12 @@ void M_ServerList_Key (int k)
 		break;
 	}
 
+}
+
+
+void M_ServerList_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 8, hostCacheCount, &slist_cursor);
 }
 
 //=============================================================================
@@ -2942,7 +3318,9 @@ typedef struct
 static struct
 {
 	menulist_t			list;
+	int					x, y, cols;
 	enum m_state_e		prev;
+	qboolean			scrollbar_grab;
 	moditem_t			items[MAX_MODS];
 } modsmenu;
 
@@ -2993,6 +3371,10 @@ static void M_Mods_Init (void)
 {
 	filelist_item_t *item;
 
+	modsmenu.x = 64;
+	modsmenu.y = 32;
+	modsmenu.cols = 28;
+	modsmenu.scrollbar_grab = false;
 	modsmenu.list.viewsize = MAX_VIS_MODS;
 	modsmenu.list.cursor = -1;
 	modsmenu.list.scroll = 0;
@@ -3023,9 +3405,12 @@ void M_Mods_Draw (void)
 	int x, y, i, j, cols;
 	int firstvis, numvis;
 
-	x = 64;
-	y = 32;
-	cols = 28;
+	if (!keydown[K_MOUSE1])
+		modsmenu.scrollbar_grab = false;
+
+	x = modsmenu.x;
+	y = modsmenu.y;
+	cols = modsmenu.cols;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	Draw_StringEx (x, y - 28, 12, "Mods");
@@ -3045,7 +3430,7 @@ void M_Mods_Draw (void)
 
 	if (M_List_GetOverflow (&modsmenu.list) > 0)
 	{
-		M_List_DrawScrollbar (x + cols*8 - 8, y, &modsmenu.list);
+		M_List_DrawScrollbar (&modsmenu.list, x + cols*8 - 8, y);
 
 		str = va("%d-%d of %d", firstvis + 1, firstvis + numvis, modsmenu.list.numitems);
 		M_Print (x + (cols - strlen (str))*8, y - 24, str);
@@ -3069,11 +3454,27 @@ void M_Mods_Char (int key)
 
 qboolean M_Mods_TextEntry (void)
 {
-	return true;
+	return !modsmenu.scrollbar_grab;
 }
 
 void M_Mods_Key (int key)
 {
+	int x, y;
+
+	if (modsmenu.scrollbar_grab)
+	{
+		switch (key)
+		{
+		case K_ESCAPE:
+		case K_BBUTTON:
+		case K_MOUSE4:
+		case K_MOUSE2:
+			modsmenu.scrollbar_grab = false;
+			break;
+		}
+		return;
+	}
+
 	if (M_List_Key (&modsmenu.list, key))
 		return;
 
@@ -3081,6 +3482,8 @@ void M_Mods_Key (int key)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
 		if (modsmenu.prev == m_options)
 			M_Menu_Options_f ();
 		else
@@ -3090,13 +3493,42 @@ void M_Mods_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	enter:
 		Cbuf_AddText (va ("game %s\n", modsmenu.items[modsmenu.list.cursor].name));
 		M_Menu_Main_f ();
+		break;
+
+	case K_MOUSE1:
+		x = m_mousex - modsmenu.x - (modsmenu.cols - 1) * 8;
+		y = m_mousey - modsmenu.y;
+		if (x < -8 || !M_List_UseScrollbar (&modsmenu.list, y))
+			goto enter;
+		modsmenu.scrollbar_grab = true;
+		M_Mods_Mousemove (m_mousex, m_mousey);
 		break;
 
 	default:
 		break;
 	}
+}
+
+
+void M_Mods_Mousemove (int cx, int cy)
+{
+	cy -= modsmenu.y;
+
+	if (modsmenu.scrollbar_grab)
+	{
+		if (!keydown[K_MOUSE1])
+		{
+			modsmenu.scrollbar_grab = false;
+			return;
+		}
+		M_List_UseScrollbar (&modsmenu.list, cy);
+		// Note: no return, we also update the cursor
+	}
+
+	M_List_Mousemove (&modsmenu.list, cy);
 }
 
 //=============================================================================
@@ -3315,6 +3747,91 @@ void M_Keydown (int key)
 
 	case m_slist:
 		M_ServerList_Key (key);
+		return;
+	}
+}
+
+
+void M_Mousemove (int x, int y)
+{
+	vrect_t bounds, viewport;
+
+	Draw_GetMenuTransform (&bounds, &viewport);
+
+	m_mousex = x = bounds.x + (int)((x - viewport.x) * bounds.width / (float)viewport.width + 0.5f);
+	m_mousey = y = bounds.y + (int)((y - viewport.y) * bounds.height / (float)viewport.height + 0.5f);
+
+	switch (m_state)
+	{
+	case m_none:
+		return;
+
+	case m_main:
+		M_Main_Mousemove (x, y);
+		return;
+
+	case m_singleplayer:
+		M_SinglePlayer_Mousemove (x, y);
+		return;
+
+	case m_load:
+		M_Load_Mousemove (x, y);
+		return;
+
+	case m_save:
+		M_Save_Mousemove (x, y);
+		return;
+
+	case m_multiplayer:
+		M_MultiPlayer_Mousemove (x, y);
+		return;
+
+	case m_setup:
+		M_Setup_Mousemove (x, y);
+		return;
+
+	case m_net:
+		M_Net_Mousemove (x, y);
+		return;
+
+	case m_options:
+		M_Options_Mousemove (x, y);
+		return;
+
+	case m_keys:
+		M_Keys_Mousemove (x, y);
+		return;
+
+	case m_video:
+		M_Video_Mousemove (x, y);
+		return;
+
+	case m_mods:
+		M_Mods_Mousemove (x, y);
+		return;
+
+	//case m_help:
+	//	M_Help_Mousemove (x, y);
+	//	return;
+
+	//case m_quit:
+	//	M_Quit_Mousemove (x, y);
+	//	return;
+
+	case m_lanconfig:
+		M_LanConfig_Mousemove (x, y);
+		return;
+
+	case m_gameoptions:
+		M_GameOptions_Mousemove (x, y);
+		return;
+
+	//case m_search:
+	//	M_Search_Mousemove (x, y);
+	//	break;
+
+	case m_slist:
+		M_ServerList_Mousemove (x, y);
 		return;
 	}
 }
