@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t cl_maxpitch; //johnfitz -- variable pitch clamping
 extern cvar_t cl_minpitch; //johnfitz -- variable pitch clamping
+extern cvar_t cl_mwheelpitch;
 
 /*
 ===============================================================================
@@ -119,6 +120,19 @@ void KeyUp (kbutton_t *b)
 	b->state |= 4; 		// impulse up
 }
 
+void IN_AccumMWheelPitch (float amt)
+{
+	int key;
+	if (key_dest != key_game || Cmd_Argc() < 2)
+		return;
+	key = atoi (Cmd_Argv (1));
+	if (key == K_MWHEELDOWN || key == K_MWHEELUP)
+	{
+		cl.wheel_pitch += amt;
+		cl.wheel_pitch = CLAMP (-90, cl.wheel_pitch, 90);
+	}
+}
+
 void IN_KLookDown (void) {KeyDown(&in_klook);}
 void IN_KLookUp (void) {KeyUp(&in_klook);}
 void IN_MLookDown (void) {KeyDown(&in_mlook);}
@@ -140,9 +154,9 @@ void IN_ForwardUp(void) {KeyUp(&in_forward);}
 void IN_BackDown(void) {KeyDown(&in_back);}
 void IN_BackUp(void) {KeyUp(&in_back);}
 void IN_LookupDown(void) {KeyDown(&in_lookup);}
-void IN_LookupUp(void) {KeyUp(&in_lookup);}
+void IN_LookupUp(void) {KeyUp(&in_lookup); IN_AccumMWheelPitch(-cl_mwheelpitch.value);}
 void IN_LookdownDown(void) {KeyDown(&in_lookdown);}
-void IN_LookdownUp(void) {KeyUp(&in_lookdown);}
+void IN_LookdownUp(void) {KeyUp(&in_lookdown); IN_AccumMWheelPitch(cl_mwheelpitch.value);}
 void IN_MoveleftDown(void) {KeyDown(&in_moveleft);}
 void IN_MoveleftUp(void) {KeyUp(&in_moveleft);}
 void IN_MoverightDown(void) {KeyDown(&in_moveright);}
@@ -270,8 +284,25 @@ void CL_AdjustAngles (void)
 	cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * up;
 	cl.viewangles[PITCH] += speed*cl_pitchspeed.value * down;
 
-	if (up || down)
+	if (up || down || cl.wheel_pitch)
 		V_StopPitchDrift ();
+
+	if (cl.wheel_pitch)
+	{
+		float delta = speed*cl_pitchspeed.value;
+		if (cl.wheel_pitch > 0.f)
+		{
+			cl.viewangles[PITCH] += q_min (delta, cl.wheel_pitch);
+			cl.wheel_pitch -= delta;
+			cl.wheel_pitch = q_max (0.f, cl.wheel_pitch);
+		}
+		else
+		{
+			cl.viewangles[PITCH] -= q_min (delta, -cl.wheel_pitch);
+			cl.wheel_pitch += delta;
+			cl.wheel_pitch = q_min (0.f, cl.wheel_pitch);
+		}
+	}
 
 	//johnfitz -- variable pitch clamping
 	if (cl.viewangles[PITCH] > cl_maxpitch.value)

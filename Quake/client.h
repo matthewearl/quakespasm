@@ -179,6 +179,8 @@ typedef struct
 	float		driftmove;
 	double		laststop;
 
+	float		wheel_pitch;	// for looking up/down using the mouse wheel
+
 	float		viewheight;
 	float		crouch;			// local amount for smoothing stepups
 
