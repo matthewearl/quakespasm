@@ -2034,26 +2034,7 @@ void M_Menu_Keys_f (void)
 
 void M_FindKeysForCommand (const char *command, int *threekeys)
 {
-	int		count;
-	int		j;
-	char	*b;
-
-	threekeys[0] = threekeys[1] = threekeys[2] = -1;
-	count = 0;
-
-	for (j = 0; j < MAX_KEYS; j++)
-	{
-		b = keybindings[j];
-		if (!b)
-			continue;
-		if (!strcmp (b, command) )
-		{
-			threekeys[count] = j;
-			count++;
-			if (count == 3)
-				break;
-		}
-	}
+	Key_GetKeysForCommand (command, threekeys, 3);
 }
 
 void M_UnbindCommand (const char *command)

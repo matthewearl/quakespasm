@@ -186,6 +186,7 @@ void Char_Event (int key);
 qboolean Key_TextEntry (void);
 
 void Key_SetBinding (int keynum, const char *binding);
+int Key_GetKeysForCommand (const char *command, int *keys, int maxkeys);
 const char *Key_KeynumToString (int keynum);
 void Key_WriteBindings (FILE *f);
 

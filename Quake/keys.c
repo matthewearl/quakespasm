@@ -626,6 +626,35 @@ void Key_SetBinding (int keynum, const char *binding)
 
 /*
 ===================
+Key_GetKeysForCommand
+===================
+*/
+int Key_GetKeysForCommand (const char *command, int *keys, int maxkeys)
+{
+	int i, count;
+
+	if (maxkeys <= 0)
+		return 0;
+
+	for (i = 0; i < maxkeys; i++)
+		keys[i] = -1;
+	count = 0;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		if (keybindings[i] && !strcmp (keybindings[i], command))
+		{
+			keys[count++] = i;
+			if (count == maxkeys)
+				break;
+		}
+	}
+
+	return count;
+}
+
+/*
+===================
 Key_Unbind_f
 ===================
 */
@@ -971,7 +1000,13 @@ void Key_Event (int key, qboolean down)
 				return; // ignore autorepeats in game mode
 		}
 		else if (key >= 200 && !keybindings[key] && key_dest != key_menu)
-			Con_Printf ("%s is unbound, hit F4 to set.\n", Key_KeynumToString(key));
+		{
+			int optkey;
+			if (Key_GetKeysForCommand ("menu_options", &optkey, 1))
+				Con_Printf ("%s is unbound, hit %s to set.\n", Key_KeynumToString (key), Key_KeynumToString (optkey));
+			else
+				Con_Printf ("%s is unbound, use Options menu to set.\n", Key_KeynumToString (key));
+		}
 	}
 	else if (!keydown[key])
 		return; // ignore stray key up events
