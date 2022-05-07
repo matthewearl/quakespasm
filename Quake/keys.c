@@ -970,7 +970,7 @@ void Key_Event (int key, qboolean down)
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key])
+		else if (key >= 200 && !keybindings[key] && key_dest != key_menu)
 			Con_Printf ("%s is unbound, hit F4 to set.\n", Key_KeynumToString(key));
 	}
 	else if (!keydown[key])
