@@ -330,6 +330,12 @@ extern cvar_t cl_minpitch; /* johnfitz -- variable pitch clamping */
 
 void IN_MouseMotion(int dx, int dy)
 {
+	if (cls.state != ca_connected || cls.signon != SIGNONS)
+	{
+		total_dx = 0;
+		total_dy = 0;
+		return;
+	}
 	total_dx += dx;
 	total_dy += dy;
 }
