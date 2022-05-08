@@ -90,6 +90,7 @@ void Ghost_Draw (void)
      *  - colormap
      */
     if (ghost_show) {
+        currententity = ghost_entity;
         R_DrawAliasModel (ghost_entity);
     }
 }
