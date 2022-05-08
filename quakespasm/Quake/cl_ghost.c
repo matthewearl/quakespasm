@@ -15,7 +15,8 @@ static entity_t    *ghost_entity = NULL;
 static qboolean     ghost_show = false;
 
 
-float Ghost_FindClosest (vec3_t origin)
+// This could be done more intelligently, no doubt. 
+static float Ghost_FindClosest (vec3_t origin)
 {
     int idx;
     ghostrec_t *rec;
@@ -40,6 +41,9 @@ float Ghost_FindClosest (vec3_t origin)
 }
 
 // Find the index of the first record that is >= time.
+//
+// If speed becomes a concern we could do this iteratively or with a binary
+// search.
 static int Ghost_FindRecord (float time)
 {
     int idx = 0;
