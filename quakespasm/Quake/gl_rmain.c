@@ -928,6 +928,8 @@ void R_RenderScene (void)
 
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
+	Ghost_Draw ();
+
 	R_RenderDlights (); //triangle fan dlights -- johnfitz -- moved after water
 
 	R_DrawParticles ();

@@ -261,6 +261,7 @@ OBJS := strlcat.o \
 	cl_main.o \
 	cl_parse.o \
 	cl_tent.o \
+	cl_ghost.o \
 	console.o \
 	keys.o \
 	menu.o \

@@ -370,6 +370,9 @@ void CL_ParseServerInfo (void)
 	// copy the naked name of the map file to the cl structure -- O.S
 	COM_StripExtension (COM_SkipPath(model_precache[1]), cl.mapname, sizeof(cl.mapname));
 
+    // Load ghost file, if it exists
+    Ghost_LoadFile(cl.mapname);
+
 	for (i = 1; i < nummodels; i++)
 	{
 		cl.model_precache[i] = Mod_ForName (model_precache[i], false);
@@ -998,6 +1001,8 @@ void CL_ParseServerMessage (void)
 		case svc_time:
 			cl.mtime[1] = cl.mtime[0];
 			cl.mtime[0] = MSG_ReadFloat ();
+
+            Ghost_Update();
 			break;
 
 		case svc_clientdata:
