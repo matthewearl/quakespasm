@@ -170,6 +170,7 @@ void Ghost_Draw (void)
 }
 
 
+// Modified from the JoeQuake speedometer
 void Ghost_DrawGhostTime (void)
 {
     int   x, y, size, bg_color;
