@@ -15,6 +15,30 @@ static entity_t    *ghost_entity = NULL;
 static qboolean     ghost_show = false;
 
 
+float Ghost_FindClosest (vec3_t origin)
+{
+    int idx;
+    ghostrec_t *rec;
+    vec3_t diff;
+    ghostrec_t *closest_rec = NULL;
+    float closest_dist_sqr;
+    float dist_sqr;
+
+    for (idx = 0, rec = ghost_records;
+         idx < ghost_num_records;
+         rec++, idx++) {
+        VectorSubtract(origin, rec->origin, diff);
+
+        dist_sqr = DotProduct(diff, diff);
+        if (closest_rec == NULL || dist_sqr < closest_dist_sqr) {
+            closest_dist_sqr = dist_sqr;
+            closest_rec = rec;
+        }
+    }
+
+    return cl.time - closest_rec->time;
+}
+
 // Find the index of the first record that is >= time.
 static int Ghost_FindRecord (float time)
 {
@@ -143,4 +167,57 @@ void Ghost_Draw (void)
         currententity = ghost_entity;
         R_DrawAliasModel (ghost_entity);
     }
+}
+
+
+void Ghost_DrawGhostTime (void)
+{
+	int		x, y, size, bg_color;
+	float	scale;
+	char    st[8];
+    float   relative_time;
+    float   alpha;
+    float   width;
+
+	entity_t *ent = &cl_entities[cl.viewentity];
+
+    if (!ghost_show)
+        return;
+    relative_time = Ghost_FindClosest(ent->origin);
+
+	GL_SetCanvas (CANVAS_CROSSHAIR);
+
+	scale = 1;
+	size = 8;
+	x = -80;
+	y = 20;
+    alpha = 0.5f;
+
+    if (relative_time < 1e-3) {
+        sprintf (st, "%.2f", relative_time);
+    } else {
+        sprintf (st, "+%.2f", relative_time);
+    }
+
+	bg_color = relative_time > 0 ? 251 : 10;
+	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x, y + (int)(9 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x + (int)(32 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(64 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(96 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(128 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x, y, 160, 9, 52, 0.9);
+
+    width = fabs(relative_time) * 160;
+    if (width > 160) {
+        width = 160;
+    }
+
+    if (relative_time < 0) {
+		Draw_Fill (x + 160 - width, y, width, 9, 100, alpha);
+    } else {
+		Draw_Fill (x, y, width, 9, 100, alpha);
+    }
+
+	Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
 }

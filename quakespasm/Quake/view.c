@@ -855,7 +855,7 @@ void SCR_DrawSpeed2 (float display_speed, int bad_jump)
 	x = -80;
 	y = -10;
 	y = 10;
-	
+
 	float alpha = 0.5;
 	bg_color = bad_jump ? 251 : 10;
 	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
@@ -878,7 +878,7 @@ void SCR_DrawSpeed2 (float display_speed, int bad_jump)
 			speedunits -= 500;
 		Draw_Fill (x, y, (int)(speedunits / 3.125), 9, 68, alpha);
 	}
-	Draw_String (x + (int)(4.5 * size) - (strlen(st) * size), y, st);
+	Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
 }
 
 
