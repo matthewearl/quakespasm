@@ -172,25 +172,25 @@ void Ghost_Draw (void)
 
 void Ghost_DrawGhostTime (void)
 {
-	int		x, y, size, bg_color;
-	float	scale;
-	char    st[8];
-    float   relative_time;
-    float   alpha;
-    float   width;
+    int   x, y, size, bg_color;
+    float scale;
+    char  st[8];
+    float relative_time;
+    float alpha;
+    float width;
 
-	entity_t *ent = &cl_entities[cl.viewentity];
+    entity_t *ent = &cl_entities[cl.viewentity];
 
     if (!ghost_show)
         return;
     relative_time = Ghost_FindClosest(ent->origin);
 
-	GL_SetCanvas (CANVAS_CROSSHAIR);
+    GL_SetCanvas (CANVAS_CROSSHAIR);
 
-	scale = 1;
-	size = 8;
-	x = -80;
-	y = 20;
+    scale = 1;
+    size = 8;
+    x = -80;
+    y = 20;
     alpha = 0.5f;
 
     if (relative_time < 1e-3) {
@@ -199,14 +199,14 @@ void Ghost_DrawGhostTime (void)
         sprintf (st, "+%.2f", relative_time);
     }
 
-	bg_color = relative_time > 0 ? 251 : 10;
-	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
-	Draw_Fill (x, y + (int)(9 * scale), 160, 1, bg_color, alpha);
-	Draw_Fill (x + (int)(32 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
-	Draw_Fill (x + (int)(64 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
-	Draw_Fill (x + (int)(96 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
-	Draw_Fill (x + (int)(128 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
-	Draw_Fill (x, y, 160, 9, 52, 0.9);
+    bg_color = relative_time > 0 ? 251 : 10;
+    Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
+    Draw_Fill (x, y + (int)(9 * scale), 160, 1, bg_color, alpha);
+    Draw_Fill (x + (int)(32 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+    Draw_Fill (x + (int)(64 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+    Draw_Fill (x + (int)(96 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+    Draw_Fill (x + (int)(128 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+    Draw_Fill (x, y, 160, 9, 52, 0.9);
 
     width = fabs(relative_time) * 160;
     if (width > 160) {
@@ -214,10 +214,10 @@ void Ghost_DrawGhostTime (void)
     }
 
     if (relative_time < 0) {
-		Draw_Fill (x + 160 - width, y, width, 9, 100, alpha);
+        Draw_Fill (x + 160 - width, y, width, 9, 100, alpha);
     } else {
-		Draw_Fill (x, y, width, 9, 100, alpha);
+        Draw_Fill (x, y, width, 9, 100, alpha);
     }
 
-	Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
+    Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
 }
