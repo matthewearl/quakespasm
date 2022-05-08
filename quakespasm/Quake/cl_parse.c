@@ -1002,7 +1002,6 @@ void CL_ParseServerMessage (void)
 			cl.mtime[1] = cl.mtime[0];
 			cl.mtime[0] = MSG_ReadFloat ();
 
-            Ghost_Update();
 			break;
 
 		case svc_clientdata:

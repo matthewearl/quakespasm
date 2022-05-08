@@ -417,6 +417,8 @@ void CL_RelinkEntities (void)
 	vec3_t		oldorg;
 	dlight_t	*dl;
 
+    Ghost_Update();
+
 // determine partial update time
 	frac = CL_LerpPoint ();
 

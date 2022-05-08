@@ -15,27 +15,32 @@ static entity_t    *ghost_entity = NULL;
 static qboolean     ghost_show = false;
 
 
-// TODO:  change to a binary search, or incremental search?
-static ghostrec_t *Ghost_FindRecord (float time)
+// Find the index of the first record that is >= time.
+static int Ghost_FindRecord (float time)
 {
     int idx = 0;
     ghostrec_t *rec = ghost_records;
 
     if (ghost_records == NULL) {
         // not loaded
-        return NULL;
+        return -1;
     }
 
     for (idx = 0, rec = ghost_records;
          idx < ghost_num_records && time > rec->time;
          idx++, rec++);
 
-    if (idx == ghost_num_records) {
-        // gone beyond the last record
-        return NULL;
+    if (idx == 0) {
+        // not yet at the first record
+        return -1;
     }
 
-    return rec;
+    if (idx == ghost_num_records) {
+        // gone beyond the last record
+        return -1;
+    }
+
+    return idx;
 }
 
 
@@ -60,18 +65,63 @@ void Ghost_Load (const char *map_name)
 }
 
 
+static void Ghost_LerpOrigin(vec3_t origin1, vec3_t origin2, float frac,
+                             vec3_t origin)
+{
+    int i;
+    float d;
+
+    for (i=0; i<3; i++) {
+        d = origin2[i] - origin1[i];
+        origin[i] = origin1[i] + frac * d;
+    }
+}
+
+
+static void Ghost_LerpAngle(vec3_t angles1, vec3_t angles2, float frac,
+                            vec3_t angles)
+{
+    int i;
+    float d;
+
+    for (i=0; i<3; i++) {
+        d = angles2[i] - angles1[i];
+        if (d > 180)
+            d -= 360;
+        else if (d < -180)
+            d += 360;
+        angles[i] = angles1[i] + frac * d;
+    }
+}
+
+
 void Ghost_Update (void)
 {
-    ghostrec_t *rec = Ghost_FindRecord(cl.mtime[0]);
+    int after_idx = Ghost_FindRecord(cl.time);
+    ghostrec_t *rec_before;
+    ghostrec_t *rec_after;
+    float frac;
 
-    if (rec == NULL) {
+    if (after_idx == -1) {
         ghost_show = false;
     } else {
         ghost_show = true;
 
-        ghost_entity->frame = rec->frame;
-        VectorCopy(rec->origin, ghost_entity->origin);
-        VectorCopy(rec->angle, ghost_entity->angles);
+        rec_after = &ghost_records[after_idx];
+        rec_before = &ghost_records[after_idx - 1];
+
+        frac = (cl.time - rec_before->time)
+                / (rec_after->time - rec_before->time);
+
+        // TODO: lerp animation frames
+        ghost_entity->frame = rec_after->frame;
+
+        Ghost_LerpOrigin(rec_before->origin, rec_after->origin,
+                         frac,
+                         ghost_entity->origin);
+        Ghost_LerpAngle(rec_before->angle, rec_after->angle,
+                        frac,
+                        ghost_entity->angles);
     }
 }
 
