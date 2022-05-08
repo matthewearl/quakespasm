@@ -3,9 +3,9 @@
 
 typedef struct {
     float time;
-    unsigned short frame;
     float origin[3];
     float angle[3];
+    unsigned int frame;
 } ghostrec_t;
 
 
@@ -27,7 +27,7 @@ static ghostrec_t *Ghost_FindRecord (float time)
     }
 
     for (idx = 0, rec = ghost_records;
-         idx < ghost_num_records, time > rec->time;
+         idx < ghost_num_records && time > rec->time;
          idx++, rec++);
 
     if (idx == ghost_num_records) {
@@ -48,12 +48,12 @@ void Ghost_Load (const char *map_name)
 
     if (ghost_records != NULL) {
         ghost_num_records = com_filesize / sizeof(ghostrec_t);
-        ghost_entity = (entity_t *)HunkAllocName(sizeof(entity_t),
-                                                 "ghost_entity");
+        ghost_entity = (entity_t *)Hunk_AllocName(sizeof(entity_t),
+                                                  "ghost_entity");
 
         ghost_entity->model = Mod_ForName ("progs/player.mdl", false);
         ghost_entity->colormap = vid.colormap;
-        ghost_entity->lerpflag |= LERP_RESETMOVE|LERP_RESETANIM;
+        ghost_entity->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
         ghost_entity->alpha = 128;
         ghost_entity->skinnum = 0;
     }
@@ -70,8 +70,8 @@ void Ghost_Update (void)
         ghost_show = true;
 
         ghost_entity->frame = rec->frame;
-        VectorCopy(rec->origin, ent->origin);
-        VectorCopy(rec->angle, ent->angles);
+        VectorCopy(rec->origin, ghost_entity->origin);
+        VectorCopy(rec->angle, ghost_entity->angles);
     }
 }
 
@@ -89,5 +89,7 @@ void Ghost_Draw (void)
      *  - skinnum
      *  - colormap
      */
-    R_DrawAliasModel (ghost_entity);
+    if (ghost_show) {
+        R_DrawAliasModel (ghost_entity);
+    }
 }
