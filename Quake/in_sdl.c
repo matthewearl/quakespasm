@@ -96,8 +96,9 @@ static void IN_BeginIgnoringMouseEvents(void)
 {
 	SDL_EventFilter currentFilter = NULL;
 	void *currentUserdata = NULL;
+	if (SDL_SetRelativeMouseMode(SDL_FALSE) != 0)
+		Con_Printf("WARNING: could not disable relative mouse mode (%s).\n", SDL_GetError());
 	SDL_GetEventFilter(&currentFilter, &currentUserdata);
-
 	if (currentFilter != IN_SDL2_FilterMouseEvents)
 		SDL_SetEventFilter(IN_SDL2_FilterMouseEvents, NULL);
 }
@@ -106,6 +107,8 @@ static void IN_EndIgnoringMouseEvents(void)
 {
 	SDL_EventFilter currentFilter;
 	void *currentUserdata;
+	if (SDL_SetRelativeMouseMode(SDL_TRUE) != 0)
+		Con_Printf("WARNING: could not enable relative mouse mode (%s).\n", SDL_GetError());
 	if (SDL_GetEventFilter(&currentFilter, &currentUserdata) == SDL_TRUE)
 		SDL_SetEventFilter(NULL, NULL);
 }
@@ -191,18 +194,13 @@ void IN_Activate (void)
 		IN_DisableOSXMouseAccel();
 #endif
 
-	if (SDL_SetRelativeMouseMode(SDL_TRUE) != 0)
-	{
-		Con_Printf("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
-	}
-
 	IN_EndIgnoringMouseEvents();
 
 	total_dx = 0;
 	total_dy = 0;
 }
 
-void IN_Deactivate (qboolean free_cursor)
+void IN_Deactivate (void)
 {
 	if (no_mouse)
 		return;
@@ -211,11 +209,6 @@ void IN_Deactivate (qboolean free_cursor)
 	if (originalMouseSpeed != -1)
 		IN_ReenableOSXMouseAccel();
 #endif
-
-	if (free_cursor)
-	{
-		SDL_SetRelativeMouseMode(SDL_FALSE);
-	}
 
 	/* discard all mouse events when input is deactivated */
 	IN_BeginIgnoringMouseEvents();
@@ -320,7 +313,7 @@ void IN_Init (void)
 
 void IN_Shutdown (void)
 {
-	IN_Deactivate(true);
+	IN_Deactivate();
 	IN_ShutdownJoystick();
 }
 

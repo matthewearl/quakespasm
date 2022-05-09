@@ -128,7 +128,7 @@ void Con_ToggleConsole_f (void)
 	}
 	else
 	{
-		IN_Deactivate(modestate == MS_WINDOWED);
+		IN_Deactivate();
 		key_dest = key_console;
 	}
 
@@ -1287,7 +1287,7 @@ void Con_NotifyBox (const char *text)
 	Con_Printf ("Press a key.\n");
 	Con_Printf ("%s", Con_Quakebar(40)); //johnfitz
 
-	IN_Deactivate(modestate == MS_WINDOWED);
+	IN_Deactivate();
 	key_dest = key_console;
 
 	Key_BeginInputGrab ();

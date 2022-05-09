@@ -48,10 +48,10 @@ void IN_ClearStates (void);
 // restores all button and position states to defaults
 
 // called when the app becomes active
-void IN_Activate ();
+void IN_Activate (void);
 
 // called when the app becomes inactive
-void IN_Deactivate (qboolean free_cursor);
+void IN_Deactivate (void);
 
 #endif	/* _QUAKE_INPUT_H */
 

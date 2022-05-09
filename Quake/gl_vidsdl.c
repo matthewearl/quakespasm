@@ -678,12 +678,7 @@ static void VID_Restart (void)
 // update mouse grab
 //
 	if (key_dest == key_console || key_dest == key_menu)
-	{
-		if (modestate == MS_WINDOWED)
-			IN_Deactivate(true);
-		else if (modestate == MS_FULLSCREEN)
-			IN_Activate();
-	}
+		IN_Deactivate();
 }
 
 /*
@@ -1581,12 +1576,7 @@ void	VID_Toggle (void)
 
 		// update mouse grab
 		if (key_dest == key_console || key_dest == key_menu)
-		{
-			if (modestate == MS_WINDOWED)
-				IN_Deactivate(true);
-			else if (modestate == MS_FULLSCREEN)
-				IN_Activate();
-		}
+			IN_Deactivate();
 	}
 	else
 	{
@@ -2470,7 +2460,7 @@ VID_Menu_f
 */
 static void VID_Menu_f (void)
 {
-	IN_Deactivate(modestate == MS_WINDOWED);
+	IN_Deactivate();
 	key_dest = key_menu;
 	m_state = m_video;
 	m_entersound = true;
