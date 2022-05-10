@@ -48,7 +48,7 @@ typedef struct particlevert_t {
 	GLubyte		color[4];
 } particlevert_t;
 
-static particlevert_t partverts[3 * 1024];
+static particlevert_t partverts[MAX_PARTICLES];
 static int numpartverts = 0;
 
 /*
@@ -840,7 +840,7 @@ static void R_FlushParticleBatch (void)
 	GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof(partverts[0]), ofs + offsetof(particlevert_t, pos));
 	GL_VertexAttribPointerFunc (1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(partverts[0]), ofs + offsetof(particlevert_t, color));
 
-	glDrawArrays (GL_TRIANGLES, 0, numpartverts);
+	GL_DrawArraysInstancedFunc (GL_TRIANGLE_STRIP, 0, 4, numpartverts);
 
 	numpartverts = 0;
 }
@@ -853,11 +853,11 @@ R_DrawParticles_Real -- johnfitz -- moved all non-drawing code to CL_RunParticle
 static void R_DrawParticles_Real (qboolean showtris)
 {
 	particle_t		*p;
-	float			scale;
-	vec3_t			up, right, p_up, p_right; //johnfitz -- p_ vectors
+	particlevert_t	*v;
 	GLubyte			color[4] = {255, 255, 255, 255}, *c; //johnfitz -- particle transparency
 	extern	cvar_t	r_particles; //johnfitz
 	//float			alpha; //johnfitz -- particle transparency
+	float			scalex, scaley;
 	qboolean		dither;
 
 	if (!r_particles.value)
@@ -870,61 +870,47 @@ static void R_DrawParticles_Real (qboolean showtris)
 
 	dither = (softemu == SOFTEMU_COARSE && !showtris);
 	GL_UseProgram (glprogs.particles[dither]);
+
+	// compensate for apparent size of different particle textures
+	// this bakes in the additional scaling of vup and vright by 1.5f for billboarding,
+	// then down by 0.25f for quad particles
+	scalex = scaley = texturescalefactor * 0.375f;
+	// projection factors (see GL_FrustumMatrix), negated to make things easier in the shader
+	scalex *=  r_matproj[1*4 + 0]; // -1 / tan (fovx/2)
+	scaley *= -r_matproj[2*4 + 1]; // -1 / tan (fovy/2)
+	GL_Uniform2fFunc (0, scalex, scaley);
+
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
+	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2));
 
-	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));
-
-	VectorScale (vup, 1.5, up);
-	VectorScale (vright, 1.5, right);
+	GL_VertexAttribDivisorFunc (0, 1);
+	GL_VertexAttribDivisorFunc (1, 1);
 
 	numpartverts = 0;
 	for (p=active_particles ; p ; p=p->next)
 	{
-		// hack a scale up to keep particles from disapearing
-		scale = (p->org[0] - r_origin[0]) * vpn[0]
-				+ (p->org[1] - r_origin[1]) * vpn[1]
-				+ (p->org[2] - r_origin[2]) * vpn[2];
-		if (scale < 20)
-			scale = 1 + 0.08; //johnfitz -- added .08 to be consistent
-		else
-			scale = 1 + scale * 0.004;
-
-		scale *= texturescalefactor; //johnfitz -- compensate for apparent size of different particle textures
-
-		if (!showtris)
-		{
-			//johnfitz -- particle transparency and fade out
-			c = (GLubyte *) &d_8to24table[(int)p->color];
-			color[0] = c[0];
-			color[1] = c[1];
-			color[2] = c[2];
-			//alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
-			color[3] = 255; //(int)(alpha * 255);
-			//johnfitz
-		}
-
 		if (numpartverts == countof(partverts))
 			R_FlushParticleBatch ();
 
-		#define ADD_VERTEX(p)														\
-			VectorCopy(p, partverts[numpartverts].pos);								\
-			memcpy(&partverts[numpartverts].color, &color, 4 * sizeof(GLubyte));	\
-			++numpartverts
+		v = &partverts[numpartverts++];
+		VectorCopy (p->org, v->pos);
 
-		ADD_VERTEX(p->org);
-
-		VectorMA (p->org, scale, up, p_up);
-		ADD_VERTEX(p_up);
-
-		VectorMA (p->org, scale, right, p_right);
-		ADD_VERTEX(p_right);
-
-		#undef ADD_VERTEX
+		//johnfitz -- particle transparency and fade out
+		c = showtris ? color : (GLubyte *) &d_8to24table[(int)p->color];
+		v->color[0] = c[0];
+		v->color[1] = c[1];
+		v->color[2] = c[2];
+		//alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
+		v->color[3] = 255; //(int)(alpha * 255);
+		//johnfitz
 
 		rs_particles++; //johnfitz //FIXME: just use r_numparticles
 	}
 
 	R_FlushParticleBatch ();
+
+	GL_VertexAttribDivisorFunc (0, 0);
+	GL_VertexAttribDivisorFunc (1, 0);
 
 	GL_EndGroup ();
 }

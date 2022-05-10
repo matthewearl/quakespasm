@@ -121,7 +121,9 @@ extern	qboolean	gl_clipcontrol_able;
 //==============================================================================
 
 #define QGL_CORE_FUNCTIONS(x)\
+	x(void,			DrawArraysInstanced, (GLenum mode, GLint first, GLsizei count, GLsizei primcount))\
 	x(void,			DrawElementsInstanced, (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount))\
+	x(void,			VertexAttribDivisor, (GLuint index, GLuint divisor))\
 	x(void,			DrawElementsIndirect, (GLenum mode, GLenum type, const void *indirect))\
 	x(void,			MultiDrawElementsIndirect, (GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride))\
 	x(void,			GenBuffers, (GLsizei n, GLuint *buffers))\
