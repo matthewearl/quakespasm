@@ -2329,7 +2329,7 @@ static void VID_MenuMouse (int cx, int cy)
 		--cursor; // past the gap, correct the index
 	else if (cursor == VID_OPT_TEST)
 		return; // inside the gap, do nothing
-	cursor = CLAMP (0, cursor, VIDEO_OPTIONS_ITEMS);
+	cursor = CLAMP (0, cursor, VIDEO_OPTIONS_ITEMS - 1);
 	video_options_cursor = cursor;
 }
 
