@@ -605,7 +605,7 @@ void M_Menu_Main_f (void)
 	{
 		extern int options_cursor;
 		m_main_cursor = MAIN_OPTIONS;
-		options_cursor = 3; // OPT_MODS
+		options_cursor = 1; // OPT_MODS
 	}
 }
 
@@ -1451,10 +1451,10 @@ void M_Net_Mousemove (int cx, int cy)
 
 enum
 {
-	OPT_CUSTOMIZE = 0,
-	OPT_CONSOLE,	// 1
-	OPT_DEFAULTS,	// 2
+	OPT_CUSTOMIZE,
 	OPT_MODS,
+	OPT_CONSOLE,
+	OPT_DEFAULTS,
 	OPT_HUDSTYLE,
 	OPT_SBALPHA,
 	OPT_SCALE,
@@ -1757,7 +1757,7 @@ void M_Options_Draw (void)
 
 	// Draw the items in the order of the enum defined above:
 	// OPT_CUSTOMIZE:
-	M_Print (16, 32,			"              Controls");
+	M_Print (16, 32 + 8*OPT_CUSTOMIZE,	"              Controls");
 	// OPT_CONSOLE:
 	M_Print (16, 32 + 8*OPT_CONSOLE,	"          Goto console");
 	// OPT_DEFAULTS:
