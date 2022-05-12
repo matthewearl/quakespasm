@@ -43,7 +43,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #define IRONWAIL_VER_MAJOR		0
-#define IRONWAIL_VER_MINOR		5
+#define IRONWAIL_VER_MINOR		6
 #define IRONWAIL_VER_PATCH		0
 #ifndef IRONWAIL_VER_SUFFIX
 #define IRONWAIL_VER_SUFFIX			// optional version suffix string literal like "-beta1"
