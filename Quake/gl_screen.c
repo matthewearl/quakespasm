@@ -1125,6 +1125,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawClock (); //johnfitz
+		Ghost_DrawGhostTime ();
 		SCR_DrawConsole ();
 		M_Draw ();
 	}
