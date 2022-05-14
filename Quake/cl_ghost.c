@@ -99,6 +99,8 @@ void Ghost_Load (const char *map_name)
     if (!Ghost_ReadDemo(ghost_demo_path, &ghost_records, &ghost_num_records, map_name)) {
         return;
     }
+    Con_Printf("Loaded %d ghost records from demo %s\n",
+               ghost_num_records, ghost_demo_path);
 
     ghost_entity = (entity_t *)Hunk_AllocName(sizeof(entity_t),
                                               "ghost_entity");

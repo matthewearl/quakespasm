@@ -122,7 +122,7 @@ Ghost_ServerInfoModel_cb (const char *model, void *ctx)
 
     if (pctx->model_num == 0) {
         COM_StripExtension(COM_SkipPath(model), map_name, sizeof(map_name));
-        if (!Q_strcmp(map_name, pctx->expected_map_name)) {
+        if (Q_strcmp(map_name, pctx->expected_map_name)) {
             Con_Printf("Ghost file is for map %s but %s is being loaded\n",
                        map_name, pctx->expected_map_name);
             return false;
@@ -180,6 +180,10 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
     if (pctx->view_entity == -1) {
         Con_Printf("Update receieved but entity num not set\n");
         return false;
+    }
+
+    if (entity_num != pctx->view_entity) {
+        return true;
     }
 
     for (i = 0; i < 3; i++) {
