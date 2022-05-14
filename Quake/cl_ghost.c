@@ -90,9 +90,10 @@ static int Ghost_FindRecord (float time)
 
 void Ghost_Load (const char *map_name)
 {
+    ghost_records = NULL;
+    ghost_num_records = 0;
+
     if (ghost_demo_path[0] == '\0') {
-        ghost_records = NULL;
-        ghost_num_records = 0;
         return;
     }
 
@@ -143,9 +144,8 @@ static void Ghost_LerpAngle(vec3_t angles1, vec3_t angles2, float frac,
 }
 
 
-static qboolean Ghost_Update (void)
+static void Ghost_Update (void)
 {
-    qboolean ghost_show;
     int after_idx = Ghost_FindRecord(cl.time);
     ghostrec_t *rec_before;
     ghostrec_t *rec_after;
@@ -172,8 +172,6 @@ static qboolean Ghost_Update (void)
                         frac,
                         ghost_entity->angles);
     }
-
-    return ghost_show;
 }
 
 
@@ -190,7 +188,8 @@ void Ghost_Draw (void)
      *  - skinnum
      *  - colormap
      */
-    if (Ghost_Update()) {
+    Ghost_Update();
+    if (ghost_show) {
         currententity = ghost_entity;
         R_DrawAliasModel (ghost_entity);
     }
@@ -209,7 +208,7 @@ void Ghost_DrawGhostTime (void)
 
     entity_t *ent = &cl_entities[cl.viewentity];
 
-    if (!ghost_show)
+    if (ghost_records == NULL || !ghost_show)
         return;
     relative_time = Ghost_FindClosest(ent->origin);
 
@@ -262,9 +261,9 @@ static void Ghost_Command_f (void)
     if (Cmd_Argc() != 2)
     {
         if (ghost_demo_path[0] == '\0') {
-            Con_Printf("no ghost has been added");
+            Con_Printf("no ghost has been added\n");
         } else {
-            Con_Printf("ghost %s has been added", ghost_demo_path);
+            Con_Printf("ghost %s has been added\n", ghost_demo_path);
         }
         Con_Printf("ghost <demoname> : add a ghost\n");
         return;
