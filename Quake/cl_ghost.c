@@ -29,13 +29,15 @@ typedef struct {
 } ghostrec_t;
 
 
+static char         ghost_demo_path[MAX_OSPATH] = "";
+static char         ghost_map[];
 static ghostrec_t  *ghost_records = NULL;
 static int          ghost_num_records = 0;
 static entity_t    *ghost_entity = NULL;
 static qboolean     ghost_show = false;
 
 
-// This could be done more intelligently, no doubt. 
+// This could be done more intelligently, no doubt.
 static float Ghost_FindClosest (vec3_t origin)
 {
     int idx;
@@ -59,6 +61,7 @@ static float Ghost_FindClosest (vec3_t origin)
 
     return cl.time - closest_rec->time;
 }
+
 
 // Find the index of the first record that is >= time.
 //
@@ -249,3 +252,59 @@ void Ghost_DrawGhostTime (void)
 
     Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
 }
+
+
+static void Ghost_Command_f (void)
+{
+    char demo_path[MAX_OSPATH];
+
+    if (cmd_source != src_command) {
+        return;
+    }
+
+    if (Cmd_Argc() != 2)
+    {
+        Con_Printf("ghost <demoname> : add a ghost\n");
+        return;
+    }
+
+    q_strlcpy(demo_path, Cmd_Argv(1), sizeof(demo_path));
+    COM_AddExtension(demo_path, ".dem", sizeof(demo_path));
+
+    if (!COM_FileExists(demo_path, NULL)) {
+        Con_Printf("cannot find demo %s", level);
+        return:
+    }
+    q_strlcpy(ghost_demo_path, demo_path, sizeof(ghost_demo_path));
+
+    Con_Printf("ghost will be loaded on next map load\n");
+}
+
+
+static void Ghost_RemoveCommand_f (void)
+{
+    if (cmd_source != src_command) {
+        return;
+    }
+
+    if (Cmd_Argc() != 1)
+    {
+        Con_Printf("ghost_remove : remove ghost\n");
+        return;
+    }
+
+    if (ghost_demo_path[0] == '\0') {
+        Con_Printf("no ghost has been added");
+    } else {
+        ghost_demo_path[0] = '\0';
+        Con_Printf("ghost will be removed on next map load");
+    }
+}
+
+
+void Ghost_Init (void)
+{
+    Cmd_AddCommand ("ghost", Ghost_AddCommand_f);
+    Cmd_AddCommand ("ghost_remove", Ghost_RemoveCommand_f);
+}
+

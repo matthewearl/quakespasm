@@ -797,6 +797,7 @@ void CL_Init (void)
 
 	CL_InitInput ();
 	CL_InitTEnts ();
+	Ghost_Init ();
 
 	Cvar_RegisterVariable (&cl_name);
 	Cvar_RegisterVariable (&cl_color);
