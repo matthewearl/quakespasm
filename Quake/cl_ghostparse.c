@@ -38,7 +38,7 @@ typedef struct ghostreclist_s {
 
 static void Ghost_Append(ghostreclist_t ***next_ptr, ghostrec_t *rec)
 {
-    ghostreclist_t *new_entry = Z_Malloc(sizeof(ghostreclist_t));
+    ghostreclist_t *new_entry = Hunk_AllocName(sizeof(ghostreclist_t), "ghost_list_element");
 
     new_entry->rec = *rec;
     new_entry->next = NULL;
@@ -57,17 +57,6 @@ static int Ghost_ListLen(ghostreclist_t *list)
     }
 
     return count;
-}
-
-
-static void Ghost_ListFree(ghostreclist_t *list)
-{
-    ghostreclist_t *next;
-    while (list != NULL) {
-        next = list->next;
-        Z_Free(list);
-        list = next;
-    }
 }
 
 
@@ -114,7 +103,7 @@ typedef struct {
 } ghost_parse_ctx_t;
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_ServerInfoModel_cb (const char *model, void *ctx)
 {
     char map_name[MAX_OSPATH];
@@ -125,34 +114,34 @@ Ghost_ServerInfoModel_cb (const char *model, void *ctx)
         if (Q_strcmp(map_name, pctx->expected_map_name)) {
             Con_Printf("Ghost file is for map %s but %s is being loaded\n",
                        map_name, pctx->expected_map_name);
-            return false;
+            return DP_CBR_STOP;
         }
     }
     pctx->model_num += 1;
 
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_Time_cb (float time, void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
     pctx->rec.time = time;
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_SetView_cb (int entity_num, void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
     pctx->view_entity = entity_num;
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_Baseline_cb (int entity_num, vec3_t origin, vec3_t angle, int frame,
                    void *ctx)
 {
@@ -160,17 +149,17 @@ Ghost_Baseline_cb (int entity_num, vec3_t origin, vec3_t angle, int frame,
 
     if (pctx->view_entity == -1) {
         Con_Printf("Baseline receieved but entity num not set\n");
-        return false;
+        return DP_CBR_STOP;
     }
 
     VectorCopy(origin, pctx->baseline_origin);
     VectorCopy(angle, pctx->baseline_angle);
 
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
                 byte origin_bits, byte angle_bits, int frame, void *ctx)
 {
@@ -179,11 +168,11 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
 
     if (pctx->view_entity == -1) {
         Con_Printf("Update receieved but entity num not set\n");
-        return false;
+        return DP_CBR_STOP;
     }
 
     if (entity_num != pctx->view_entity) {
-        return true;
+        return DP_CBR_CONTINUE;
     }
 
     for (i = 0; i < 3; i++) {
@@ -205,26 +194,26 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
         pctx->rec.frame = pctx->baseline_frame;
     }
 
-    return true;
+    return DP_CBR_SKIP_PACKET;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_PacketEnd_cb (void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
     Ghost_Append(&pctx->next_ptr, &pctx->rec);
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 Ghost_Intermission_cb (void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
     pctx->finished = true;
 
-    return false;
+    return DP_CBR_STOP;
 }
 
 
@@ -262,7 +251,7 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
 
     data = COM_LoadStackFile(demo_path, NULL, 0, NULL);
     dprc = DP_ReadDemo(data, com_filesize, &callbacks, &pctx);
-    if (dprc == DP_ERR_CALLBACK) {
+    if (dprc == DP_ERR_CALLBACK_STOP) {
         // Errors from callbacks print their own error messages.
         ok = pctx.finished;
     } else if (dprc != DP_ERR_SUCCESS) {
@@ -275,7 +264,6 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
     }
 
     // Free everything
-    Ghost_ListFree(list);
     Hunk_HighMark();
 
     return ok;

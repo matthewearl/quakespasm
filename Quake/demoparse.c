@@ -28,38 +28,39 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define EXCEPTION(errno)    (ctx->err_line = __LINE__, (errno))
 
-
-#define CHECK_RC(expr)              \
-    do {                            \
-        dp_err_t rc;                \
-        rc = (expr);                \
-        if (rc != DP_ERR_SUCCESS) { \
-            return rc;              \
-        }                           \
+#define CHECK_RC(expr)                \
+    do {                              \
+        dp_err_t __rc;                \
+        __rc = (expr);                \
+        if (__rc != DP_ERR_SUCCESS) { \
+            return __rc;              \
+        }                             \
     } while(0)
 
-
-#define CALL_CALLBACK(cb_name, ...)                                   \
+#define CALL_CALLBACK_CTX(cb_name, ...)                               \
     do {                                                              \
         if (ctx->callbacks->cb_name != NULL) {                        \
-            if (!ctx->callbacks->cb_name(__VA_ARGS__,                 \
-                                         ctx->callback_ctx)) {        \
-                return EXCEPTION(DP_ERR_CALLBACK);                    \
+            dp_cb_response_t __resp;                                  \
+            __resp = ctx->callbacks->cb_name(__VA_ARGS__);            \
+            if (__resp != DP_CBR_CONTINUE) {                          \
+                if (__resp == DP_CBR_SKIP_PACKET) {                   \
+                    return EXCEPTION(DP_ERR_CALLBACK_SKIP_PACKET);    \
+                } else if (__resp == DP_CBR_STOP) {                   \
+                    return EXCEPTION(DP_ERR_CALLBACK_STOP);           \
+                } else {                                              \
+                    return EXCEPTION(DP_ERR_INVALID_CB_RESPONSE);     \
+                }                                                     \
             }                                                         \
         }                                                             \
     } while(0)
 
+#define CALL_CALLBACK(cb_name, ...) \
+    CALL_CALLBACK_CTX(cb_name, __VA_ARGS__, ctx->callback_ctx)
 
 // Extra definition because of awkward comma handling.  In theory we could use
 // __VA_OPT__(,) if everything supports it?
-#define CALL_CALLBACK_NO_ARGS(cb_name)                                \
-    do {                                                              \
-        if (ctx->callbacks->cb_name != NULL) {                        \
-            if (!ctx->callbacks->cb_name(ctx->callback_ctx)) {        \
-                return EXCEPTION(DP_ERR_CALLBACK);                    \
-            }                                                         \
-        }                                                             \
-    } while(0)
+#define CALL_CALLBACK_NO_ARGS(cb_name)  \
+    CALL_CALLBACK_CTX(cb_name, ctx->callback_ctx)
 
 
 
@@ -863,6 +864,7 @@ DP_ParseMessage(ctx_t *ctx)
 
 static dp_err_t
 DP_ReadPacket(ctx_t *ctx) {
+    dp_err_t rc;
     int packet_len;
 
     if (ctx->buf + sizeof(int) + sizeof(float) * 3 > ctx->data_end) {
@@ -886,7 +888,12 @@ DP_ReadPacket(ctx_t *ctx) {
     }
 
     while (ctx->buf < ctx->packet_end) {
-        CHECK_RC(DP_ParseMessage(ctx));
+        rc = DP_ParseMessage(ctx);
+        if (rc == DP_ERR_CALLBACK_SKIP_PACKET) {
+            ctx->buf = ctx->packet_end;
+        } else {
+            CHECK_RC(rc);
+        }
     }
 
     CALL_CALLBACK_NO_ARGS(packet_end);

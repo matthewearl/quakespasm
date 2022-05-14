@@ -29,10 +29,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     F(DP_ERR_UNEXPECTED_END)       \
     F(DP_ERR_PROTOCOL_NOT_SET)     \
     F(DP_ERR_STRING_TOO_LONG)      \
-    F(DP_ERR_CALLBACK)             \
+    F(DP_ERR_CALLBACK_STOP)        \
+    F(DP_ERR_CALLBACK_SKIP_PACKET) \
     F(DP_ERR_BAD_SIZE)             \
     F(DP_ERR_INVALID_VERSION)      \
     F(DP_ERR_UNKNOWN_MESSAGE_TYPE) \
+    F(DP_ERR_INVALID_CB_RESPONSE)
 
 #define DP_GENERATE_ENUM(ENUM) ENUM,
 #define DP_GENERATE_STRING(STRING) #STRING,
@@ -43,25 +45,33 @@ typedef enum {
 } dp_err_t;
 
 
+typedef enum {
+    DP_CBR_CONTINUE,
+    DP_CBR_SKIP_PACKET,
+    DP_CBR_STOP,
+} dp_cb_response_t;
+
+
 typedef struct {
-    qboolean (*server_info)(int protocol, unsigned int protocol_flags,
-                            const char *level_name, void *ctx);
-    qboolean (*server_info_model)(const char *level_name, void *ctx);
-    qboolean (*server_info_sound)(const char *level_name, void *ctx);
-    qboolean (*time)(float time, void *ctx);
-    qboolean (*baseline)(int entity_num, vec3_t origin, vec3_t angle, int frame,
-                         void *ctx);
-    qboolean (*update)(int entity_num, vec3_t origin, vec3_t angle,
-                       byte origin_bits, byte angle_bits, int frame, void *ctx);
-    qboolean (*packet_end)(void *ctx);
-    qboolean (*set_view)(int entity_num, void *ctx);
-    qboolean (*intermission)(void *ctx);
-    qboolean (*finale)(void *ctx);
-    qboolean (*cut_scene)(void *ctx);
-    qboolean (*disconnect)(void *ctx);
-    qboolean (*update_stat)(byte stat, int count, void *ctx);
-    qboolean (*killed_monster)(void *ctx);
-    qboolean (*found_secret)(void *ctx);
+    dp_cb_response_t (*server_info)(int protocol, unsigned int protocol_flags,
+                                    const char *level_name, void *ctx);
+    dp_cb_response_t (*server_info_model)(const char *level_name, void *ctx);
+    dp_cb_response_t (*server_info_sound)(const char *level_name, void *ctx);
+    dp_cb_response_t (*time)(float time, void *ctx);
+    dp_cb_response_t (*baseline)(int entity_num, vec3_t origin, vec3_t angle,
+                                 int frame, void *ctx);
+    dp_cb_response_t (*update)(int entity_num, vec3_t origin, vec3_t angle,
+                               byte origin_bits, byte angle_bits, int frame,
+                               void *ctx);
+    dp_cb_response_t (*packet_end)(void *ctx);
+    dp_cb_response_t (*set_view)(int entity_num, void *ctx);
+    dp_cb_response_t (*intermission)(void *ctx);
+    dp_cb_response_t (*finale)(void *ctx);
+    dp_cb_response_t (*cut_scene)(void *ctx);
+    dp_cb_response_t (*disconnect)(void *ctx);
+    dp_cb_response_t (*update_stat)(byte stat, int count, void *ctx);
+    dp_cb_response_t (*killed_monster)(void *ctx);
+    dp_cb_response_t (*found_secret)(void *ctx);
 } dp_callbacks_t;
 
 
