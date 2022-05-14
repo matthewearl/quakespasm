@@ -29,6 +29,8 @@ void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
 void (*vid_menumousefn)(int cx, int cy);
 
+extern cvar_t cl_mousemenu;
+
 enum m_state_e m_state;
 extern qboolean	keydown[256];
 int m_mousex, m_mousey;
@@ -266,6 +268,23 @@ void M_DrawEllipsisBar (int x, int y, int cols)
 
 //=============================================================================
 /* Mouse helpers */
+
+qboolean M_IsMouseKey (int key)
+{
+	switch (key)
+	{
+	case K_MOUSE1:
+	case K_MOUSE2:
+	case K_MOUSE3:
+	case K_MOUSE4:
+	case K_MOUSE5:
+	case K_MWHEELUP:
+	case K_MWHEELDOWN:
+		return true;
+	default:
+		return false;
+	}
+}
 
 void M_ForceMousemove (void)
 {
@@ -3659,6 +3678,9 @@ void M_Draw (void)
 
 void M_Keydown (int key)
 {
+	if (!cl_mousemenu.value && M_IsMouseKey (key))
+		return;
+
 	switch (m_state)
 	{
 	case m_none:
@@ -3739,8 +3761,10 @@ void M_Mousemove (int x, int y)
 {
 	vrect_t bounds, viewport;
 
-	Draw_GetMenuTransform (&bounds, &viewport);
+	if (!cl_mousemenu.value)
+		return;
 
+	Draw_GetMenuTransform (&bounds, &viewport);
 	m_mousex = x = bounds.x + (int)((x - viewport.x) * bounds.width / (float)viewport.width + 0.5f);
 	m_mousey = y = bounds.y + (int)((y - viewport.y) * bounds.height / (float)viewport.height + 0.5f);
 
