@@ -143,9 +143,7 @@ void CL_Disconnect (void)
 	cls.signon = 0;
 	cl.intermission = 0;
 
-	// make sure that r_softemu won't keep using
-	// a color-shifted palette in the console/menu
-	memset (v_blend, 0, sizeof (v_blend));
+	V_ResetEffects ();
 }
 
 void CL_Disconnect_f (void)
