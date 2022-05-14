@@ -27,15 +27,64 @@ typedef struct {
     qboolean print_callbacks;
     float time;
     float finish_time;
+    int stats[MAX_CL_STATS];
+    char map_name[64];
+    int protocol;
+    unsigned int protocol_flags;
 } dp_test_ctx_t;
 
 
 static qboolean
-server_info (const char *level_name, void *ctx)
+server_info (int protocol, unsigned int protocol_flags, const char *level_name,
+             void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
     if (tctx->print_callbacks) {
-        printf("server_info: level_name=%s\n", level_name);
+        printf("server_info: protocol=%d protocol_flags=%u level_name=%s\n",
+               protocol, protocol_flags, level_name);
+    }
+    tctx->protocol = protocol;
+    tctx->protocol_flags = protocol_flags;
+    return true;
+}
+
+
+static qboolean
+server_info_model (const char *model, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("server_info_model: model=%s\n", model);
+    }
+
+    if (tctx->map_name[0] == '\0') {
+        int len;
+
+        // First model is the map path
+        snprintf(tctx->map_name, sizeof(tctx->map_name), "%s", model);
+
+        // remove the "maps/" from the start.
+        if (strncmp(tctx->map_name, "maps/", 5) == 0) {
+            len = strlen(tctx->map_name);
+            memmove(tctx->map_name, tctx->map_name + 5, len - 5 + 1);
+        }
+
+        // remove the ".bsp" from the end.
+        len = strlen(tctx->map_name);
+        if (len >= 4 && strcmp(tctx->map_name + len - 4, ".bsp") == 0) {
+            tctx->map_name[len - 4] = '\0';
+        }
+    }
+    return true;
+}
+
+
+static qboolean
+server_info_sound (const char *sound, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("server_info_sound: sound=%s\n", sound);
     }
     return true;
 }
@@ -163,6 +212,45 @@ disconnect (void *ctx)
 }
 
 
+static qboolean
+update_stat (byte stat, int count, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("update_stat stat=%d count=%d\n", stat, count);
+    }
+
+    if (stat < MAX_CL_STATS) {
+        tctx->stats[stat] = count;
+    }
+    return true;
+}
+
+
+static qboolean
+found_secret (void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("found_secret\n");
+    }
+    tctx->stats[STAT_SECRETS]++;
+    return true;
+}
+
+
+static qboolean
+killed_monster (void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("killed_monster\n");
+    }
+    tctx->stats[STAT_MONSTERS]++;
+    return true;
+}
+
+
 static void
 read_file (const char *fname, byte **data, unsigned int *data_len)
 {
@@ -185,7 +273,7 @@ main (int argc, char **argv)
     dp_err_t dprc;
     byte *data;
     unsigned int data_len;
-    qboolean print_finish_time = false;
+    qboolean print_info = false;
     dp_test_ctx_t tctx = {
         .print_callbacks = false,
         .time = -1,
@@ -193,6 +281,8 @@ main (int argc, char **argv)
     };
     dp_callbacks_t callbacks = {
         .server_info = server_info,
+        .server_info_model = server_info_model,
+        .server_info_sound = server_info_sound,
         .time = time,
         .baseline = baseline,
         .update = update,
@@ -202,17 +292,20 @@ main (int argc, char **argv)
         .finale = finale,
         .cut_scene = cut_scene,
         .disconnect = disconnect,
+        .update_stat = update_stat,
+        .killed_monster = killed_monster,
+        .found_secret = found_secret,
     };
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s demo-file [callbacks|finishtime]\n", argv[0]);
+        fprintf(stderr, "Usage: %s demo-file [callbacks|info]\n", argv[0]);
         return 1;
     }
 
     if (strcmp(argv[2], "callbacks") == 0) {
         tctx.print_callbacks = true;
-    } else if (strcmp(argv[2], "finishtime") == 0) {
-        print_finish_time = true;
+    } else if (strcmp(argv[2], "info") == 0) {
+        print_info = true;
     } else {
         fprintf(stderr, "Invalid command: %s\n", argv[2]);
     }
@@ -221,10 +314,22 @@ main (int argc, char **argv)
     dprc = DP_ReadDemo(data, data_len, &callbacks, &tctx);
     free(data);
 
-    if (print_finish_time) {
-        int mins = ((int)tctx.finish_time) / 60;
-        printf("Finish time: %d:%08.5f\n",
-               mins, tctx.finish_time - mins * 60.f);
+    if (print_info) {
+        printf("protocol=%d", tctx.protocol);
+        printf(" flags=%x", tctx.protocol_flags);
+        printf(" map=%s", tctx.map_name);
+        printf(" kills=%d/%d",
+               tctx.stats[STAT_MONSTERS],
+               tctx.stats[STAT_TOTALMONSTERS]);
+        printf(" secrets=%d/%d",
+               tctx.stats[STAT_SECRETS],
+               tctx.stats[STAT_TOTALSECRETS]);
+        if (tctx.finish_time != -1) {
+            int mins = ((int)tctx.finish_time) / 60;
+            printf(" time=%d:%08.5f",
+                   mins, tctx.finish_time - mins * 60.f);
+        }
+        printf("\n");
     }
 
     return dprc;

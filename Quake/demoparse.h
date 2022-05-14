@@ -44,7 +44,10 @@ typedef enum {
 
 
 typedef struct {
-    qboolean (*server_info)(const char *level_name, void *ctx);
+    qboolean (*server_info)(int protocol, unsigned int protocol_flags,
+                            const char *level_name, void *ctx);
+    qboolean (*server_info_model)(const char *level_name, void *ctx);
+    qboolean (*server_info_sound)(const char *level_name, void *ctx);
     qboolean (*time)(float time, void *ctx);
     qboolean (*baseline)(int entity_num, vec3_t origin, vec3_t angle, int frame,
                          void *ctx);
@@ -56,6 +59,9 @@ typedef struct {
     qboolean (*finale)(void *ctx);
     qboolean (*cut_scene)(void *ctx);
     qboolean (*disconnect)(void *ctx);
+    qboolean (*update_stat)(byte stat, int count, void *ctx);
+    qboolean (*killed_monster)(void *ctx);
+    qboolean (*found_secret)(void *ctx);
 } dp_callbacks_t;
 
 

@@ -285,6 +285,8 @@ static dp_err_t
 DP_ParseServerInfo(ctx_t *ctx)
 {
     char level_name[128];
+    char model[64];
+    char sound[64];
     int len;
 
     CHECK_RC(DP_ParseLong(ctx, &ctx->protocol.version));
@@ -300,18 +302,21 @@ DP_ParseServerInfo(ctx_t *ctx)
     CHECK_RC(DP_ParseString(ctx, level_name, sizeof(level_name), NULL));
 
     // model precache
-    CHECK_RC(DP_ParseString(ctx, NULL, 0, &len));
+    CHECK_RC(DP_ParseString(ctx, model, sizeof(model), &len));
     while (len != 0) {
-        CHECK_RC(DP_ParseString(ctx, NULL, 0, &len));
+        CALL_CALLBACK(server_info_model, model);
+        CHECK_RC(DP_ParseString(ctx, model, sizeof(model), &len));
     }
 
     // sound precache
-    CHECK_RC(DP_ParseString(ctx, NULL, 0, &len));
+    CHECK_RC(DP_ParseString(ctx, sound, sizeof(sound), &len));
     while (len != 0) {
-        CHECK_RC(DP_ParseString(ctx, NULL, 0, &len));
+        CALL_CALLBACK(server_info_sound, sound);
+        CHECK_RC(DP_ParseString(ctx, sound, sizeof(sound), &len));
     }
 
-    CALL_CALLBACK(server_info, level_name);
+    CALL_CALLBACK(server_info, ctx->protocol.version, ctx->protocol.flags,
+                  level_name);
 
     return DP_ERR_SUCCESS;
 
@@ -683,6 +688,20 @@ DP_ParseLocalSound(ctx_t *ctx)
     return DP_ERR_SUCCESS;
 }
 
+static dp_err_t
+DP_UpdateStat(ctx_t *ctx)
+{
+    byte stat;
+    int count;
+
+    CHECK_RC(DP_ParseByte(ctx, &stat));
+    CHECK_RC(DP_ParseLong(ctx, &count));
+
+    CALL_CALLBACK(update_stat, stat, count);
+
+    return DP_ERR_SUCCESS;
+}
+
 
 static dp_err_t
 DP_ParseMessage(ctx_t *ctx)
@@ -699,8 +718,6 @@ DP_ParseMessage(ctx_t *ctx)
                 CHECK_RC(DP_ParseTime(ctx));
                 break;
             case svc_nop:
-            case svc_killedmonster:
-            case svc_foundsecret:
             case svc_sellscreen:
             case svc_bf:
                 break;
@@ -774,8 +791,7 @@ DP_ParseMessage(ctx_t *ctx)
                 CHECK_RC(DP_ParseByte(ctx, NULL));
                 break;
             case svc_updatestat:
-                CHECK_RC(DP_ParseByte(ctx, NULL));    // stat id
-                CHECK_RC(DP_ParseLong(ctx, NULL));    // count
+                CHECK_RC(DP_UpdateStat(ctx));
                 break;
             case svc_spawnstaticsound:
                 CHECK_RC(DP_ParseCoords(ctx, NULL));  // origin
@@ -821,6 +837,12 @@ DP_ParseMessage(ctx_t *ctx)
                 CALL_CALLBACK_NO_ARGS(disconnect);
                 // Stop parsing at a disconnect
                 ctx->connected = false;
+                break;
+            case svc_killedmonster:
+                CALL_CALLBACK_NO_ARGS(killed_monster);
+                break;
+            case svc_foundsecret:
+                CALL_CALLBACK_NO_ARGS(found_secret);
                 break;
             case svc_achievement:
                 CHECK_RC(DP_ParseString(ctx, NULL, 0, NULL));

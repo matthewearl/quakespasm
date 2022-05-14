@@ -46,7 +46,7 @@ def dzip_extract(dz_path, destination_dir_path):
 
 
 def run_demo_parse(dem_path):
-    proc = subprocess.run([DEMO_PARSE_EXEC, dem_path, 'finishtime'], capture_output=True)
+    proc = subprocess.run([DEMO_PARSE_EXEC, dem_path, 'info'], capture_output=True)
     if proc.returncode != 0:
         raise ParseFailed(f'parse failed {proc.returncode=}')
     return proc.stdout.decode('utf-8').strip()
@@ -59,22 +59,22 @@ def read_demos_from_zip():
         for info in z.infolist():
             if info.is_dir():
                 continue
-            name = info.filename
-            if not name.endswith('.dz'):
+            dz_name = info.filename
+            if not dz_name.endswith('.dz'):
                 continue
-            with z.open(name) as in_f, open(TMP_DZ_PATH, 'wb') as out_f:
+            with z.open(dz_name) as in_f, open(TMP_DZ_PATH, 'wb') as out_f:
                 out_f.write(in_f.read())
 
             with tempfile.TemporaryDirectory(prefix=TMP_DEM_PATH) as dir_path:
                 dzip_extract(TMP_DZ_PATH, dir_path)
                 for dem_path in glob.glob(os.path.join(dir_path, '*.dem')):
-                    yield dem_path
-
+                    yield dz_name, dem_path
 
 os.makedirs(FAILING_DEMS_PATH, exist_ok=True)
-for i, dem_path in enumerate(read_demos_from_zip()):
+for i, (dz_name, dem_path) in enumerate(find_lots_of_demos()):
     try:
-        print(i, dem_path, run_demo_parse(dem_path))
+        print(repr((i, dz_name, dem_path,
+                run_demo_parse(dem_path))))
     except ParseFailed as e:
         print(i, dem_path, e, 'COPIED')
         shutil.copy(dem_path, FAILING_DEMS_PATH)
