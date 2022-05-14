@@ -72,8 +72,9 @@ typedef struct {
 
 typedef struct {
     const byte *buf;
+    unsigned long file_offset = 0;
+    const byte packet[64000];
     const byte *packet_end;
-    const byte *data_end;
 
     protocol_t protocol;
     qboolean connected;
@@ -863,30 +864,33 @@ DP_ParseMessage(ctx_t *ctx)
 
 
 static dp_err_t
+DP_ReadFromFile(ctx_t *ctx, void *dest, unsigned int len)
+{
+    if (!ctx->callbacks->read(dest, len, ctx->callback_ctx)) {
+        return EXCEPTION(DP_ERR_READ_FAILED);
+    }
+    ctx->file_offset += len;
+    return DP_ERR_SUCCESS;
+}
+
+
+static dp_err_t
 DP_ReadPacket(ctx_t *ctx) {
     dp_err_t rc;
     int packet_len;
 
-    if (ctx->buf + sizeof(int) + sizeof(float) * 3 > ctx->data_end) {
-        // Quake silently drops any truncated packets --- see CL_GetDemoMessage
-        // handling of fread()
-        ctx->buf = ctx->data_end;
-        return DP_ERR_SUCCESS;
-    }
-    memcpy(&packet_len, ctx->buf, sizeof(packet_len));
+    // Read packet header and packet
+    CHECK_RC(DP_ReadFromFile(ctx, &packet_len, sizeof(packet_len)));
     packet_len = LittleLong(packet_len);
-    ctx->buf += sizeof(int);
-    ctx->buf += sizeof(float) * 3;  // view angles
-
-    if (packet_len < 0 || packet_len > 64000) {
+    if (packet_len < 0 || packet_len > sizeof(ctx->packet)) {
         return EXCEPTION(DP_ERR_BAD_SIZE);
     }
-    ctx->packet_end = ctx->buf + packet_len;
-    if (ctx->packet_end > ctx->data_end) {
-        ctx->buf = ctx->data_end;
-        return DP_ERR_SUCCESS;
-    }
+    CHECK_RC(DP_ReadFromFile(ctx, NULL, sizeof(float) * 3));
+    CHECK_RC(DP_ReadFromFile(ctx, ctx->packet, packet_len));
 
+    // Read messages from the packet.
+    ctx->buf = ctx->packet;
+    ctx->packet_end = ctx->packet + packet_len;
     while (ctx->buf < ctx->packet_end) {
         rc = DP_ParseMessage(ctx);
         if (rc == DP_ERR_CALLBACK_SKIP_PACKET) {
@@ -906,17 +910,15 @@ DP_ReadPacket(ctx_t *ctx) {
 static dp_err_t
 DP_ReadDemo_NoHandle(ctx_t *ctx)
 {
+    char c = '\0';
+
     // Skip the force track command.
-    while (ctx->buf < ctx->data_end && ctx->buf[0] != '\n') {
-        ctx->buf ++;
+    while (c != '\n') {
+        CHECK_RC(DP_ReadFromFile(ctx, &c, sizeof(c)));
     }
-    if (ctx->buf >= ctx->data_end) {
-        return EXCEPTION(DP_ERR_UNEXPECTED_END);
-    }
-    ctx->buf ++;
 
     // The rest of the demo file is a sequence of packets.
-    while (ctx->connected && ctx->buf < ctx->data_end) {
+    while (ctx->connected) {
         CHECK_RC(DP_ReadPacket(ctx));
     }
 
@@ -930,13 +932,11 @@ static const char *dp_err_strings[] = {
 
 
 dp_err_t
-DP_ReadDemo(const byte *data, unsigned int data_len,
-            dp_callbacks_t *callbacks, void *callback_ctx)
+DP_ReadDemo(dp_callbacks_t *callbacks, void *callback_ctx)
 {
     dp_err_t rc;
     ctx_t ctx = {
-        .buf = data,
-        .data_end = data + data_len,
+        .file_offset = 0,
         .protocol = {-1, -1},
         .connected = true,
         .callbacks = callbacks,
@@ -944,13 +944,20 @@ DP_ReadDemo(const byte *data, unsigned int data_len,
     };
 
     rc = DP_ReadDemo_NoHandle(&ctx);
+    if (rc == DP_ERR_READ_FAILED) {
+        // Quake silently ignores truncated files --- see CL_GetDemoMessage
+        // handling of fread().  Do the same here.
+        rc = DP_ERR_SUCCESS;
+    }
+
     if (rc != DP_ERR_SUCCESS) {
-        fprintf(stderr, "Demo parse failed at offset %ld / %u (0x%lx / 0x%x), "
+        unsigned int offs = ctx.file_offset;
+        if (ctx.packet_start == NULL) {
+            offs -= ctx.packet_end - ctx.buf;
+        }
+        fprintf(stderr, "Demo parse failed at offset %ld (0x%lx), "
                 "line %d: %s\n",
-                ctx.buf - data, data_len,
-                ctx.buf - data, data_len,
-                ctx.err_line,
-                dp_err_strings[rc]);
+                offs, offs, ctx.err_line, dp_err_strings[rc]);
     }
 
     return rc;

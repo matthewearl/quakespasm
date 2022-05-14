@@ -34,7 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     F(DP_ERR_BAD_SIZE)             \
     F(DP_ERR_INVALID_VERSION)      \
     F(DP_ERR_UNKNOWN_MESSAGE_TYPE) \
-    F(DP_ERR_INVALID_CB_RESPONSE)
+    F(DP_ERR_INVALID_CB_RESPONSE)  \
+    F(DP_ERR_READ_FAILED)
 
 #define DP_GENERATE_ENUM(ENUM) ENUM,
 #define DP_GENERATE_STRING(STRING) #STRING,
@@ -53,6 +54,8 @@ typedef enum {
 
 
 typedef struct {
+    qboolean (*read)(void *dest, unsigned int size, void *ctx);
+
     dp_cb_response_t (*server_info)(int protocol, unsigned int protocol_flags,
                                     const char *level_name, void *ctx);
     dp_cb_response_t (*server_info_model)(const char *level_name, void *ctx);

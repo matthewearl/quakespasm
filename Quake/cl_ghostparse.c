@@ -92,6 +92,8 @@ typedef struct {
     ghostreclist_t **next_ptr;
     ghostrec_t rec;
 
+    FILE *demo_file;
+
     int model_num;
     const char *expected_map_name;
 
@@ -101,6 +103,14 @@ typedef struct {
 
     qboolean finished;
 } ghost_parse_ctx_t;
+
+
+static qboolean
+Ghost_Read_cb (void *dest, unsigned int size)
+{
+    ghost_parse_ctx_t *pctx = ctx;
+    return fread (dest, size, 1, pctx->demo_file) != 0;
+}
 
 
 static dp_cb_response_t
@@ -233,6 +243,7 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
     ghostreclist_t *list = NULL;
     dp_err_t dprc;
     dp_callbacks_t callbacks = {
+        .read = Ghost_Read_cb,
         .server_info_model = Ghost_ServerInfoModel_cb,
         .time = Ghost_Time_cb,
         .set_view = Ghost_SetView_cb,
@@ -249,14 +260,22 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
         .expected_map_name = expected_map_name,
     };
 
-    data = COM_LoadStackFile(demo_path, NULL, 0, NULL);
-    dprc = DP_ReadDemo(data, com_filesize, &callbacks, &pctx);
-    if (dprc == DP_ERR_CALLBACK_STOP) {
-        // Errors from callbacks print their own error messages.
-        ok = pctx.finished;
-    } else if (dprc != DP_ERR_SUCCESS) {
-        Con_Printf("Error parsing demo %s: %u\n", demo_path, dprc);
+    COM_FOpenFile (demo_path, &pctx->demo_file, NULL);
+    if (!pctx->demo_file)
+    {
+        Con_Printf ("ERROR: couldn't open %s\n", name);
         ok = false;
+    }
+
+    if (ok) {
+        dprc = DP_ReadDemo(data, com_filesize, &callbacks, &pctx);
+        if (dprc == DP_ERR_CALLBACK_STOP) {
+            // Errors from callbacks print their own error messages.
+            ok = pctx.finished;
+        } else if (dprc != DP_ERR_SUCCESS) {
+            Con_Printf("Error parsing demo %s: %u\n", demo_path, dprc);
+            ok = false;
+        }
     }
 
     if (ok) {
@@ -264,6 +283,9 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
     }
 
     // Free everything
+    if (pctx->demo_file) {
+        fclose(cls.demofile);
+    }
     Hunk_HighMark();
 
     return ok;
