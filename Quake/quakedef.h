@@ -260,6 +260,7 @@ typedef struct
 #include "menu.h"
 #include "cdaudio.h"
 #include "glquake.h"
+#include "cl_ghost.h"
 
 
 //=============================================================================

@@ -30,9 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * array.
  */
 
-typedef struct {
+typedef struct ghostreclist_s {
     ghostrec_t rec;
-    ghostreclist_t *next;
+    struct ghostreclist_s *next;
 } ghostreclist_t;
 
 
@@ -43,11 +43,11 @@ static void Ghost_Append(ghostreclist_t ***next_ptr, ghostrec_t *rec)
     new_entry->rec = *rec;
     new_entry->next = NULL;
     **next_ptr = new_entry;
-    *next_ptr = &next_entry->next;
+    *next_ptr = &new_entry->next;
 }
 
 
-static void Ghost_ListLen(ghostreclist_t *list)
+static int Ghost_ListLen(ghostreclist_t *list)
 {
     int count = 0;
 
@@ -66,7 +66,7 @@ static void Ghost_ListFree(ghostreclist_t *list)
     while (list != NULL) {
         next = list->next;
         Z_Free(list);
-        list = next
+        list = next;
     }
 }
 
@@ -104,7 +104,7 @@ typedef struct {
     ghostrec_t rec;
 
     int model_num;
-    char *expected_map_name;
+    const char *expected_map_name;
 
     vec3_t baseline_origin;
     vec3_t baseline_angle;
@@ -118,8 +118,7 @@ static qboolean
 Ghost_ServerInfoModel_cb (const char *model, void *ctx)
 {
     char map_name[MAX_OSPATH];
-
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
 
     if (pctx->model_num == 0) {
         COM_StripExtension(COM_SkipPath(model), map_name, sizeof(map_name));
@@ -138,7 +137,7 @@ Ghost_ServerInfoModel_cb (const char *model, void *ctx)
 static qboolean
 Ghost_Time_cb (float time, void *ctx)
 {
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
     pctx->rec.time = time;
     return true;
 }
@@ -147,7 +146,7 @@ Ghost_Time_cb (float time, void *ctx)
 static qboolean
 Ghost_SetView_cb (int entity_num, void *ctx)
 {
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
     pctx->view_entity = entity_num;
     return true;
 }
@@ -157,7 +156,7 @@ static qboolean
 Ghost_Baseline_cb (int entity_num, vec3_t origin, vec3_t angle, int frame,
                    void *ctx)
 {
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
 
     if (pctx->view_entity == -1) {
         Con_Printf("Baseline receieved but entity num not set\n");
@@ -176,7 +175,7 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
                 byte origin_bits, byte angle_bits, int frame, void *ctx)
 {
     int i;
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
 
     if (pctx->view_entity == -1) {
         Con_Printf("Update receieved but entity num not set\n");
@@ -209,7 +208,7 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
 static qboolean
 Ghost_PacketEnd_cb (void *ctx)
 {
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
     Ghost_Append(&pctx->next_ptr, &pctx->rec);
     return true;
 }
@@ -218,7 +217,7 @@ Ghost_PacketEnd_cb (void *ctx)
 static qboolean
 Ghost_Intermission_cb (void *ctx)
 {
-    ghost_parse_ctx *pctx = ctx;
+    ghost_parse_ctx_t *pctx = ctx;
     pctx->finished = true;
 
     return false;
@@ -234,13 +233,14 @@ Ghost_Intermission_cb (void *ctx)
 
 qboolean
 Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
-               char *expected_map_name)
+               const char *expected_map_name)
 {
     qboolean ok = true;
     byte *data;
     ghostreclist_t *list = NULL;
     dp_err_t dprc;
-    dp_callbacks_t = {
+    dp_callbacks_t callbacks = {
+        .server_info_model = Ghost_ServerInfoModel_cb,
         .time = Ghost_Time_cb,
         .set_view = Ghost_SetView_cb,
         .baseline = Ghost_Baseline_cb,
@@ -250,14 +250,14 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
         .finale = Ghost_Intermission_cb,
         .cut_scene = Ghost_Intermission_cb,
     };
-    pctx_t parse_context_t = {
+    ghost_parse_ctx_t pctx = {
         .view_entity = -1,
         .next_ptr = &list,
         .expected_map_name = expected_map_name,
     };
 
     data = COM_LoadStackFile(demo_path, NULL, 0, NULL);
-    dprc = DP_ReadDemo(data, com_filesize, &callbacks, &ctx);
+    dprc = DP_ReadDemo(data, com_filesize, &callbacks, &pctx);
     if (dprc == DP_ERR_CALLBACK) {
         // Errors from callbacks print their own error messages.
         ok = pctx.finished;

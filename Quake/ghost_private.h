@@ -18,14 +18,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 
-#ifndef __CL_GHOST_H
-#define __CL_GHOST_H
+#ifndef __GHOST_PRIVATE
+#define __GHOST_PRIVATE
 
 
-void Ghost_Load (const char *map_name);
-void Ghost_Draw (void);
-void Ghost_DrawGhostTime (void);
-void Ghost_Init (void);
+typedef struct {
+    float time;
+    float origin[3];
+    float angle[3];
+    unsigned int frame;
+} ghostrec_t;
 
 
-#endif /* __CL_GHOST_H */
+qboolean Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
+                        const char *expected_map_name);
+
+#endif /* __GHOST_PRIVATE */

@@ -272,8 +272,8 @@ static void Ghost_Command_f (void)
     COM_AddExtension(demo_path, ".dem", sizeof(demo_path));
 
     if (!COM_FileExists(demo_path, NULL)) {
-        Con_Printf("cannot find demo %s", level);
-        return:
+        Con_Printf("cannot find demo %s", demo_path);
+        return;
     }
     q_strlcpy(ghost_demo_path, demo_path, sizeof(ghost_demo_path));
 
@@ -304,7 +304,7 @@ static void Ghost_RemoveCommand_f (void)
 
 void Ghost_Init (void)
 {
-    Cmd_AddCommand ("ghost", Ghost_AddCommand_f);
+    Cmd_AddCommand ("ghost", Ghost_Command_f);
     Cmd_AddCommand ("ghost_remove", Ghost_RemoveCommand_f);
 }
 
