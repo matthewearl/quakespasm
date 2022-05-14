@@ -19,14 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #include "quakedef.h"
-
-
-typedef struct {
-    float time;
-    float origin[3];
-    float angle[3];
-    unsigned int frame;
-} ghostrec_t;
+#include "ghost_private.h"
 
 
 static char         ghost_demo_path[MAX_OSPATH] = "";
@@ -69,8 +62,8 @@ static float Ghost_FindClosest (vec3_t origin)
 // search.
 static int Ghost_FindRecord (float time)
 {
-    int idx = 0;
-    ghostrec_t *rec = ghost_records;
+    int idx;
+    ghostrec_t *rec;
 
     if (ghost_records == NULL) {
         // not loaded
@@ -97,22 +90,24 @@ static int Ghost_FindRecord (float time)
 
 void Ghost_Load (const char *map_name)
 {
-    char    name[MAX_OSPATH];
-
-    q_snprintf (name, sizeof(name), "ghosts/%s.ghost", map_name);
-    ghost_records = (ghostrec_t *) COM_LoadHunkFile (name, NULL);
-
-    if (ghost_records != NULL) {
-        ghost_num_records = com_filesize / sizeof(ghostrec_t);
-        ghost_entity = (entity_t *)Hunk_AllocName(sizeof(entity_t),
-                                                  "ghost_entity");
-
-        ghost_entity->model = Mod_ForName ("progs/player.mdl", false);
-        ghost_entity->colormap = vid.colormap;
-        ghost_entity->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
-        ghost_entity->alpha = 128;
-        ghost_entity->skinnum = 0;
+    if (ghost_demo_path[0] == '\0') {
+        ghost_records = NULL;
+        ghost_num_records = 0;
+        return;
     }
+
+    if (!Ghost_ReadDemo(ghost_demo_path, &ghost_records, &ghost_num_records, map_name)) {
+        return;
+    }
+
+    ghost_entity = (entity_t *)Hunk_AllocName(sizeof(entity_t),
+                                              "ghost_entity");
+
+    ghost_entity->model = Mod_ForName ("progs/player.mdl", false);
+    ghost_entity->colormap = vid.colormap;
+    ghost_entity->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
+    ghost_entity->alpha = 128;
+    ghost_entity->skinnum = 0;
 }
 
 
@@ -264,6 +259,11 @@ static void Ghost_Command_f (void)
 
     if (Cmd_Argc() != 2)
     {
+        if (ghost_demo_path[0] == '\0') {
+            Con_Printf("no ghost has been added");
+        } else {
+            Con_Printf("ghost %s has been added", ghost_demo_path);
+        }
         Con_Printf("ghost <demoname> : add a ghost\n");
         return;
     }
@@ -294,10 +294,10 @@ static void Ghost_RemoveCommand_f (void)
     }
 
     if (ghost_demo_path[0] == '\0') {
-        Con_Printf("no ghost has been added");
+        Con_Printf("no ghost has been added\n");
     } else {
+        Con_Printf("ghost %s will be removed on next map load\n", ghost_demo_path);
         ghost_demo_path[0] = '\0';
-        Con_Printf("ghost will be removed on next map load");
     }
 }
 

@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #include "quakedef.h"
+#include "demoparse.h"
+#include "ghost_private.h"
 
 
 /*
@@ -91,6 +93,8 @@ static void Ghost_ListToArray(ghostreclist_t *list, ghostrec_t **records_out,
 
 /*
  * PARSING CALLBACKS
+ *
+ * Callbacks from the demoparse module that build up the record list.
  */
 
 
@@ -99,6 +103,9 @@ typedef struct {
     ghostreclist_t **next_ptr;
     ghostrec_t rec;
 
+    int model_num;
+    char *expected_map_name;
+
     vec3_t baseline_origin;
     vec3_t baseline_angle;
     int baseline_frame;
@@ -106,6 +113,26 @@ typedef struct {
     qboolean finished;
 } ghost_parse_ctx_t;
 
+
+static qboolean
+Ghost_ServerInfoModel_cb (const char *model, void *ctx)
+{
+    char map_name[MAX_OSPATH];
+
+    ghost_parse_ctx *pctx = ctx;
+
+    if (pctx->model_num == 0) {
+        COM_StripExtension(COM_SkipPath(model), map_name, sizeof(map_name));
+        if (!Q_strcmp(map_name, pctx->expected_map_name)) {
+            Con_Printf("Ghost file is for map %s but %s is being loaded\n",
+                       map_name, pctx->expected_map_name);
+            return false;
+        }
+    }
+    pctx->model_num += 1;
+
+    return true;
+}
 
 
 static qboolean
@@ -193,18 +220,21 @@ Ghost_Intermission_cb (void *ctx)
 {
     ghost_parse_ctx *pctx = ctx;
     pctx->finished = true;
+
     return false;
 }
 
 
 /*
  * ENTRYPOINT
+ *
+ * Call the demo parse module and return record array.
  */
 
 
 qboolean
 Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
-               char *map_name_out, int map_name_size)
+               char *expected_map_name)
 {
     qboolean ok = true;
     byte *data;
@@ -223,13 +253,15 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
     pctx_t parse_context_t = {
         .view_entity = -1,
         .next_ptr = &list,
-        .map_name_out = map_name_out,
-        .map_name_size = map_name_size,
+        .expected_map_name = expected_map_name,
     };
 
     data = COM_LoadStackFile(demo_path, NULL, 0, NULL);
     dprc = DP_ReadDemo(data, com_filesize, &callbacks, &ctx);
-    if (dprc != DP_ERR_SUCCESS && (dprc != DP_ERR_CALLBACK || !pctx.finished)) {
+    if (dprc == DP_ERR_CALLBACK) {
+        // Errors from callbacks print their own error messages.
+        ok = pctx.finished;
+    } else if (dprc != DP_ERR_SUCCESS) {
         Con_Printf("Error parsing demo %s: %u\n", demo_path, dprc);
         ok = false;
     }
