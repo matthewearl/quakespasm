@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __DEMOPARSE_H
 #define __DEMOPARSE_H
 
-#include "quakedef.h"
+#include "../quakedef.h"
 
 
 #define DP_FOREACH_ERR(F)          \

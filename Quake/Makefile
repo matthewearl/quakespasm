@@ -285,9 +285,9 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
-	demoparse.o \
-	cl_ghost.o \
-	cl_ghostparse.o \
+	ghost/demoparse.o \
+	ghost/ghost.o \
+	ghost/ghostparse.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------
