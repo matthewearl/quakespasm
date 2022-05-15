@@ -29,7 +29,7 @@ import zipfile
 
 
 DZIP_EXEC = 'dzip'
-DEMO_PARSE_EXEC = 'demoparse'
+DEMO_PARSE_EXEC = 'ghost/demoparse'
 TMP_DZ_PATH = '/dev/shm/temp_dz'
 TMP_DEM_PATH = '/dev/shm/temp_dz_unpacked/'
 FAILING_DEMS_PATH = 'bad_demos'
@@ -46,7 +46,7 @@ def dzip_extract(dz_path, destination_dir_path):
 
 
 def run_demo_parse(dem_path):
-    proc = subprocess.run([DEMO_PARSE_EXEC, dem_path, 'info'], capture_output=True)
+    proc = subprocess.run([DEMO_PARSE_EXEC, 'info', dem_path], capture_output=True)
     if proc.returncode != 0:
         raise ParseFailed(f'parse failed {proc.returncode=}')
     return proc.stdout.decode('utf-8').strip()

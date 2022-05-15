@@ -21,9 +21,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdio.h>
 
 #include "../quakedef.h"
+#include "demoparse.h"
 
 
 typedef struct {
+    FILE *demo_file;
     qboolean print_callbacks;
     float time;
     float finish_time;
@@ -35,6 +37,14 @@ typedef struct {
 
 
 static qboolean
+read (void *dest, unsigned int size, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    return fread (dest, size, 1, tctx->demo_file) != 0;
+}
+
+
+static dp_cb_response_t
 server_info (int protocol, unsigned int protocol_flags, const char *level_name,
              void *ctx)
 {
@@ -45,11 +55,11 @@ server_info (int protocol, unsigned int protocol_flags, const char *level_name,
     }
     tctx->protocol = protocol;
     tctx->protocol_flags = protocol_flags;
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 server_info_model (const char *model, void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -75,22 +85,22 @@ server_info_model (const char *model, void *ctx)
             tctx->map_name[len - 4] = '\0';
         }
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 server_info_sound (const char *sound, void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
     if (tctx->print_callbacks) {
         printf("server_info_sound: sound=%s\n", sound);
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 time (float time, void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -98,11 +108,11 @@ time (float time, void *ctx)
         printf("time: %f\n", time);
     }
     tctx->time = time;
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 baseline (int entity_num, vec3_t origin, vec3_t angle, int frame,
           void *ctx)
 {
@@ -114,11 +124,11 @@ baseline (int entity_num, vec3_t origin, vec3_t angle, int frame,
                angle[0], angle[1], angle[2],
                frame);
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 update(int entity_num, vec3_t origin, vec3_t angle,
        byte origin_bits, byte angle_bits, int frame, void *ctx)
 {
@@ -132,33 +142,33 @@ update(int entity_num, vec3_t origin, vec3_t angle,
                origin_bits, angle_bits,
                frame);
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 packet_end (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
     if (tctx->print_callbacks) {
         printf("packet_end\n");
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 set_view (int entity_num, void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
     if (tctx->print_callbacks) {
         printf("set_view: ent=%d\n", entity_num);
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 intermission (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -169,11 +179,11 @@ intermission (void *ctx)
     if (tctx->finish_time == -1) {
         tctx->finish_time = tctx->time;
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 finale (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -183,11 +193,11 @@ finale (void *ctx)
     if (tctx->finish_time == -1) {
         tctx->finish_time = tctx->time;
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 cut_scene (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -197,22 +207,22 @@ cut_scene (void *ctx)
     if (tctx->finish_time == -1) {
         tctx->finish_time = tctx->time;
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 disconnect (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
     if (tctx->print_callbacks) {
         printf("disconnect\n");
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 update_stat (byte stat, int count, void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -223,11 +233,11 @@ update_stat (byte stat, int count, void *ctx)
     if (stat < MAX_CL_STATS) {
         tctx->stats[stat] = count;
     }
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 found_secret (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -235,11 +245,11 @@ found_secret (void *ctx)
         printf("found_secret\n");
     }
     tctx->stats[STAT_SECRETS]++;
-    return true;
+    return DP_CBR_CONTINUE;
 }
 
 
-static qboolean
+static dp_cb_response_t
 killed_monster (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -247,23 +257,7 @@ killed_monster (void *ctx)
         printf("killed_monster\n");
     }
     tctx->stats[STAT_MONSTERS]++;
-    return true;
-}
-
-
-static void
-read_file (const char *fname, byte **data, unsigned int *data_len)
-{
-    FILE *f;
-
-    f = fopen(fname, "rb");
-    fseek(f, 0, SEEK_END);
-    *data_len = ftell(f);
-    *data = malloc(*data_len);
-
-    fseek(f, 0, SEEK_SET);
-    fread(*data, *data_len, 1, f);
-    fclose(f);
+    return DP_CBR_CONTINUE;
 }
 
 
@@ -271,8 +265,6 @@ int
 main (int argc, char **argv)
 {
     dp_err_t dprc;
-    byte *data;
-    unsigned int data_len;
     qboolean print_info = false;
     dp_test_ctx_t tctx = {
         .print_callbacks = false,
@@ -280,6 +272,7 @@ main (int argc, char **argv)
         .finish_time = -1,
     };
     dp_callbacks_t callbacks = {
+        .read = read,
         .server_info = server_info,
         .server_info_model = server_info_model,
         .server_info_sound = server_info_sound,
@@ -298,21 +291,21 @@ main (int argc, char **argv)
     };
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s demo-file [callbacks|info]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [callbacks|info] demo-file\n", argv[0]);
         return 1;
     }
 
-    if (strcmp(argv[2], "callbacks") == 0) {
+    if (strcmp(argv[1], "callbacks") == 0) {
         tctx.print_callbacks = true;
-    } else if (strcmp(argv[2], "info") == 0) {
+    } else if (strcmp(argv[1], "info") == 0) {
         print_info = true;
     } else {
         fprintf(stderr, "Invalid command: %s\n", argv[2]);
     }
 
-    read_file(argv[1], &data, &data_len);
-    dprc = DP_ReadDemo(data, data_len, &callbacks, &tctx);
-    free(data);
+    tctx.demo_file = fopen(argv[2], "rb");
+    dprc = DP_ReadDemo(&callbacks, &tctx);
+    fclose(tctx.demo_file);
 
     if (print_info) {
         printf("protocol=%d", tctx.protocol);

@@ -309,3 +309,9 @@ clean:
 
 install:	quakespasm
 	cp quakespasm /usr/local/games/quake
+
+
+DEMOPARSE_OBJS = ghost/demoparse.o ghost/demoparse_main.o ghost/demoparse_common.o
+ghost/demoparse: $(DEMOPARSE_OBJS)
+	$(LINKER) $(DEMOPARSE_OBJS) $(LDFLAGS) -o $@
+
