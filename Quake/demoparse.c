@@ -72,8 +72,8 @@ typedef struct {
 
 typedef struct {
     const byte *buf;
-    unsigned long file_offset = 0;
-    const byte packet[64000];
+    unsigned long file_offset;
+    byte packet[64000];
     const byte *packet_end;
 
     protocol_t protocol;
@@ -878,6 +878,7 @@ static dp_err_t
 DP_ReadPacket(ctx_t *ctx) {
     dp_err_t rc;
     int packet_len;
+    vec3_t view_angle;
 
     // Read packet header and packet
     CHECK_RC(DP_ReadFromFile(ctx, &packet_len, sizeof(packet_len)));
@@ -885,7 +886,7 @@ DP_ReadPacket(ctx_t *ctx) {
     if (packet_len < 0 || packet_len > sizeof(ctx->packet)) {
         return EXCEPTION(DP_ERR_BAD_SIZE);
     }
-    CHECK_RC(DP_ReadFromFile(ctx, NULL, sizeof(float) * 3));
+    CHECK_RC(DP_ReadFromFile(ctx, view_angle, sizeof(view_angle)));
     CHECK_RC(DP_ReadFromFile(ctx, ctx->packet, packet_len));
 
     // Read messages from the packet.
@@ -951,8 +952,8 @@ DP_ReadDemo(dp_callbacks_t *callbacks, void *callback_ctx)
     }
 
     if (rc != DP_ERR_SUCCESS) {
-        unsigned int offs = ctx.file_offset;
-        if (ctx.packet_start == NULL) {
+        unsigned long offs = ctx.file_offset;
+        if (ctx.packet_end != NULL) {
             offs -= ctx.packet_end - ctx.buf;
         }
         fprintf(stderr, "Demo parse failed at offset %ld (0x%lx), "

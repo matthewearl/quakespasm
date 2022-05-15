@@ -106,7 +106,7 @@ typedef struct {
 
 
 static qboolean
-Ghost_Read_cb (void *dest, unsigned int size)
+Ghost_Read_cb (void *dest, unsigned int size, void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
     return fread (dest, size, 1, pctx->demo_file) != 0;
@@ -239,7 +239,6 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
                const char *expected_map_name)
 {
     qboolean ok = true;
-    byte *data;
     ghostreclist_t *list = NULL;
     dp_err_t dprc;
     dp_callbacks_t callbacks = {
@@ -260,15 +259,15 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
         .expected_map_name = expected_map_name,
     };
 
-    COM_FOpenFile (demo_path, &pctx->demo_file, NULL);
-    if (!pctx->demo_file)
+    COM_FOpenFile (demo_path, &pctx.demo_file, NULL);
+    if (!pctx.demo_file)
     {
-        Con_Printf ("ERROR: couldn't open %s\n", name);
+        Con_Printf ("ERROR: couldn't open %s\n", demo_path);
         ok = false;
     }
 
     if (ok) {
-        dprc = DP_ReadDemo(data, com_filesize, &callbacks, &pctx);
+        dprc = DP_ReadDemo(&callbacks, &pctx);
         if (dprc == DP_ERR_CALLBACK_STOP) {
             // Errors from callbacks print their own error messages.
             ok = pctx.finished;
@@ -283,8 +282,8 @@ Ghost_ReadDemo(const char *demo_path, ghostrec_t **records, int *num_records,
     }
 
     // Free everything
-    if (pctx->demo_file) {
-        fclose(cls.demofile);
+    if (pctx.demo_file) {
+        fclose(pctx.demo_file);
     }
     Hunk_HighMark();
 

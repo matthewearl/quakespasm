@@ -78,7 +78,7 @@ typedef struct {
 } dp_callbacks_t;
 
 
-dp_err_t DP_ReadDemo(const byte *data, unsigned int data_len,
-                     dp_callbacks_t *callbacks, void *callback_ctx);
+dp_err_t DP_ReadDemo(dp_callbacks_t *callbacks, void *callback_ctx);
+
 
 #endif /* __DEMOPARSE_H */
