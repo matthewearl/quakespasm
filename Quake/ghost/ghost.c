@@ -21,13 +21,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "../quakedef.h"
 #include "ghost_private.h"
 
+static cvar_t ghost_delta = {"ghost_delta", "1", CVAR_ARCHIVE};
+static cvar_t ghost_range = {"ghost_range", "128", CVAR_ARCHIVE};
+static cvar_t ghost_alpha = {"ghost_alpha", "0.5", CVAR_ARCHIVE};
+
 
 static char         ghost_demo_path[MAX_OSPATH] = "";
 static char         ghost_map[];
 static ghostrec_t  *ghost_records = NULL;
 static int          ghost_num_records = 0;
 static entity_t    *ghost_entity = NULL;
-static qboolean     ghost_show = false;
 
 
 // This could be done more intelligently, no doubt.
@@ -107,9 +110,8 @@ void Ghost_Load (const char *map_name)
                                               "ghost_entity");
 
     ghost_entity->model = Mod_ForName ("progs/player.mdl", false);
-    ghost_entity->colormap = vid.colormap;
+    ghost_entity->colormap = vid.colormap;  // TODO: Cvar for colors.
     ghost_entity->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
-    ghost_entity->alpha = 128;
     ghost_entity->skinnum = 0;
 }
 
@@ -144,12 +146,34 @@ static void Ghost_LerpAngle(vec3_t angles1, vec3_t angles2, float frac,
 }
 
 
-static void Ghost_Update (void)
+static void Ghost_SetAlpha(void)
+{
+    entity_t *ent = &cl_entities[cl.viewentity];
+    float alpha;
+    vec3_t diff;
+    float dist;
+
+    // distance from player to ghost
+    VectorSubtract(ent->origin, ghost_entity->origin, diff);
+    dist = VectorLength(diff);
+
+    // fully opaque at range+32, fully transparent at range
+    alpha = CLAMP(0.0f, (dist - ghost_range.value) / 32.0f, 1.0f);
+
+    // scale by cvar alpha
+    alpha *= CLAMP(0.0f, ghost_alpha.value, 1.0f);
+
+    ghost_entity->alpha = (byte)(alpha * 254.0f + 1.0f);
+}
+
+
+static qboolean Ghost_Update (void)
 {
     int after_idx = Ghost_FindRecord(cl.time);
     ghostrec_t *rec_before;
     ghostrec_t *rec_after;
     float frac;
+    qboolean ghost_show;
 
     if (after_idx == -1) {
         ghost_show = false;
@@ -171,7 +195,12 @@ static void Ghost_Update (void)
         Ghost_LerpAngle(rec_before->angle, rec_after->angle,
                         frac,
                         ghost_entity->angles);
+
+        // Set alpha based on distance to player.
+        Ghost_SetAlpha();
     }
+
+    return ghost_show;
 }
 
 
@@ -188,8 +217,7 @@ void Ghost_Draw (void)
      *  - skinnum
      *  - colormap
      */
-    Ghost_Update();
-    if (ghost_show) {
+    if (Ghost_Update()) {
         currententity = ghost_entity;
         R_DrawAliasModel (ghost_entity);
     }
@@ -208,7 +236,7 @@ void Ghost_DrawGhostTime (void)
 
     entity_t *ent = &cl_entities[cl.viewentity];
 
-    if (ghost_records == NULL || !ghost_show)
+    if (!ghost_delta.value || ghost_records == NULL)
         return;
     relative_time = Ghost_FindClosest(ent->origin);
 
@@ -307,5 +335,9 @@ void Ghost_Init (void)
 {
     Cmd_AddCommand ("ghost", Ghost_Command_f);
     Cmd_AddCommand ("ghost_remove", Ghost_RemoveCommand_f);
+
+    Cvar_RegisterVariable (&ghost_delta);
+    Cvar_RegisterVariable (&ghost_range);
+    Cvar_RegisterVariable (&ghost_alpha);
 }
 
