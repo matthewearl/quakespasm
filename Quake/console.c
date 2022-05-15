@@ -820,7 +820,7 @@ static const arg_completion_type_t arg_completion_types[] =
 	{ "record ", &demolist },
 	{ "playdemo ", &demolist },
 	{ "timedemo ", &demolist },
-	{ "ghost", &demolist },
+	{ "ghost ", &demolist },
 };
 
 static const int num_arg_completion_types =
