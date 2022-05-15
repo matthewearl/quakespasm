@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "../quakedef.h"
 #include "ghost_private.h"
 
+
 static cvar_t ghost_delta = {"ghost_delta", "1", CVAR_ARCHIVE};
 static cvar_t ghost_range = {"ghost_range", "128", CVAR_ARCHIVE};
 static cvar_t ghost_alpha = {"ghost_alpha", "0.5", CVAR_ARCHIVE};
@@ -31,6 +32,7 @@ static char         ghost_map[];
 static ghostrec_t  *ghost_records = NULL;
 static int          ghost_num_records = 0;
 static entity_t    *ghost_entity = NULL;
+static float        ghost_shift = 0.0f;
 
 
 // This could be done more intelligently, no doubt.
@@ -113,6 +115,8 @@ void Ghost_Load (const char *map_name)
     ghost_entity->colormap = vid.colormap;  // TODO: Cvar for colors.
     ghost_entity->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
     ghost_entity->skinnum = 0;
+
+    ghost_shift = 0.0f;
 }
 
 
@@ -169,7 +173,8 @@ static void Ghost_SetAlpha(void)
 
 static qboolean Ghost_Update (void)
 {
-    int after_idx = Ghost_FindRecord(cl.time);
+    float lookup_time = cl.time + ghost_shift;
+    int after_idx = Ghost_FindRecord(lookup_time);
     ghostrec_t *rec_before;
     ghostrec_t *rec_after;
     float frac;
@@ -183,7 +188,7 @@ static qboolean Ghost_Update (void)
         rec_after = &ghost_records[after_idx];
         rec_before = &ghost_records[after_idx - 1];
 
-        frac = (cl.time - rec_before->time)
+        frac = (lookup_time - rec_before->time)
                 / (rec_after->time - rec_before->time);
 
         // TODO: lerp animation frames
@@ -331,10 +336,60 @@ static void Ghost_RemoveCommand_f (void)
 }
 
 
+static void Ghost_ShiftCommand_f (void)
+{
+    float delta;
+    entity_t *ent = &cl_entities[cl.viewentity];
+
+    if (cmd_source != src_command) {
+        return;
+    }
+
+    if (Cmd_Argc() != 2)
+    {
+        Con_Printf("ghost_shift <t> : place ghost <t> seconds ahead of "
+                   "player\n");
+        return;
+    }
+
+    if (ghost_records == NULL) {
+        Con_Printf("ghost not loaded\n");
+        return;
+    }
+
+
+    delta = Ghost_FindClosest(ent->origin);
+    ghost_shift = Q_atof(Cmd_Argv(1)) - delta;
+}
+
+
+static void Ghost_ShiftResetCommand_f (void)
+{
+    if (cmd_source != src_command) {
+        return;
+    }
+
+    if (Cmd_Argc() != 1)
+    {
+        Con_Printf("ghost_reset_shift : undo ghost shift\n");
+        return;
+    }
+
+    if (ghost_records == NULL) {
+        Con_Printf("ghost not loaded\n");
+        return;
+    }
+
+    ghost_shift = 0.0f;
+}
+
+
 void Ghost_Init (void)
 {
     Cmd_AddCommand ("ghost", Ghost_Command_f);
     Cmd_AddCommand ("ghost_remove", Ghost_RemoveCommand_f);
+    Cmd_AddCommand ("ghost_shift", Ghost_ShiftCommand_f);
+    Cmd_AddCommand ("ghost_shift_reset", Ghost_ShiftResetCommand_f);
 
     Cvar_RegisterVariable (&ghost_delta);
     Cvar_RegisterVariable (&ghost_range);
