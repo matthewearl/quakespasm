@@ -709,8 +709,10 @@ DP_UpdateStat(ctx_t *ctx)
 static dp_err_t
 DP_ParseMessage(ctx_t *ctx)
 {
+    const byte *msg;
     byte cmd;
 
+    msg = ctx->buf;
     CHECK_RC(DP_ParseByte(ctx, &cmd));
 
     if (cmd & U_SIGNAL) {
@@ -858,6 +860,11 @@ DP_ParseMessage(ctx_t *ctx)
                 return EXCEPTION(DP_ERR_UNKNOWN_MESSAGE_TYPE);
         }
     }
+
+    CALL_CALLBACK(message,
+                  ctx->file_offset - (ctx->packet_end - msg),
+                  msg,
+                  ctx->buf - msg);
 
     return DP_ERR_SUCCESS;
 }

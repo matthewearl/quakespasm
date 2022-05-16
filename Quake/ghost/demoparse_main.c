@@ -33,6 +33,11 @@ typedef struct {
     char map_name[64];
     int protocol;
     unsigned int protocol_flags;
+
+    qboolean collect_stats;
+    unsigned long msg_sizes[256];
+    unsigned long msg_counts[256];
+    unsigned long packet_count;
 } dp_test_ctx_t;
 
 
@@ -153,6 +158,10 @@ packet_end (void *ctx)
     if (tctx->print_callbacks) {
         printf("packet_end\n");
     }
+
+    if (tctx->collect_stats) {
+        tctx->packet_count ++;
+    }
     return DP_CBR_CONTINUE;
 }
 
@@ -261,6 +270,29 @@ killed_monster (void *ctx)
 }
 
 
+static dp_cb_response_t
+message (unsigned long offset, const byte *msg,
+         unsigned int len, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("message type=0x%x offset=0x%lx len=%d\n", msg[0], offset, len);
+    }
+
+    if (tctx->collect_stats) {
+        byte msg_type = msg[0];
+        if (msg_type & U_SIGNAL) {
+            msg_type = U_SIGNAL;
+        }
+
+        tctx->msg_counts[msg_type] ++;
+        tctx->msg_sizes[msg_type] += len;
+    }
+
+    return DP_CBR_CONTINUE;
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -288,10 +320,13 @@ main (int argc, char **argv)
         .update_stat = update_stat,
         .killed_monster = killed_monster,
         .found_secret = found_secret,
+        .message = message,
     };
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s [callbacks|info] demo-file\n", argv[0]);
+        fprintf(stderr,
+                "Usage: %s [callbacks|info|stats] demo-file\n",
+                argv[0]);
         return 1;
     }
 
@@ -299,6 +334,8 @@ main (int argc, char **argv)
         tctx.print_callbacks = true;
     } else if (strcmp(argv[1], "info") == 0) {
         print_info = true;
+    } else if (strcmp(argv[1], "stats") == 0) {
+        tctx.collect_stats = true;
     } else {
         fprintf(stderr, "Invalid command: %s\n", argv[2]);
     }
@@ -323,6 +360,39 @@ main (int argc, char **argv)
                    mins, tctx.finish_time - mins * 60.f);
         }
         printf("\n");
+    }
+
+    if (tctx.collect_stats) {
+        int msg_type;
+        unsigned long total_msg_size = 0;
+        unsigned long total_msg_count = 0;
+        unsigned long total_packet_header_size;
+        unsigned long total_size;
+        printf("%8s %10s %10s %8s\n",
+               "msg_type", "count", "total_size", "avg_size");
+        for (msg_type = 0; msg_type < 256; msg_type ++) {
+            unsigned long msg_count = tctx.msg_counts[msg_type];
+            unsigned long msg_size = tctx.msg_sizes[msg_type];
+            float avg_size = (float)msg_size / msg_count;
+            if (tctx.msg_counts[msg_type]) {
+                printf("%8u %10lu %10lu %5.8f\n",
+                       msg_type, msg_count, msg_size, avg_size);
+                total_msg_size += msg_size;
+                total_msg_count += msg_count;
+            }
+
+        }
+        printf("\n");
+        total_packet_header_size = 4 * 4 * tctx.packet_count;
+        total_size = total_msg_size + total_packet_header_size;
+        printf("         total_msg_count: %lu\n", total_msg_count);
+        printf("          total_msg_size: %lu\n", total_size);
+        printf("            packet_count: %lu\n", tctx.packet_count);
+        printf("total_packet_header_size: %lu\n", total_packet_header_size);
+        printf("              total_size: %lu\n", total_size);
+        printf("\n");
+        printf("note: total_size excludes any trailing bytes, and the initial "
+               "force track command\n");
     }
 
     return dprc;

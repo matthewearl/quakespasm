@@ -75,6 +75,8 @@ typedef struct {
     dp_cb_response_t (*update_stat)(byte stat, int count, void *ctx);
     dp_cb_response_t (*killed_monster)(void *ctx);
     dp_cb_response_t (*found_secret)(void *ctx);
+    dp_cb_response_t (*message)(unsigned long offset, const byte *msg,
+                                unsigned int len, void *ctx);
 } dp_callbacks_t;
 
 
