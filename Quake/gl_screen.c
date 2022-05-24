@@ -86,6 +86,7 @@ cvar_t		scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t		scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
 cvar_t		scr_showfps = {"scr_showfps", "0", CVAR_NONE};
 cvar_t		scr_clock = {"scr_clock", "0", CVAR_NONE};
+cvar_t		scr_speed = {"scr_speed", "0"};
 //johnfitz
 cvar_t		scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
@@ -410,6 +411,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
+	Cvar_RegisterVariable (&scr_speed);
 	//johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -509,6 +511,106 @@ void SCR_DrawClock (void)
 
 	scr_tileclear_updates = 0;
 }
+
+// MLE:  Taken from JoeQuake
+/*
+==============
+SCR_DrawSpeed
+==============
+*/
+static void SCR_DrawSpeed2 (float display_speed, int bad_jump, int down_frame, int up_frame)
+{
+	int		x, y, size, bg_color;
+	float		scale, speedunits;
+	char		st[8];
+    char        st2[64];
+
+	GL_SetCanvas (CANVAS_CROSSHAIR);
+
+	scale = 1;
+	size = 8;
+
+	sprintf (st, "%3d", (int)display_speed);
+	sprintf (st2, "%d %d", down_frame, up_frame);
+
+	x = -80;
+	y = -10;
+	y = 10;
+	
+	float alpha = 0.5;
+	bg_color = bad_jump ? 251 : 10;
+	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x, y + (int)(9 * scale), 160, 1, bg_color, alpha);
+	Draw_Fill (x + (int)(32 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(64 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(96 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+	Draw_Fill (x + (int)(128 * scale), y - (int)(2 * scale), 1, 13, bg_color, alpha);
+
+	Draw_Fill (x, y, 160, 9, 52, 0.9);
+
+	speedunits = display_speed;
+	if (display_speed <= 500)
+	{
+		Draw_Fill (x, y, (int)(display_speed / 3.125), 9, 100, alpha);
+	}
+	else 
+	{   
+		while (speedunits > 500)
+			speedunits -= 500;
+		Draw_Fill (x, y, (int)(speedunits / 3.125), 9, 68, alpha);
+	}
+	Draw_String (x + (int)(4.5 * size) - (strlen(st) * size), y, st);
+	Draw_String (x + (int)(4.5 * size) - (strlen(st2) * size), y + 16, st2);
+}
+
+
+void SCR_DrawSpeed (void)
+{
+	float		speed;
+	vec3_t		vel;
+	int		bad_jump = 0;
+    int   down_frame = 0, up_frame = 0;
+	static	float	maxspeed = 0, display_speed = -1;
+	static	double	lastrealtime = 0;
+
+	// If connected locally, show higher res speed, otherwise just use velocity from svc_clientdata.
+	if (!scr_speed.value)
+		return;
+
+	if (lastrealtime > realtime)
+	{
+		lastrealtime = 0;
+		display_speed = -1;
+		maxspeed = 0;
+	}
+
+	VectorCopy (cl.velocity, vel);
+	vel[2] = 0;
+	speed = VectorLength (vel);
+
+	if (speed > maxspeed)
+		maxspeed = speed;
+
+	if (sv.active && speed_info.speed >= 0)
+	{
+		display_speed = speed_info.speed;
+		bad_jump = speed_info.jump_fmove == 0 || speed_info.jump_smove == 0;
+
+		down_frame = Q_rint((speed_info.forward_down_time - speed_info.ground_time) * 72.f);
+		up_frame = Q_rint((speed_info.forward_up_time - speed_info.ground_time) * 72.f);
+	}
+
+	if (display_speed >= 0)
+	    SCR_DrawSpeed2(display_speed, bad_jump, down_frame, up_frame);
+
+	if (realtime - lastrealtime >= 0.0)
+	{
+		lastrealtime = realtime;
+		display_speed = maxspeed;
+		maxspeed = 0;
+	}
+}
+
 
 /*
 ==============
@@ -1125,6 +1227,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawClock (); //johnfitz
+        SCR_DrawSpeed ();
 		Ghost_DrawGhostTime ();
 		SCR_DrawConsole ();
 		M_Draw ();

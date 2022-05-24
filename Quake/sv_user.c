@@ -42,6 +42,8 @@ usercmd_t	cmd;
 
 cvar_t	sv_idealpitchscale = {"sv_idealpitchscale","0.8",CVAR_NONE};
 cvar_t	sv_altnoclip = {"sv_altnoclip","1",CVAR_ARCHIVE}; //johnfitz
+speed_info_t speed_info = {-1, -1, -1};
+
 
 /*
 ===============
@@ -317,6 +319,38 @@ void SV_NoclipMove (void)
 	}
 }
 
+
+static void SV_UpdateSpeedInfo (void)
+{
+	static float prev_fmove = 0.0f;
+	float fmove, smove;
+
+	fmove = cmd.forwardmove;
+	smove = cmd.sidemove;
+
+	// If jumping record whether directional keys pressed, to indicate a bad power bunny hop.
+	if (onground && sv_player->v.button2)
+	{
+		speed_info.jump_fmove = fmove;
+		speed_info.jump_smove = smove;
+	}
+
+	speed_info.speed = sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1]);
+	if (onground) {
+		speed_info.ground_time = sv.time;
+	}
+
+	if (fmove > 10 && prev_fmove <= 10) {
+		speed_info.forward_down_time = sv.time;
+	}
+
+	if (prev_fmove > 10 && fmove <= 10) {
+		speed_info.forward_up_time = sv.time;
+	}
+
+	prev_fmove = fmove;
+}
+
 /*
 ===================
 SV_AirMove
@@ -366,6 +400,7 @@ void SV_AirMove (void)
 	else
 	{	// not on ground, so little effect on velocity
 		SV_AirAccelerate (wishspeed, wishvel);
+
 	}
 }
 
@@ -427,6 +462,8 @@ void SV_ClientThink (void)
 	else
 		SV_AirMove ();
 	//johnfitz
+
+	SV_UpdateSpeedInfo();
 }
 
 

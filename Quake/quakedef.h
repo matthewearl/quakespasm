@@ -332,5 +332,19 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
+// Information for the speed-o-meter
+typedef struct
+{
+	float speed;
+	float jump_smove, jump_fmove;	// inputs right before last jump.
+
+	float forward_down_time;
+	float ground_time;
+	float forward_up_time;
+} speed_info_t;
+
+extern speed_info_t speed_info;
+
+
 #endif	/* QUAKEDEFS_H */
 
