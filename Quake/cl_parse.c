@@ -956,6 +956,14 @@ void CL_ParseStaticSound (int version) //johnfitz -- added argument
 }
 
 
+static void CL_SetFinishTime (void)
+{
+	if (!cl.intermission) {
+		cl.completed_time = cl.mtime[0];
+		Con_Printf("Actual completed time %.2f\n", (float)cl.mtime[0]);
+	}
+}
+
 #if 0	/* for debugging. from fteqw. */
 static void CL_DumpPacket (void)
 {
@@ -1247,15 +1255,15 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_intermission:
+			CL_SetFinishTime();
 			cl.intermission = 1;
-			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
 			V_RestoreAngles ();
 			break;
 
 		case svc_finale:
+			CL_SetFinishTime();
 			cl.intermission = 2;
-			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
 			str = MSG_ReadString ();
@@ -1266,8 +1274,8 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_cutscene:
+			CL_SetFinishTime();
 			cl.intermission = 3;
-			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
 			str = MSG_ReadString ();
