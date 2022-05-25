@@ -271,6 +271,17 @@ killed_monster (void *ctx)
 
 
 static dp_cb_response_t
+update_name (int client_num, const char *name, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("update_name client_num=%d name=%s\n", client_num, name);
+    }
+    return DP_CBR_CONTINUE;
+}
+
+
+static dp_cb_response_t
 message (unsigned long offset, const byte *msg,
          unsigned int len, void *ctx)
 {
@@ -320,6 +331,7 @@ main (int argc, char **argv)
         .update_stat = update_stat,
         .killed_monster = killed_monster,
         .found_secret = found_secret,
+        .update_name = update_name,
         .message = message,
     };
 
