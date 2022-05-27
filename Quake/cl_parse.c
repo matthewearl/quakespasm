@@ -961,6 +961,7 @@ static void CL_SetFinishTime (void)
 	if (!cl.intermission) {
 		cl.completed_time = cl.mtime[0];
 		Con_Printf("Actual completed time %.2f\n", (float)cl.mtime[0]);
+		Ghost_Finish ();
 	}
 }
 
