@@ -862,10 +862,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	GL_Uniform2fFunc (0, scalex, scaley);
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
-	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2));
-
-	GL_VertexAttribDivisorFunc (0, 1);
-	GL_VertexAttribDivisorFunc (1, 1);
+	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
 
 	numpartverts = 0;
 	for (p=active_particles ; p ; p=p->next)
@@ -889,9 +886,6 @@ static void R_DrawParticles_Real (qboolean showtris)
 	}
 
 	R_FlushParticleBatch ();
-
-	GL_VertexAttribDivisorFunc (0, 0);
-	GL_VertexAttribDivisorFunc (1, 0);
 
 	GL_EndGroup ();
 }

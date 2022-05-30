@@ -1069,16 +1069,44 @@ static void GL_SetStateEx (unsigned mask, unsigned force)
 
 	if (diff & GLS_MASK_ATTRIBS)
 	{
+		int oldattribs = (glstate & GLS_MASK_ATTRIBS) >> GLS_ATTRIBS_SHIFT;
+		int newattribs = (mask    & GLS_MASK_ATTRIBS) >> GLS_ATTRIBS_SHIFT;
 		int i;
-		for (i = 0; i < GLS_MAX_ATTRIBS; i++)
+
+		if (force & GLS_MASK_ATTRIBS)
 		{
-			int bit = GLS_ATTRIB0 << i;
-			if (!(diff & bit))
-				continue;
-			if (mask & bit)
+			for (i = 0; i < GLS_ATTRIBS_MAXCOUNT; i++)
+				if (i < newattribs)
+					GL_EnableVertexAttribArrayFunc(i);
+				else
+					GL_DisableVertexAttribArrayFunc(i);
+		}
+		else
+		{
+			for (i = oldattribs; i < newattribs; i++)
 				GL_EnableVertexAttribArrayFunc(i);
-			else
+			for (i = newattribs; i < oldattribs; i++)
 				GL_DisableVertexAttribArrayFunc(i);
+		}
+	}
+
+	if (diff & GLS_MASK_INSTANCED_ATTRIBS)
+	{
+		int oldattribs = (glstate & GLS_MASK_INSTANCED_ATTRIBS) >> GLS_INSTANCED_ATTRIBS_SHIFT;
+		int newattribs = (mask    & GLS_MASK_INSTANCED_ATTRIBS) >> GLS_INSTANCED_ATTRIBS_SHIFT;
+		int i;
+
+		if (force & GLS_MASK_INSTANCED_ATTRIBS)
+		{
+			for (i = 0; i < GLS_ATTRIBS_MAXCOUNT; i++)
+				GL_VertexAttribDivisorFunc(i, i < newattribs);
+		}
+		else
+		{
+			for (i = oldattribs; i < newattribs; i++)
+				GL_VertexAttribDivisorFunc(i, 1);
+			for (i = newattribs; i < oldattribs; i++)
+				GL_VertexAttribDivisorFunc(i, 0);
 		}
 	}
 
@@ -1102,7 +1130,7 @@ GL_ResetState
 */
 void GL_ResetState (void)
 {
-	GL_SetStateEx (GLS_DEFAULT_STATE, (unsigned)(-1));
+	GL_SetStateEx (GLS_DEFAULT_STATE, ~0u);
 }
 
 /*

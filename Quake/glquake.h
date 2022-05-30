@@ -246,33 +246,41 @@ void GL_EndGroup (void);
 
 //==============================================================================
 
+// Note: in order to simplify state management we impose a few restrictions:
+// - if a shader uses N vertex attributes their indices must be [0..N-1]
+// - instanced vertex attributes, if any, must come first
+
+// Total number of vertex attributes used (instanced + non-instanced)
+#define GLS_ATTRIBS(n)				((n) << GLS_ATTRIBS_SHIFT)
+
+// Number of instanced vertex attributes used
+#define GLS_INSTANCED_ATTRIBS(n)	((n) << GLS_INSTANCED_ATTRIBS_SHIFT)
+
 typedef enum {
-	GLS_NO_ZTEST		= 1 << 0,
-	GLS_NO_ZWRITE		= 1 << 1,
-	
-	GLS_BLEND_OPAQUE	= 0 << 2,
-	GLS_BLEND_ALPHA		= 1 << 2,
-	GLS_BLEND_ADD		= 2 << 2,
-	GLS_BLEND_MULTIPLY	= 3 << 2,
-	GLS_MASK_BLEND		= 3 << 2,
+	GLS_NO_ZTEST				= 1 << 0,
+	GLS_NO_ZWRITE				= 1 << 1,
 
-	GLS_CULL_BACK		= 0 << 4,
-	GLS_CULL_NONE		= 1 << 4,
-	GLS_CULL_FRONT		= 2 << 4,
-	GLS_MASK_CULL		= 3 << 4,
+	GLS_BLEND_OPAQUE			= 0 << 2,
+	GLS_BLEND_ALPHA				= 1 << 2,
+	GLS_BLEND_ADD				= 2 << 2,
+	GLS_BLEND_MULTIPLY			= 3 << 2,
+	GLS_MASK_BLEND				= 3 << 2,
 
-	GLS_ATTRIB0			= 1 << 6,
-	GLS_ATTRIB1			= 1 << 7,
-	GLS_ATTRIB2			= 1 << 8,
-	GLS_ATTRIB3			= 1 << 9,
-	GLS_ATTRIB4			= 1 << 10,
-	GLS_MAX_ATTRIBS		= 5,
-	GLS_MASK_ATTRIBS	= ((1 << GLS_MAX_ATTRIBS) - 1) * GLS_ATTRIB0,
+	GLS_CULL_BACK				= 0 << 4,
+	GLS_CULL_NONE				= 1 << 4,
+	GLS_CULL_FRONT				= 2 << 4,
+	GLS_MASK_CULL				= 3 << 4,
 
-	GLS_DEFAULT_STATE	= GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIB0,
+	GLS_ATTRIBS_BITS			= 3,
+	GLS_ATTRIBS_SHIFT			= 6,
+	GLS_ATTRIBS_MAXCOUNT		= (1 << GLS_ATTRIBS_BITS) - 1,
+	GLS_MASK_ATTRIBS			= GLS_ATTRIBS_MAXCOUNT << GLS_ATTRIBS_SHIFT,
+
+	GLS_INSTANCED_ATTRIBS_SHIFT	= GLS_ATTRIBS_SHIFT + GLS_ATTRIBS_BITS,
+	GLS_MASK_INSTANCED_ATTRIBS	= GLS_ATTRIBS_MAXCOUNT << GLS_INSTANCED_ATTRIBS_SHIFT,
+
+	GLS_DEFAULT_STATE			= GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS (1),
 } glstatebits_t;
-
-#define GLS_ATTRIBS(n)	(((1 << (n)) - 1) * GLS_ATTRIB0)
 
 extern unsigned glstate;
 void GL_SetState (unsigned mask);
