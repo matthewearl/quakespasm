@@ -40,6 +40,15 @@ read from the demo file.
 static byte	demo_head[3][MAX_MSGLEN];
 static int	demo_head_size[2];
 
+
+// An offset is appended for each 0.1 seconds of demo playback
+#define MAX_REWIND_LENGTH	(60 * 60 / 10)
+static long rewind_offsets[MAX_REWIND_LENGTH];
+static int num_rewind_offsets;
+static long current_offset;
+static float last_rewind_time;
+static qboolean force_read = false;
+
 /*
 ==============
 CL_StopPlayback
@@ -95,7 +104,8 @@ static int CL_GetDemoMessage (void)
 		return 0;
 
 	// decide if it is time to grab the next message
-	if (cls.signon == SIGNONS)	// always grab until fully connected
+	if (cls.signon == SIGNONS  // always grab until fully connected
+		&& !force_read)	// grab if we just ran seek_demo
 	{
 		if (cls.timedemo)
 		{
@@ -112,8 +122,10 @@ static int CL_GetDemoMessage (void)
 			return 0;	// don't need another message yet
 		}
 	}
+	force_read = false;
 
 // get the next message
+	current_offset = ftell(cls.demofile);
 	fread (&net_message.cursize, 4, 1, cls.demofile);
 	VectorCopy (cl.mviewangles[0], cl.mviewangles[1]);
 	for (i = 0 ; i < 3 ; i++)
@@ -371,6 +383,63 @@ void CL_Record_f (void)
 	}
 }
 
+// Called when an svc_time message is parsed
+void CL_DemoAppendTime (void)
+{
+	if (!cls.demoplayback) {
+		return;
+	}
+
+	if (cls.signon < SIGNONS) {
+		// Don't allow rewinds to before being fully signed on.
+		return;
+	}
+
+	while (num_rewind_offsets < MAX_REWIND_LENGTH
+		   && cl.mtime[0] > num_rewind_offsets * 0.1f) {
+		rewind_offsets[num_rewind_offsets] = current_offset;
+		num_rewind_offsets++;
+	}
+}
+
+
+static void CL_SeekDemo (float time_delta)
+{
+	float time = cl.time + time_delta;
+	int i = (int)(time / 0.1f);
+
+	if (num_rewind_offsets != 0) {
+		if (i < 0) {
+			i = 0;
+		} else if (i >= num_rewind_offsets) {
+			i = num_rewind_offsets - 1;
+		}
+		Sys_Printf("Seeking to index %d (0x%lx)\n",
+				   i, rewind_offsets[i]);
+		fseek(cls.demofile, rewind_offsets[i], SEEK_SET);
+	}
+	cl.time = time;
+	force_read = true;
+	Sys_Printf("time: %.2f\n (set by CL_SeekDemo)\n", cl.time);
+}
+
+
+void CL_SeekDemo_f (void)
+{
+	if (Cmd_Argc() != 2)
+	{
+		Con_Printf ("seekdemo <seconds> : shift the given amount of time\n");
+		return;
+	}
+
+	if (!cls.demoplayback) {
+		Con_Printf("Cannot seek: demo not playing\n");
+		return;
+	}
+
+	CL_SeekDemo(Q_atof(Cmd_Argv(1)));
+}
+
 
 /*
 ====================
@@ -425,6 +494,11 @@ void CL_PlayDemo_f (void)
 	cls.demoplayback = true;
 	cls.demopaused = false;
 	cls.state = ca_connected;
+
+	num_rewind_offsets = 0;
+	current_offset = 0;
+	last_rewind_time = -1.0f;
+	force_read = false;
 
 // get rid of the menu and/or console
 	key_dest = key_game;

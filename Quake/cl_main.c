@@ -626,6 +626,7 @@ int CL_ReadFromServer (void)
 
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
+	Sys_Printf("time: %.2f\n (incremented by CL_ReadFromServer)\n", cl.time);
 
 	do
 	{
@@ -642,6 +643,7 @@ int CL_ReadFromServer (void)
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 
+	Sys_Printf("relinking\n");
 	CL_RelinkEntities ();
 	CL_UpdateTEnts ();
 
@@ -835,6 +837,7 @@ void CL_Init (void)
 	Cmd_AddCommand ("stop", CL_Stop_f);
 	Cmd_AddCommand ("playdemo", CL_PlayDemo_f);
 	Cmd_AddCommand ("timedemo", CL_TimeDemo_f);
+	Cmd_AddCommand ("seekdemo", CL_SeekDemo_f);
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); //johnfitz
 	Cmd_AddCommand ("viewpos", CL_Viewpos_f); //johnfitz

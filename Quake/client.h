@@ -340,6 +340,9 @@ void CL_Record_f (void);
 void CL_PlayDemo_f (void);
 void CL_TimeDemo_f (void);
 
+void CL_DemoAppendTime (void);
+void CL_SeekDemo_f (void);
+
 //
 // cl_parse.c
 //
