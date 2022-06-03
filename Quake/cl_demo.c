@@ -41,12 +41,18 @@ static byte	demo_head[3][MAX_MSGLEN];
 static int	demo_head_size[2];
 
 
-// An offset is appended for each 0.1 seconds of demo playback
-#define MAX_REWIND_LENGTH	(60 * 60 / 10)
-static long rewind_offsets[MAX_REWIND_LENGTH];
-static int num_rewind_offsets;
+typedef struct {
+	long offset;
+	int intermission;
+	int stats[MAX_CL_STATS];
+} seek_state_t;
+
+
+// An offset is appended for each second of demo playback
+#define MAX_SEEK_STATES		(60 * 60)
+static seek_state_t seek_states[MAX_SEEK_STATES];
+static int num_seek_states;
 static long current_offset;
-static float last_rewind_time;
 static qboolean force_read = false;
 
 /*
@@ -386,41 +392,52 @@ void CL_Record_f (void)
 // Called when an svc_time message is parsed
 void CL_DemoAppendTime (void)
 {
+	seek_state_t *seek_state;
+
 	if (!cls.demoplayback) {
 		return;
 	}
 
 	if (cls.signon < SIGNONS) {
-		// Don't allow rewinds to before being fully signed on.
+		// Don't allow seeking to before being fully signed on.
 		return;
 	}
 
-	while (num_rewind_offsets < MAX_REWIND_LENGTH
-		   && cl.mtime[0] > num_rewind_offsets * 0.1f) {
-		rewind_offsets[num_rewind_offsets] = current_offset;
-		num_rewind_offsets++;
+	while (num_seek_states < MAX_SEEK_STATES
+		   && cl.mtime[0] > num_seek_states) {
+		seek_state = &seek_states[num_seek_states];
+		seek_state->offset = current_offset;
+		seek_state->intermission = cl.intermission;
+		memcpy(seek_state->stats, cl.stats, sizeof(seek_state->stats));
+		num_seek_states++;
 	}
 }
 
 
 static void CL_SeekDemo (float time_delta)
 {
+	seek_state_t *seek_state;
 	float time = cl.time + time_delta;
-	int i = (int)(time / 0.1f);
+	int i = (int)time;
 
-	if (num_rewind_offsets != 0) {
+	if (num_seek_states != 0) {
 		if (i < 0) {
 			i = 0;
-		} else if (i >= num_rewind_offsets) {
-			i = num_rewind_offsets - 1;
+		} else if (i >= num_seek_states) {
+			i = num_seek_states - 1;
 		}
+		seek_state = &seek_states[i];
+
 		Sys_Printf("Seeking to index %d (0x%lx)\n",
-				   i, rewind_offsets[i]);
-		fseek(cls.demofile, rewind_offsets[i], SEEK_SET);
+				   i, seek_state->offset);
+		fseek(cls.demofile, seek_state->offset, SEEK_SET);
+		cl.intermission = seek_state->intermission;
+		memcpy(cl.stats, seek_state->stats, sizeof(cl.stats));
+
+		cl.time = time;
+		force_read = true;
+		Sys_Printf("time: %.2f\n (set by CL_SeekDemo)\n", cl.time);
 	}
-	cl.time = time;
-	force_read = true;
-	Sys_Printf("time: %.2f\n (set by CL_SeekDemo)\n", cl.time);
 }
 
 
@@ -495,9 +512,8 @@ void CL_PlayDemo_f (void)
 	cls.demopaused = false;
 	cls.state = ca_connected;
 
-	num_rewind_offsets = 0;
+	num_seek_states = 0;
 	current_offset = 0;
-	last_rewind_time = -1.0f;
 	force_read = false;
 
 // get rid of the menu and/or console
