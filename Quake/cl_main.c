@@ -365,6 +365,10 @@ float	CL_LerpPoint (void)
 
 	f = cl.mtime[0] - cl.mtime[1];
 
+	if (cls.demopaused) {
+		return 1;
+	}
+
 	if (!f || cls.timedemo || sv.active)
 	{
 		cl.time = cl.mtime[0];
@@ -633,7 +637,9 @@ int CL_ReadFromServer (void)
 
 
 	cl.oldtime = cl.time;
-	cl.time += host_frametime;
+	if (!cls.demopaused) {
+		cl.time += host_frametime;
+	}
 
 	do
 	{

@@ -53,6 +53,7 @@ typedef struct {
 static seek_state_t seek_states[MAX_SEEK_STATES];
 static int num_seek_states;
 static long current_offset;
+static float seek_first_time;
 static qboolean force_read = false;
 
 /*
@@ -105,9 +106,6 @@ static int CL_GetDemoMessage (void)
 {
 	int	r, i;
 	float	f;
-
-	if (cls.demopaused)
-		return 0;
 
 	// decide if it is time to grab the next message
 	if (cls.signon == SIGNONS  // always grab until fully connected
@@ -403,6 +401,10 @@ void CL_DemoAppendTime (void)
 		return;
 	}
 
+	if (seek_first_time == 0.0f) {
+		seek_first_time = cl.mtime[0];
+	}
+
 	while (num_seek_states < MAX_SEEK_STATES
 		   && cl.mtime[0] > num_seek_states) {
 		seek_state = &seek_states[num_seek_states];
@@ -434,6 +436,9 @@ static void CL_SeekDemo (float time_delta)
 		memcpy(cl.stats, seek_state->stats, sizeof(cl.stats));
 
 		cl.time = time;
+		if (cl.time < seek_first_time) {
+			cl.time = seek_first_time;
+		}
 
 		force_read = true;	// force us to read the message we just seeked to
 		cl.demo_seek = true;  // disable lerp on next relink
@@ -524,6 +529,7 @@ void CL_PlayDemo_f (void)
 	num_seek_states = 0;
 	current_offset = 0;
 	force_read = false;
+	seek_first_time = 0.0f;
 
 // get rid of the menu and/or console
 	key_dest = key_game;

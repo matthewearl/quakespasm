@@ -901,7 +901,7 @@ void V_RenderView (void)
 
 	if (cl.intermission)
 		V_CalcIntermissionRefdef ();
-	else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
+	else if (cls.demoplayback || !cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
 		V_CalcRefdef ();
 
 	//johnfitz -- removed lcd code
