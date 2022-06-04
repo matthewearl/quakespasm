@@ -433,8 +433,16 @@ static void CL_SeekDemo (float time_delta)
 		memcpy(cl.stats, seek_state->stats, sizeof(cl.stats));
 
 		cl.time = time;
-		force_read = true;
-		cl.demo_seek = true;
+
+		force_read = true;	// force us to read the message we just seeked to
+		cl.demo_seek = true;  // disable lerp on next relink
+
+		// Various effects are only given a start time by the client so
+		// rewinding prior to an effects creation means it will exist before it
+		// should.  To deal with this just clear all of this temporary effects
+		// every time we seek.
+		memset (cl_dlights, 0, sizeof(cl_dlights));
+		R_ClearParticles();
 	}
 }
 
