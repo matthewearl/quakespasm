@@ -1928,13 +1928,12 @@ void GLPalette_CreateResources (void)
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	GL_GenBuffersFunc (2, gl_palette_buffer);
 	for (i = 0; i < 2; i++)
-	{
-		GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_palette_buffer[i]);
-		GL_ObjectLabelFunc (GL_BUFFER, gl_palette_buffer[i], -1, i ? "src palette buffer" : "remapped palette buffer");
-		GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, 256 * sizeof (GLuint), NULL, GL_STATIC_DRAW);
-	}
+		gl_palette_buffer[i] =
+			GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW,
+				i ? "remapped palette buffer" : "src palette buffer",
+				256 * sizeof (GLuint), NULL
+			);
 
 	memset (cached_palette, 0, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();

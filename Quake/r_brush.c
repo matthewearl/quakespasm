@@ -583,7 +583,6 @@ void GL_BuildBModelVertexBuffer (void)
 
 // ask GL for a name for our VBO
 	GL_DeleteBuffer (gl_bmodel_vbo);
-	GL_GenBuffersFunc (1, &gl_bmodel_vbo);
 	
 // count all verts in all models
 	numverts = 0;
@@ -724,9 +723,7 @@ void GL_BuildBModelVertexBuffer (void)
 
 // upload to GPU
 	gl_bmodel_vbo_size = varray_bytes;
-	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_vbo, -1, "brushverts");
-	GL_BufferDataFunc (GL_ARRAY_BUFFER, varray_bytes, varray, GL_STATIC_DRAW);
+	gl_bmodel_vbo = GL_CreateBuffer (GL_ARRAY_BUFFER, GL_STATIC_DRAW, "brushverts", varray_bytes, varray);
 	free (varray);
 }
 
@@ -862,30 +859,21 @@ void GL_BuildBModelMarkBuffers (void)
 	}
 
 	// create gpu buffers
-	GL_GenBuffersFunc (1, &gl_bmodel_indirect_buffer);
-	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_indirect_buffer);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_indirect_buffer, -1, "bmodel indirect cmds");
-	GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, sizeof(cmds[0]) * numtex, cmds, GL_DYNAMIC_DRAW);
-
-	GL_GenBuffersFunc (1, &gl_bmodel_ibo);
-	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_ibo, -1, "bmodel indices");
-	GL_BufferDataFunc (GL_ELEMENT_ARRAY_BUFFER, sizeof(idx[0]) * numtris * 3, idx, GL_DYNAMIC_DRAW);
-
-	GL_GenBuffersFunc (1, &gl_bmodel_leaf_buffer);
-	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_leaf_buffer);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_leaf_buffer, -1, "bmodel leafs");
-	GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, sizeof(leafs[0]) * cl.worldmodel->numleafs, leafs, GL_STATIC_DRAW);
-
-	GL_GenBuffersFunc (1, &gl_bmodel_surf_buffer);
-	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_surf_buffer);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_surf_buffer, -1, "bmodel surfs");
-	GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, sizeof(surfs[0]) * cl.worldmodel->numsurfaces, surfs, GL_STATIC_DRAW);
-
-	GL_GenBuffersFunc (1, &gl_bmodel_marksurf_buffer);
-	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_marksurf_buffer);
-	GL_ObjectLabelFunc (GL_BUFFER, gl_bmodel_marksurf_buffer, -1, "bmodel marksurfs");
-	GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, sizeof(cl.worldmodel->marksurfaces[0]) * cl.worldmodel->nummarksurfaces, cl.worldmodel->marksurfaces, GL_STATIC_DRAW);
+	gl_bmodel_indirect_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_DRAW, "bmodel indirect cmds",
+		sizeof (cmds[0]) * numtex, cmds
+	);
+	gl_bmodel_ibo = GL_CreateBuffer (GL_ELEMENT_ARRAY_BUFFER, GL_DYNAMIC_DRAW, "bmodel indices",
+		sizeof (idx[0]) * numtris * 3, idx
+	);
+	gl_bmodel_leaf_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "bmodel leafs",
+		sizeof (leafs[0]) * cl.worldmodel->numleafs, leafs
+	);
+	gl_bmodel_surf_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "bmodel surfs",
+		sizeof (surfs[0]) * cl.worldmodel->numsurfaces, surfs
+	);
+	gl_bmodel_marksurf_buffer = GL_CreateBuffer (GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "bmodel marksurfs",
+		sizeof(cl.worldmodel->marksurfaces[0]) * cl.worldmodel->nummarksurfaces, cl.worldmodel->marksurfaces
+	);
 
 	// free cpu-side arrays
 	free (texidx);

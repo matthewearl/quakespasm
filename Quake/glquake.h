@@ -566,6 +566,7 @@ void Sky_LoadSkyBox (const char *name);
 void GL_BindBuffer (GLenum target, GLuint buffer);
 void GL_BindBufferRange (GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);
 void GL_BindBuffersRange (GLenum target, GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLsizeiptr *sizes);
+GLuint GL_CreateBuffer (GLenum target, GLenum usage, const char *name, size_t size, const void *data);
 void GL_DeleteBuffer (GLuint buffer);
 void GL_ClearBufferBindings (void);
 

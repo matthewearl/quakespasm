@@ -452,6 +452,22 @@ static GLuint current_draw_indirect_buffer;
 
 /*
 ====================
+GL_CreateBuffer
+====================
+*/
+GLuint GL_CreateBuffer (GLenum target, GLenum usage, const char *name, size_t size, const void *data)
+{
+	GLuint buffer;
+	GL_GenBuffersFunc (1, &buffer);
+	GL_BindBuffer (target, buffer);
+	if (name)
+		GL_ObjectLabelFunc (GL_BUFFER, buffer, -1, name);
+	GL_BufferDataFunc (target, size, data, usage);
+	return buffer;
+}
+
+/*
+====================
 GL_BindBuffer
 
 glBindBuffer wrapper

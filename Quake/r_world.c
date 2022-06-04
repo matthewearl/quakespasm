@@ -263,10 +263,7 @@ static void GLWorld_AllocIndirectBuffer (void)
 {
 	if (gl_bmodel_cmdbuf)
 		GL_AddGarbageBuffer (gl_bmodel_cmdbuf);
-	GL_GenBuffersFunc (1, &gl_bmodel_cmdbuf);
-	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, gl_bmodel_cmdbuf);
-	GL_BufferDataFunc (GL_DRAW_INDIRECT_BUFFER, gl_bmodel_cmdbuf_size, NULL, GL_DYNAMIC_DRAW);
-	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, 0);
+	gl_bmodel_cmdbuf = GL_CreateBuffer (GL_DRAW_INDIRECT_BUFFER, GL_DYNAMIC_DRAW, "bmodel batch cmds", gl_bmodel_cmdbuf_size, NULL);
 	gl_bmodel_cmdbuf_offset = 0;
 }
 

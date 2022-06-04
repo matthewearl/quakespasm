@@ -459,7 +459,6 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	const trivertx_t *trivertexes;
 	byte *vbodata;
 	int f;
-	char name[256];
 
 	if (isDedicated)
 		return;
@@ -491,11 +490,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 // upload indices buffer
 
 	GL_DeleteBuffer (m->meshindexesvbo);
-	GL_GenBuffersFunc (1, &m->meshindexesvbo);
-	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, m->meshindexesvbo);
-	q_snprintf (name, sizeof(name), "%s indices", m->name);
-	GL_ObjectLabelFunc (GL_BUFFER, m->meshindexesvbo, -1, name);
-	GL_BufferDataFunc (GL_ELEMENT_ARRAY_BUFFER, hdr->numindexes * sizeof (unsigned short), indexes, GL_STATIC_DRAW);
+	m->meshindexesvbo = GL_CreateBuffer (GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW, va ("%s indices", m->name), hdr->numindexes * sizeof (unsigned short), indexes);
 
 // create the vertex buffer (empty)
 
@@ -548,11 +543,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 // upload vertexes buffer
 	GL_DeleteBuffer (m->meshvbo);
-	GL_GenBuffersFunc (1, &m->meshvbo);
-	GL_BindBuffer (GL_ARRAY_BUFFER, m->meshvbo);
-	q_snprintf (name, sizeof(name), "%s vertices", m->name);
-	GL_ObjectLabelFunc (GL_BUFFER, m->meshvbo, -1, name);
-	GL_BufferDataFunc (GL_ARRAY_BUFFER, totalvbosize, vbodata, GL_STATIC_DRAW);
+	m->meshvbo = GL_CreateBuffer (GL_ARRAY_BUFFER, GL_STATIC_DRAW, va ("%s vertices", m->name), totalvbosize, vbodata);
 
 	free (vbodata);
 }
