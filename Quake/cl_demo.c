@@ -428,8 +428,6 @@ static void CL_SeekDemo (float time_delta)
 		}
 		seek_state = &seek_states[i];
 
-		Sys_Printf("Seeking to index %d (0x%lx)\n",
-				   i, seek_state->offset);
 		fseek(cls.demofile, seek_state->offset, SEEK_SET);
 		cl.intermission = seek_state->intermission;
 		memcpy(cl.stats, seek_state->stats, sizeof(cl.stats));
@@ -437,7 +435,6 @@ static void CL_SeekDemo (float time_delta)
 		cl.time = time;
 		force_read = true;
 		cl.demo_seek = true;
-		Sys_Printf("time: %.2f\n (set by CL_SeekDemo)\n", cl.time);
 	}
 }
 

@@ -634,7 +634,6 @@ int CL_ReadFromServer (void)
 
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
-	Sys_Printf("time: %.2f\n (incremented by CL_ReadFromServer)\n", cl.time);
 
 	do
 	{
@@ -651,7 +650,6 @@ int CL_ReadFromServer (void)
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 
-	Sys_Printf("relinking\n");
 	CL_RelinkEntities ();
 	CL_UpdateTEnts ();
 

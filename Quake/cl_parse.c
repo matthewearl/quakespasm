@@ -1070,7 +1070,6 @@ void CL_ParseServerMessage (void)
 		case svc_time:
 			cl.mtime[1] = cl.mtime[0];
 			cl.mtime[0] = MSG_ReadFloat ();
-			Sys_Printf("cl.mtime[0]: %.2f\n", cl.mtime[0]);
 
 			CL_DemoAppendTime();
 			break;
