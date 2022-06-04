@@ -454,6 +454,12 @@ static void CL_SeekDemo (float time_delta)
 		R_ClearParticles();
 		scr_centertime_off = 0.0f;
 		cl.faceanimtime = 0.0f;
+
+		if (time_delta < 0) {
+			Con_Printf("Rewound %.1f seconds\n", time_delta);
+		}  else {
+			Con_Printf("Fast-forwarded %.1f seconds\n", time_delta);
+		}
 	}
 }
 
