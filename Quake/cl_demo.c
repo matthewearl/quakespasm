@@ -414,6 +414,7 @@ void CL_DemoAppendTime (void)
 }
 
 
+extern float scr_centertime_off;
 static void CL_SeekDemo (float time_delta)
 {
 	seek_state_t *seek_state;
@@ -443,6 +444,7 @@ static void CL_SeekDemo (float time_delta)
 		// every time we seek.
 		memset (cl_dlights, 0, sizeof(cl_dlights));
 		R_ClearParticles();
+		scr_centertime_off = 0.0f;
 	}
 }
 
