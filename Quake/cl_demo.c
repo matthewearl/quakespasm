@@ -436,6 +436,7 @@ static void CL_SeekDemo (float time_delta)
 
 		cl.time = time;
 		force_read = true;
+		cl.demo_seek = true;
 		Sys_Printf("time: %.2f\n (set by CL_SeekDemo)\n", cl.time);
 	}
 }

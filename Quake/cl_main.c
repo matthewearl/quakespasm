@@ -464,6 +464,12 @@ void CL_RelinkEntities (void)
 			continue;
 		}
 
+		if (cl.demo_seek) {
+			// If we just skipped forward or back in a demo, do no lerping.
+			ent->forcelink = true;
+			ent->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM;
+		}
+
 		VectorCopy (ent->origin, oldorg);
 
 		if (ent->forcelink)
@@ -603,6 +609,8 @@ void CL_RelinkEntities (void)
 			cl_numvisedicts++;
 		}
 	}
+
+	cl.demo_seek = false;
 }
 
 

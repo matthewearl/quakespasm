@@ -224,6 +224,8 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+
+	qboolean demo_seek;
 } client_state_t;
 
 
