@@ -441,7 +441,10 @@ static void CL_SeekDemo (float time_delta)
 		}
 
 		force_read = true;	// force us to read the message we just seeked to
+
+
 		cl.demo_seek = true;  // disable lerp on next relink
+		cl.viewent.lerpflags |= LERP_RESETANIM;
 
 		// Various effects are only given a start time by the client so
 		// rewinding prior to an effects creation means it will exist before it
