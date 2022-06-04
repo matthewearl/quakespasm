@@ -440,11 +440,12 @@ static void CL_SeekDemo (float time_delta)
 
 		// Various effects are only given a start time by the client so
 		// rewinding prior to an effects creation means it will exist before it
-		// should.  To deal with this just clear all of this temporary effects
+		// should.  To deal with this just clear all of these temporary effects
 		// every time we seek.
 		memset (cl_dlights, 0, sizeof(cl_dlights));
 		R_ClearParticles();
 		scr_centertime_off = 0.0f;
+		cl.faceanimtime = 0.0f;
 	}
 }
 
