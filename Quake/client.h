@@ -171,6 +171,7 @@ typedef struct
 	vec3_t		velocity;		// lerped between mvelocity[0] and [1]
 
 	vec3_t		punchangle;		// temporary offset
+	double		punchtime;
 
 // pitch drifting vars
 	float		idealpitch;

@@ -735,6 +735,7 @@ void CL_ParseClientdata (void)
 	{
 		VectorCopy (v_punchangles[0], v_punchangles[1]);
 		VectorCopy (cl.punchangle, v_punchangles[0]);
+		cl.punchtime = cl.time;
 	}
 	//johnfitz
 

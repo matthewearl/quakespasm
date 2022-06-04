@@ -72,6 +72,8 @@ entity_t		*cl_visedicts[MAX_VISEDICTS];
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
 extern float	host_netinterval;	//Spike
 
+extern vec3_t	v_punchangles[2];
+
 /*
 =====================
 CL_ClearState
@@ -98,6 +100,8 @@ void CL_ClearState (void)
 	cl_max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
 	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
+
+	memset (v_punchangles, 0, sizeof (v_punchangles));
 }
 
 /*

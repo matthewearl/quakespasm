@@ -770,8 +770,6 @@ void V_CalcRefdef (void)
 	vec3_t		angles;
 	float		bob;
 	static float oldz = 0;
-	static vec3_t punch = {0,0,0}; //johnfitz -- v_gunkick
-	float delta; //johnfitz -- v_gunkick
 
 	V_DriftPitch ();
 
@@ -851,19 +849,14 @@ void V_CalcRefdef (void)
 		VectorAdd (r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
 	if (v_gunkick.value == 2) //lerped kick
 	{
-		for (i=0; i<3; i++)
-			if (punch[i] != v_punchangles[0][i])
-			{
-				//speed determined by how far we need to lerp in 1/10th of a second
-				delta = (v_punchangles[0][i]-v_punchangles[1][i]) * host_frametime * 10;
+		float punchblend = (cl.time - cl.punchtime) / 0.1f;
 
-				if (delta > 0)
-					punch[i] = q_min(punch[i]+delta, v_punchangles[0][i]);
-				else if (delta < 0)
-					punch[i] = q_max(punch[i]+delta, v_punchangles[0][i]);
-			}
+		if (punchblend < 0.0f) punchblend = 0.0f;
+		if (punchblend > 1.0f) punchblend = 1.0f;
 
-		VectorAdd (r_refdef.viewangles, punch, r_refdef.viewangles);
+		r_refdef.viewangles[0] += v_punchangles[1][0] + (v_punchangles[0][0] - v_punchangles[1][0]) * punchblend;
+		r_refdef.viewangles[1] += v_punchangles[1][1] + (v_punchangles[0][1] - v_punchangles[1][1]) * punchblend;
+		r_refdef.viewangles[2] += v_punchangles[1][2] + (v_punchangles[0][2] - v_punchangles[1][2]) * punchblend;
 	}
 //johnfitz
 
