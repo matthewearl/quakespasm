@@ -54,54 +54,6 @@ typedef struct gpumark_frame_s {
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
-#ifdef USE_SSE2
-/*
-===============
-R_CullBoxSIMD
-
-Performs frustum culling for 8 bounding boxes
-===============
-*/
-int R_CullBoxSIMD (soa_aabb_t box, int activelanes)
-{
-	int i;
-	for (i = 0; i < 4; i++)
-	{
-		mplane_t *p;
-		byte signbits;
-		int ofs;
-
-		if (activelanes == 0)
-			break;
-
-		p = frustum + i;
-		signbits = p->signbits;
-
-		__m128 vplane = _mm_loadu_ps(p->normal);
-
-		ofs = signbits & 1 ? 0 : 8; // x min/max
-		__m128 px = _mm_shuffle_ps(vplane, vplane, _MM_SHUFFLE(0, 0, 0, 0));
-		__m128 v0 = _mm_mul_ps(_mm_loadu_ps(box + ofs), px);
-		__m128 v1 = _mm_mul_ps(_mm_loadu_ps(box + ofs + 4), px);
-
-		ofs = signbits & 2 ? 16 : 24; // y min/max
-		__m128 py = _mm_shuffle_ps(vplane, vplane, _MM_SHUFFLE(1, 1, 1, 1));
-		v0 = _mm_add_ps(v0, _mm_mul_ps(_mm_loadu_ps(box + ofs), py));
-		v1 = _mm_add_ps(v1, _mm_mul_ps(_mm_loadu_ps(box + ofs + 4), py));
-
-		ofs = signbits & 4 ? 32 : 40; // z min/max
-		__m128 pz = _mm_shuffle_ps(vplane, vplane, _MM_SHUFFLE(2, 2, 2, 2));
-		v0 = _mm_add_ps(v0, _mm_mul_ps(_mm_loadu_ps(box + ofs), pz));
-		v1 = _mm_add_ps(v1, _mm_mul_ps(_mm_loadu_ps(box + ofs + 4), pz));
-
-		__m128 pd = _mm_shuffle_ps(vplane, vplane, _MM_SHUFFLE(3, 3, 3, 3));
-		activelanes &= _mm_movemask_ps(_mm_cmplt_ps(pd, v0)) | (_mm_movemask_ps(_mm_cmplt_ps(pd, v1)) << 4);
-	}
-
-	return activelanes;
-}
-#endif // defined(USE_SSE2)
-
 /*
 ===============
 R_MarkVisSurfaces
@@ -153,52 +105,6 @@ static void R_MarkVisSurfaces (byte* vis)
 	GL_EndGroup ();
 }
 
-#if defined(USE_SIMD)
-/*
-===============
-R_AddStaticModelsSIMD
-===============
-*/
-void R_AddStaticModelsSIMD (const byte *vis)
-{
-	int			i, j;
-	int			numleafs = cl.worldmodel->numleafs;
-	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
-
-	for (i = 0; i < numleafs; i += 8)
-	{
-		efrag_t **efrags;
-		int mask = vis[i>>3];
-		if (mask == 0)
-			continue;
-
-		mask = R_CullBoxSIMD (leafbounds[i>>3], mask);
-		if (mask == 0)
-			continue;
-
-		for (j = 0, efrags = &cl.worldmodel->leaf_efrags[1 + i]; j < 8 && 1 + i + j < numleafs; j++, efrags++)
-			if ((mask & (1 << j)) && *efrags)
-				R_StoreEfrags (efrags);
-	}
-}
-#endif // defined(USE_SIMD)
-
-/*
-===============
-R_AddStaticModels
-===============
-*/
-void R_AddStaticModels (const byte* vis)
-{
-	int			i;
-	mleaf_t		*leaf;
-	efrag_t		**efrags;
-
-	for (i = 0, leaf = &cl.worldmodel->leafs[1], efrags = &cl.worldmodel->leaf_efrags[1]; 1 + i < cl.worldmodel->numleafs; i++, leaf++, efrags++)
-		if (vis[i>>3] & (1<<(i&7)) && *efrags && !R_CullBox(leaf->minmaxs, leaf->minmaxs + 3))
-			R_StoreEfrags (efrags);
-}
-
 /*
 ===============
 R_MarkSurfaces
@@ -228,13 +134,7 @@ void R_MarkSurfaces (void)
 	r_visframecount++;
 
 	R_MarkVisSurfaces (vis);
-
-#if defined(USE_SIMD)
-	if (use_simd)
-		R_AddStaticModelsSIMD (vis);
-	else
-#endif
-		R_AddStaticModels (vis);
+	R_AddStaticModels (vis);
 }
 
 /*

@@ -32,12 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //=============================================================================
 
-typedef struct efrag_s
-{
-	struct efrag_s		*leafnext;
-	struct entity_s		*entity;
-} efrag_t;
-
 typedef struct lightcache_s {
 	int					surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
 	vec3_t				pos;
@@ -67,7 +61,6 @@ typedef struct entity_s
 	vec3_t					msg_angles[2];	// last two updates (0 is newest)
 	vec3_t					angles;
 	struct qmodel_s			*model;			// NULL = no model
-	struct efrag_s			*efrag;			// linked list of efrags
 	int						frame;
 	float					syncbase;		// for client-side animations
 	byte					*colormap;
@@ -81,9 +74,6 @@ typedef struct entity_s
 
 // FIXME: could turn these into a union
 	int						trivial_accept;
-	struct mnode_s			*topnode;		// for bmodels, first world node
-											//  that splits bmodel, or NULL if
-											//  not split
 
 	byte					alpha;			//johnfitz -- alpha
 	byte					lerpflags;		//johnfitz -- lerping
@@ -130,8 +120,10 @@ extern vec3_t	r_origin, vpn, vright, vup;
 
 void R_Init (void);
 void R_RenderView (void);		// must set r_refdef first
+void R_ClearEfrags (void);
 void R_CheckEfrags (void); //johnfitz
 void R_AddEfrags (entity_t *ent);
+void R_AddStaticModels (const byte *vis);
 
 void R_NewMap (void);
 

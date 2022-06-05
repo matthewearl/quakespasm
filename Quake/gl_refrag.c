@@ -23,9 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-mnode_t	*r_pefragtopnode;
-
-
 //===========================================================================
 
 /*
@@ -36,64 +33,24 @@ mnode_t	*r_pefragtopnode;
 ericw -- GLQuake only uses efrags for static entities, and they're never
 removed, so I trimmed out unused functionality and fields in efrag_t.
 
-Now, efrags are just a linked list for each leaf of the static
-entities that touch that leaf. The efrags are hunk-allocated so there is no
-fixed limit.
- 
 This is inspired by MH's tutorial, and code from RMQEngine.
 http://forums.insideqc.com/viewtopic.php?t=1930
  
 ===============================================================================
 */
 
+// leaf count followed by leaf indices, for each static ent with a non-NULL model
+int			*cl_efrags;
+
 vec3_t		r_emins, r_emaxs;
-
-entity_t	*r_addent;
-
-
-#define EXTRA_EFRAGS	128
-
-// based on RMQEngine
-static efrag_t *R_GetEfrag (void)
-{
-	// we could just Hunk_Alloc a single efrag_t and return it, but since
-	// the struct is so small (2 pointers) allocate groups of them
-	// to avoid wasting too much space on the hunk allocation headers.
-	
-	if (cl.free_efrags)
-	{
-		efrag_t *ef = cl.free_efrags;
-		cl.free_efrags = ef->leafnext;
-		ef->leafnext = NULL;
-		
-		cl.num_efrags++;
-		
-		return ef;
-	}
-	else
-	{
-		int i;
-		
-		cl.free_efrags = (efrag_t *) Hunk_AllocName (EXTRA_EFRAGS * sizeof (efrag_t), "efrags");
-		
-		for (i = 0; i < EXTRA_EFRAGS - 1; i++)
-			cl.free_efrags[i].leafnext = &cl.free_efrags[i + 1];
-		
-		cl.free_efrags[i].leafnext = NULL;
-		
-		// call recursively to get a newly allocated free efrag
-		return R_GetEfrag ();
-	}
-}
 
 /*
 ===================
 R_SplitEntityOnNode
 ===================
 */
-void R_SplitEntityOnNode (mnode_t *node)
+static void R_SplitEntityOnNode (mnode_t *node)
 {
-	efrag_t		*ef, **leaf_efrags;
 	mplane_t	*splitplane;
 	int			idx, sides;
 
@@ -104,22 +61,11 @@ void R_SplitEntityOnNode (mnode_t *node)
 
 // add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents < 0)
 	{
-		if (!r_pefragtopnode)
-			r_pefragtopnode = node;
-
 		idx = (mleaf_t *)node - cl.worldmodel->leafs;
-		leaf_efrags = &cl.worldmodel->leaf_efrags[idx];
-
-// grab an efrag off the free list
-		ef = R_GetEfrag();
-		ef->entity = r_addent;
-
-// set the leaf links
-		ef->leafnext = *leaf_efrags;
-		*leaf_efrags = ef;
-
+		if (idx >= 1)
+			VEC_PUSH (cl_efrags, idx - 1);
 		return;
 	}
 
@@ -127,14 +73,6 @@ void R_SplitEntityOnNode (mnode_t *node)
 
 	splitplane = node->plane;
 	sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
-
-	if (sides == 3)
-	{
-	// split on this plane
-	// if this is the first splitter of this bmodel, remember it
-		if (!r_pefragtopnode)
-			r_pefragtopnode = node;
-	}
 
 // recurse down the contacted sides
 	if (sides & 1)
@@ -163,6 +101,16 @@ void R_CheckEfrags (void)
 
 /*
 ===========
+R_ClearEfrags
+===========
+*/
+void R_ClearEfrags (void)
+{
+	VEC_CLEAR (cl_efrags);
+}
+
+/*
+===========
 R_AddEfrags
 ===========
 */
@@ -174,10 +122,6 @@ void R_AddEfrags (entity_t *ent)
 	if (!ent->model)
 		return;
 
-	r_addent = ent;
-
-	r_pefragtopnode = NULL;
-
 	entmodel = ent->model;
 
 	for (i=0 ; i<3 ; i++)
@@ -186,35 +130,41 @@ void R_AddEfrags (entity_t *ent)
 		r_emaxs[i] = ent->origin[i] + entmodel->maxs[i];
 	}
 
-	R_SplitEntityOnNode (cl.worldmodel->nodes);
+	i = VEC_SIZE (cl_efrags);
+	VEC_PUSH (cl_efrags, 0); // write dummy count
 
-	ent->topnode = r_pefragtopnode;
+	R_SplitEntityOnNode (cl.worldmodel->nodes);
+	cl_efrags[i] = VEC_SIZE (cl_efrags) - i - 1; // write actual count
+	cl.num_efrags += cl_efrags[i];
 
 	R_CheckEfrags (); //johnfitz
 }
 
-
 /*
-================
-R_StoreEfrags -- johnfitz -- pointless switch statement removed.
-================
+===============
+R_AddStaticModels
+===============
 */
-void R_StoreEfrags (efrag_t **ppefrag)
+void R_AddStaticModels (const byte *vis)
 {
-	entity_t	*pent;
-	efrag_t		*pefrag;
+	int			i, j, leafidx, numleafs, *efrags;
+	entity_t	*ent;
 
-	while ((pefrag = *ppefrag) != NULL)
+	for (i = 0, ent = cl_static_entities, efrags = cl_efrags; i < cl.num_statics; i++, ent++)
 	{
-		pent = pefrag->entity;
-
-		if ((pent->visframe != r_framecount) && (cl_numvisedicts < MAX_VISEDICTS))
+		if (!ent->model)
+			continue;
+		for (j = 0, numleafs = *efrags++; j < numleafs; j++)
 		{
-			cl_visedicts[cl_numvisedicts++] = pent;
-			pent->visframe = r_framecount;
+			leafidx = efrags[j];
+			if ((vis[leafidx >> 3] & (1 << (leafidx & 7))))
+			{
+				if (cl_numvisedicts >= MAX_VISEDICTS)
+					return;
+				cl_visedicts[cl_numvisedicts++] = ent;
+				break;
+			}
 		}
-
-		ppefrag = &pefrag->leafnext;
+		efrags += numleafs;
 	}
 }
-

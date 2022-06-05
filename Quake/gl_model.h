@@ -224,8 +224,6 @@ typedef struct
 	vec3_t		clip_maxs;
 } hull_t;
 
-typedef float soa_aabb_t[2 * 3 * 8]; // 8 AABB's in SoA form
-
 /*
 ==============================================================================
 
@@ -477,9 +475,6 @@ typedef struct qmodel_s
 
 	int			nummarksurfaces;
 	int			*marksurfaces;
-
-	soa_aabb_t	*soa_leafbounds;
-	efrag_t		**leaf_efrags;
 
 	hull_t		hulls[MAX_MAP_HULLS];
 
