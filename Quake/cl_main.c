@@ -631,6 +631,8 @@ void CL_RelinkEntities (void)
 			CL_RocketTrail (ent, 1);
 		else if (ent->model->flags & EF_TRACER3)
 			CL_RocketTrail (ent, 6);
+		else
+			CL_ResetTrail (ent);
 
 		ent->forcelink = false;
 
