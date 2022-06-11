@@ -275,7 +275,7 @@ extern	cvar_t	cl_confirmquit;
 
 #define	MAX_TEMP_ENTITIES	256		//johnfitz -- was 64
 #define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
-#define	MAX_VISEDICTS		4096	// larger, now we support BSP2
+#define	MAX_VISEDICTS		16384	// larger, now we support BSP2
 
 extern	client_state_t	cl;
 
