@@ -1481,16 +1481,6 @@ void SV_SpawnServer (const char *server)
 
 	q_strlcpy (sv.name, server, sizeof(sv.name));
 
-	sv.protocol = sv_protocol; // johnfitz
-	
-	if (sv.protocol == PROTOCOL_RMQ)
-	{
-		// set up the protocol flags used by this server
-		// (note - these could be cvar-ised so that server admins could choose the protocol features used by their servers)
-		sv.protocolflags = PRFL_INT32COORD | PRFL_SHORTANGLE;
-	}
-	else sv.protocolflags = 0;
-
 // load progs to get entity field count
 	PR_LoadProgs ();
 
@@ -1535,6 +1525,24 @@ void SV_SpawnServer (const char *server)
 		return;
 	}
 	sv.models[1] = sv.worldmodel;
+
+	sv.protocol = sv_protocol; // johnfitz
+	if (sv.protocol == PROTOCOL_RMQ)
+	{
+		float worldsize = 0.f;
+		for (i = 0; i < 3; i++)
+		{
+			worldsize = q_max (worldsize, fabs (sv.worldmodel->mins[i]));
+			worldsize = q_max (worldsize, fabs (sv.worldmodel->maxs[i]));
+		}
+		if (worldsize >= 32768.f)
+			sv.protocolflags = PRFL_INT32COORD;
+		else
+			sv.protocolflags = PRFL_24BITCOORD;
+		sv.protocolflags |= PRFL_SHORTANGLE;
+	}
+	else
+		sv.protocolflags = 0;
 
 //
 // clear world interaction links
