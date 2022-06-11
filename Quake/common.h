@@ -99,6 +99,7 @@ typedef struct vec_header_t {
 #define VEC_CLEAR(v)			Vec_Clear((void**)&(v))
 
 void Vec_Grow (void **pvec, size_t element_size, size_t count);
+void Vec_Append (void **pvec, size_t element_size, const void *data, size_t count);
 void Vec_Clear (void **pvec);
 void Vec_Free (void **pvec);
 
