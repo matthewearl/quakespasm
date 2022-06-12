@@ -601,6 +601,13 @@ qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmode
 
 //=============================================================================
 
+#define MAX_NET_EDICTS 65536
+
+static uint16_t		net_edicts[MAX_NET_EDICTS];
+static byte			net_edict_dists[MAX_NET_EDICTS];
+static int			net_edict_bins[256];
+static uint16_t		net_edicts_sorted[MAX_NET_EDICTS];
+
 /*
 =============
 SV_WriteEntitiesToClient
@@ -609,23 +616,31 @@ SV_WriteEntitiesToClient
 */
 void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 {
-	int		e, i;
+	int		e, i, j, numents;
 	int		bits;
 	byte	*pvs;
 	vec3_t	org;
-	float	miss;
+	float	miss, dist;
 	edict_t	*ent;
 
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
 
-// send over all entities (excpet the client) that touch the pvs
+// reset sorting bins
+	memset (net_edict_bins, 0, sizeof (net_edict_bins));
+
+// add clent
+	net_edicts[0] = NUM_FOR_EDICT (clent);
+	net_edict_dists[0] = 0;
+	net_edict_bins[0] = 1;
+	numents = 1;
+
+// add all other entities that touch the pvs
 	ent = NEXT_EDICT(sv.edicts);
 	for (e=1 ; e<sv.num_edicts ; e++, ent = NEXT_EDICT(ent))
 	{
-
-		if (ent != clent)	// clent is ALLWAYS sent
+		if (ent != clent)	// clent already added before the loop
 		{
 			// ignore ents without visible models
 			if (!ent->v.modelindex || !PR_GetString(ent->v.model)[0])
@@ -648,7 +663,44 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			// spanning the entire map, or really tall lifts, etc.
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
 				continue;		// not visible
+
+			dist = 0.f;
+			for (i=0 ; i<3 ; i++)
+			{
+				float delta = CLAMP (ent->v.absmin[i], org[i], ent->v.absmax[i]) - org[i];
+				dist += delta * delta;
+			}
+
+			dist = sqrt (sqrt (dist)); // use square root of distance as sort key
+			net_edict_dists[numents] = (int) q_min (dist, 255.f);
+			net_edict_bins[net_edict_dists[numents]]++;
+			net_edicts[numents] = e;
+
+			if (++numents == MAX_NET_EDICTS)
+				break;
 		}
+		else
+			continue;
+	}
+
+// compute bin offsets
+	e = 0;
+	for (i=0 ; i<countof(net_edict_bins) ; i++)
+	{
+		int tmp = net_edict_bins[i];
+		net_edict_bins[i] = e;
+		e += tmp;
+	}
+
+// generate sorted list
+	for (e=0 ; e<numents ; e++)
+		net_edicts_sorted[net_edict_bins[net_edict_dists[e]]++] = net_edicts[e];
+
+// send entities (closest first)
+	for (j=0 ; j<numents ; j++)
+	{
+		e = net_edicts_sorted[j];
+		ent = EDICT_NUM (e);
 
 		// johnfitz -- max size for protocol 15 is 18 bytes, not 16 as originally
 		// assumed here.  And, for protocol 85 the max size is actually 24 bytes.
