@@ -290,7 +290,7 @@ void GL_PostProcess (void)
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_2D, framebufs.composite.color_tex);
 	GL_BindNative (GL_TEXTURE1, GL_TEXTURE_3D, gl_palette_lut);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[palidx], 0, 256 * sizeof (GLuint));
-	GL_Uniform3fFunc (0, vid_gamma.value, q_min(2.0, q_max(1.0, vid_contrast.value)), 1.f/r_refdef.scale);
+	GL_Uniform3fFunc (0, vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)), 1.f/r_refdef.scale);
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 

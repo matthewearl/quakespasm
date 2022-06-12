@@ -604,11 +604,11 @@ qboolean Host_FilterTime (float time)
 			maxfps = vid.refreshrate ? vid.refreshrate : 60.f;
 			if (host_maxfps.value)
 				maxfps = q_min (maxfps, host_maxfps.value);
-			maxfps = CLAMP (10.0, maxfps, 1000.0);
+			maxfps = CLAMP (10.f, maxfps, 1000.f);
 		}
 		else
 		{
-			maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
+			maxfps = CLAMP (10.f, host_maxfps.value, 1000.f);
 		}
 
 		// Check if we still have more than 2ms till next frame and if so wait for "1ms"

@@ -2443,7 +2443,10 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 	//width is even. Also, the width and lines values are for the interior of the box,
 	//but the x and y values include the border.
 	for (i = 0; i < 4; i++)
-		boxlen = q_max (boxlen, (int)strlen (msg[i]));
+	{
+		int msglen = (int)strlen (msg[i]);
+		boxlen = q_max (boxlen, msglen);
+	}
 	boxlen = (boxlen + 1) & ~1;
 	M_DrawTextBox (160 - 4*(boxlen+2), 76, boxlen, 5);
 
@@ -2498,7 +2501,7 @@ void M_LanConfig_Draw (void)
 	basex = (320-p->width)/2;
 	M_DrawPic (basex, 4, p);
 
-	basex = 72;
+	basex = 72; /* Arcane Dimensions has an oversized gfx/p_multi.lmp */
 
 	if (StartingGame)
 		startJoin = "New Game";

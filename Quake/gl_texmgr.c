@@ -822,8 +822,11 @@ TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
 */
 int TexMgr_SafeTextureSize (int s)
 {
-	if ((int)gl_max_size.value > 0)
-		s = q_min(TexMgr_Pad((int)gl_max_size.value), s);
+	int p = (int)gl_max_size.value;
+	if (p > 0) {
+		p = TexMgr_Pad(p);
+		if (p < s) s = p;
+	}
 	s = CLAMP(1, s, gl_max_texture_size);
 	return s;
 }

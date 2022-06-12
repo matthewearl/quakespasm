@@ -532,7 +532,7 @@ void Mod_LoadTextures (lump_t *l)
 		if (((byte*)(mt+1) + pixels) > (mod_base + l->fileofs + l->filelen))
 		{
 			Con_DPrintf("Texture %s extends past end of lump\n", mt->name);
-			pixels = q_max(0, (mod_base + l->fileofs + l->filelen) - (byte*)(mt+1));
+			pixels = q_max(0L, (long)((mod_base + l->fileofs + l->filelen) - (byte*)(mt+1)));
 		}
 
 		tx->fullbright = NULL; //johnfitz
