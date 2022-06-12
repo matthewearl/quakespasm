@@ -29,6 +29,10 @@
 #ifndef __QSTDINC_H
 #define __QSTDINC_H
 
+#if defined(_WIN32) && !defined(MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS)
+#define MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS 0
+#endif
+
 #include <sys/types.h>
 #include <stddef.h>
 #include <limits.h>
