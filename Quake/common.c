@@ -2273,6 +2273,7 @@ static void COM_Game_f (void)
 {
 	if (Cmd_Argc() > 1)
 	{
+		extern cvar_t max_edicts;
 		int i, pri;
 		char paths[1024];
 
@@ -2348,6 +2349,7 @@ static void COM_Game_f (void)
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
 		M_CheckMods ();
+		Cvar_SetQuick (&max_edicts, max_edicts.default_string);
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
 
