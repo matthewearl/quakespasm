@@ -620,7 +620,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	int		bits;
 	byte	*pvs;
 	vec3_t	org, forward, right, up;
-	float	miss, dist;
+	float	miss, dist, size;
 	edict_t	*ent;
 
 // find the client's PVS
@@ -667,15 +667,19 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
 				continue;		// not visible
 
-			// compute distance from org to the closest point in ent's bbox
-			dist = 0.f;
+			// compute ent bbox size and distance from org to the closest point in ent's bbox
+			dist = size = 0.f;
 			for (i=0 ; i<3 ; i++)
 			{
 				float delta = CLAMP (ent->v.absmin[i], org[i], ent->v.absmax[i]) - org[i];
 				dist += delta * delta;
+				delta = ent->v.absmax[i] - ent->v.absmin[i];
+				size += delta * delta;
 			}
+			size = q_max (1.f, size);
 
-			dist = sqrt (sqrt (dist)); // use square root of distance as sort key
+			// use scaled square root of (distance/size) as sort key
+			dist = 8.f * sqrt (sqrt (dist/size));
 			net_edict_dists[numents] = (int) q_min (dist, 255.f);
 			net_edicts[numents] = e;
 
