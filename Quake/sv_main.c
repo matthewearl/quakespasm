@@ -619,13 +619,16 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	int		e, i, j, numents;
 	int		bits;
 	byte	*pvs;
-	vec3_t	org;
+	vec3_t	org, forward, right, up;
 	float	miss, dist;
 	edict_t	*ent;
 
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
+
+// find the client's orientation
+	AngleVectors (clent->v.v_angle, forward, right, up);
 
 // reset sorting bins
 	memset (net_edict_bins, 0, sizeof (net_edict_bins));
@@ -664,6 +667,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
 				continue;		// not visible
 
+			// compute distance from org to the closest point in ent's bbox
 			dist = 0.f;
 			for (i=0 ; i<3 ; i++)
 			{
@@ -673,9 +677,16 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 			dist = sqrt (sqrt (dist)); // use square root of distance as sort key
 			net_edict_dists[numents] = (int) q_min (dist, 255.f);
-			net_edict_bins[net_edict_dists[numents]]++;
 			net_edicts[numents] = e;
 
+			// compute max distance along forward axis
+			dist = 0.f;
+			for (i=0 ; i<3 ; i++)
+				dist += ((forward[i] < 0.f ? ent->v.absmin[i] : ent->v.absmax[i]) - org[i]) * forward[i];
+			if (dist < 0.f)
+				net_edict_dists[numents] |= 128; // deprioritize entities behind the client
+
+			net_edict_bins[net_edict_dists[numents]]++;
 			if (++numents == MAX_NET_EDICTS)
 				break;
 		}
