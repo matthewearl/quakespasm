@@ -35,6 +35,8 @@ extern int pr_effects_mask;
 
 extern cvar_t nomonsters;
 
+static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
+
 //============================================================================
 
 /*
@@ -109,6 +111,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_freezenonclients);
 	Cvar_RegisterVariable (&sv_altnoclip); //johnfitz
 	Cvar_RegisterVariable (&sv_gameplayfix_random);
+	Cvar_RegisterVariable (&sv_netsort);
 
 	Cmd_AddCommand ("sv_protocol", &SV_Protocol_f); //johnfitz
 
@@ -634,9 +637,14 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	memset (net_edict_bins, 0, sizeof (net_edict_bins));
 
 // add clent
-	net_edicts[0] = NUM_FOR_EDICT (clent);
-	net_edict_dists[0] = 0;
-	net_edict_bins[0] = 1;
+	if (sv_netsort.value)
+	{
+		net_edicts[0] = NUM_FOR_EDICT (clent);
+		net_edict_dists[0] = 0;
+		net_edict_bins[0] = 1;
+	}
+	else
+		net_edicts_sorted[0] = NUM_FOR_EDICT (clent);
 	numents = 1;
 
 // add all other entities that touch the pvs
@@ -667,30 +675,36 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
 				continue;		// not visible
 
-			// compute ent bbox size and distance from org to the closest point in ent's bbox
-			dist = size = 0.f;
-			for (i=0 ; i<3 ; i++)
+			if (sv_netsort.value)
 			{
-				float delta = CLAMP (ent->v.absmin[i], org[i], ent->v.absmax[i]) - org[i];
-				dist += delta * delta;
-				delta = ent->v.absmax[i] - ent->v.absmin[i];
-				size += delta * delta;
+				// compute ent bbox size and distance from org to the closest point in ent's bbox
+				dist = size = 0.f;
+				for (i=0 ; i<3 ; i++)
+				{
+					float delta = CLAMP (ent->v.absmin[i], org[i], ent->v.absmax[i]) - org[i];
+					dist += delta * delta;
+					delta = ent->v.absmax[i] - ent->v.absmin[i];
+					size += delta * delta;
+				}
+				size = q_max (1.f, size);
+
+				// use scaled square root of (distance/size) as sort key
+				dist = 8.f * sqrt (sqrt (dist/size));
+				net_edict_dists[numents] = (int) q_min (dist, 255.f);
+				net_edicts[numents] = e;
+
+				// compute max distance along forward axis
+				dist = 0.f;
+				for (i=0 ; i<3 ; i++)
+					dist += ((forward[i] < 0.f ? ent->v.absmin[i] : ent->v.absmax[i]) - org[i]) * forward[i];
+				if (dist < 0.f)
+					net_edict_dists[numents] |= 128; // deprioritize entities behind the client
+
+				net_edict_bins[net_edict_dists[numents]]++;
 			}
-			size = q_max (1.f, size);
+			else
+				net_edicts_sorted[numents] = e;
 
-			// use scaled square root of (distance/size) as sort key
-			dist = 8.f * sqrt (sqrt (dist/size));
-			net_edict_dists[numents] = (int) q_min (dist, 255.f);
-			net_edicts[numents] = e;
-
-			// compute max distance along forward axis
-			dist = 0.f;
-			for (i=0 ; i<3 ; i++)
-				dist += ((forward[i] < 0.f ? ent->v.absmin[i] : ent->v.absmax[i]) - org[i]) * forward[i];
-			if (dist < 0.f)
-				net_edict_dists[numents] |= 128; // deprioritize entities behind the client
-
-			net_edict_bins[net_edict_dists[numents]]++;
 			if (++numents == MAX_NET_EDICTS)
 				break;
 		}
@@ -698,18 +712,21 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			continue;
 	}
 
-// compute bin offsets
-	e = 0;
-	for (i=0 ; i<countof(net_edict_bins) ; i++)
+	if (sv_netsort.value)
 	{
-		int tmp = net_edict_bins[i];
-		net_edict_bins[i] = e;
-		e += tmp;
-	}
+		// compute bin offsets
+		e = 0;
+		for (i=0 ; i<countof(net_edict_bins) ; i++)
+		{
+			int tmp = net_edict_bins[i];
+			net_edict_bins[i] = e;
+			e += tmp;
+		}
 
-// generate sorted list
-	for (e=0 ; e<numents ; e++)
-		net_edicts_sorted[net_edict_bins[net_edict_dists[e]]++] = net_edicts[e];
+		// generate sorted list
+		for (e=0 ; e<numents ; e++)
+			net_edicts_sorted[net_edict_bins[net_edict_dists[e]]++] = net_edicts[e];
+	}
 
 // send entities (closest first)
 	for (j=0 ; j<numents ; j++)
