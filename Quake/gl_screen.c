@@ -87,6 +87,7 @@ cvar_t		scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
 cvar_t		scr_showfps = {"scr_showfps", "0", CVAR_NONE};
 cvar_t		scr_clock = {"scr_clock", "0", CVAR_NONE};
 cvar_t		scr_speed = {"scr_speed", "0"};
+cvar_t		scr_speed_offset = {"scr_speed_offset", "10", CVAR_ARCHIVE};
 //johnfitz
 cvar_t		scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
@@ -412,6 +413,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&scr_speed);
+	Cvar_RegisterVariable (&scr_speed_offset);
 	//johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -518,9 +520,11 @@ void SCR_DrawClock (void)
 SCR_DrawSpeed
 ==============
 */
-static void SCR_DrawSpeed2 (float display_speed, int bad_jump, int down_frame, int up_frame)
+void SCR_DrawSpeedGeneric (int y, char *label,
+                           float display_speed, int bad_jump,
+                           qboolean show_frames, int down_frame, int up_frame)
 {
-	int		x, y, size, bg_color;
+	int		x, size, bg_color;
 	float		scale, speedunits;
 	char		st[8];
     char        st2[64];
@@ -534,9 +538,9 @@ static void SCR_DrawSpeed2 (float display_speed, int bad_jump, int down_frame, i
 	sprintf (st2, "%d %d", down_frame, up_frame);
 
 	x = -80;
-	y = -10;
-	y = 10;
-	
+
+	Draw_String(x - 8 * strlen(label) - 8, y, label);
+
 	float alpha = 0.5;
 	bg_color = bad_jump ? 251 : 10;
 	Draw_Fill (x, y - (int)(1 * scale), 160, 1, bg_color, alpha);
@@ -560,7 +564,9 @@ static void SCR_DrawSpeed2 (float display_speed, int bad_jump, int down_frame, i
 		Draw_Fill (x, y, (int)(speedunits / 3.125), 9, 68, alpha);
 	}
 	Draw_String (x + (int)(4.5 * size) - (strlen(st) * size), y, st);
-	Draw_String (x + (int)(4.5 * size) - (strlen(st2) * size), y + 16, st2);
+	if (show_frames) {
+		Draw_String (x + (int)(4.5 * size) - (strlen(st2) * size), y + 16, st2);
+	}
 }
 
 
@@ -601,7 +607,7 @@ void SCR_DrawSpeed (void)
 	}
 
 	if (display_speed >= 0)
-	    SCR_DrawSpeed2(display_speed, bad_jump, down_frame, up_frame);
+		SCR_DrawSpeedGeneric(scr_speed_offset.value, "", display_speed, bad_jump, down_frame, up_frame, sv.active);
 
 	if (realtime - lastrealtime >= 0.0)
 	{
@@ -1228,7 +1234,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawClock (); //johnfitz
         SCR_DrawSpeed ();
-		Ghost_DrawGhostTime ();
+		Ghost_DrawHud ();
 		SCR_DrawConsole ();
 		M_Draw ();
 	}

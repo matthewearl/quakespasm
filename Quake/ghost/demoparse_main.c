@@ -152,6 +152,19 @@ update(int entity_num, vec3_t origin, vec3_t angle,
 
 
 static dp_cb_response_t
+client_data(vec3_t velocity, byte velocity_bits, void *ctx)
+{
+    dp_test_ctx_t *tctx = ctx;
+    if (tctx->print_callbacks) {
+        printf("client_data: velocity=(%f %f %f), velocity_bits=%d\n",
+               velocity[0], velocity[1], velocity[2],
+               velocity_bits);
+    }
+    return DP_CBR_CONTINUE;
+}
+
+
+static dp_cb_response_t
 packet_end (void *ctx)
 {
     dp_test_ctx_t *tctx = ctx;
@@ -322,6 +335,7 @@ main (int argc, char **argv)
         .time = time,
         .baseline = baseline,
         .update = update,
+        .client_data = client_data,
         .packet_end = packet_end,
         .set_view = set_view,
         .intermission = intermission,

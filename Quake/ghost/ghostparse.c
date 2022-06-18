@@ -214,6 +214,15 @@ Ghost_Update_cb(int entity_num, vec3_t origin, vec3_t angle,
 
 
 static dp_cb_response_t
+Ghost_ClientData_cb(vec3_t velocity, byte velocity_bits, void *ctx)
+{
+    ghost_parse_ctx_t *pctx = ctx;
+
+    VectorCopy(velocity, pctx->rec.velocity);
+}
+
+
+static dp_cb_response_t
 Ghost_PacketEnd_cb (void *ctx)
 {
     ghost_parse_ctx_t *pctx = ctx;
@@ -270,6 +279,7 @@ Ghost_ReadDemo (const char *demo_path, ghost_info_t *ghost_info,
         .set_view = Ghost_SetView_cb,
         .baseline = Ghost_Baseline_cb,
         .update = Ghost_Update_cb,
+        .client_data = Ghost_ClientData_cb,
         .packet_end = Ghost_PacketEnd_cb,
         .intermission = Ghost_Intermission_cb,
         .finale = Ghost_Intermission_cb,

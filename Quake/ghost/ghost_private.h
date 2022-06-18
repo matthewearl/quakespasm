@@ -31,6 +31,7 @@ typedef struct {
     float time;
     float origin[3];
     float angle[3];
+	float velocity[3];
     unsigned int frame;
 } ghostrec_t;
 

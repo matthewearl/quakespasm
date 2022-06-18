@@ -604,6 +604,11 @@ DP_ParseClientData(ctx_t *ctx)
 {
     unsigned int flags;
     int skip;
+    vec3_t velocity;
+    byte velocity_bits = 0;
+    int i;
+
+    memset(velocity, 0, sizeof(vec3_t));
 
     CHECK_RC(DP_ParseClientDataFlags(ctx, &flags));
 
@@ -611,11 +616,19 @@ DP_ParseClientData(ctx_t *ctx)
            + ((flags & SU_IDEALPITCH) != 0)
            + ((flags & SU_PUNCH1) != 0)
            + ((flags & SU_PUNCH2) != 0)
-           + ((flags & SU_PUNCH3) != 0)
-           + ((flags & SU_VELOCITY1) != 0)
-           + ((flags & SU_VELOCITY2) != 0)
-           + ((flags & SU_VELOCITY3) != 0)
-           + 4  // items
+           + ((flags & SU_PUNCH3) != 0);
+    CHECK_RC(DP_Read(ctx, skip, NULL));
+
+    for (i = 0; i < 3; i++) {
+        if (flags & (SU_VELOCITY1 << i)) {
+            char c;
+            CHECK_RC(DP_ParseChar(ctx, &c));
+            velocity[i] = 16 * c;
+            velocity_bits |= (1 << i);
+        }
+    }
+
+    skip = 4  // items
            + ((flags & SU_WEAPONFRAME) != 0)
            + ((flags & SU_ARMOR) != 0)
            + ((flags & SU_WEAPON) != 0)
@@ -629,8 +642,9 @@ DP_ParseClientData(ctx_t *ctx)
            + ((flags & SU_CELLS2) != 0)
            + ((flags & SU_WEAPONFRAME2) != 0)
            + ((flags & SU_WEAPONALPHA) != 0);
-
     CHECK_RC(DP_Read(ctx, skip, NULL));
+
+    CALL_CALLBACK(client_data, velocity, velocity_bits);
 
     return DP_ERR_SUCCESS;
 }

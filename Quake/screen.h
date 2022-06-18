@@ -39,6 +39,10 @@ void SCR_CenterPrint (const char *str);
 void SCR_BeginLoadingPlaque (void);
 void SCR_EndLoadingPlaque (void);
 
+void SCR_DrawSpeedGeneric (int y, char *label,
+                           float display_speed, int bad_jump,
+                           qboolean show_frames, int down_frame, int up_frame);
+
 int SCR_ModalMessage (const char *text, float timeout); //johnfitz -- added timeout
 
 extern	float		scr_con_current;

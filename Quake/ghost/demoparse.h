@@ -66,6 +66,8 @@ typedef struct {
     dp_cb_response_t (*update)(int entity_num, vec3_t origin, vec3_t angle,
                                byte origin_bits, byte angle_bits, int frame,
                                void *ctx);
+    dp_cb_response_t (*client_data)(vec3_t velocity, byte velocity_bits,
+                                    void *ctx);
     dp_cb_response_t (*packet_end)(void *ctx);
     dp_cb_response_t (*set_view)(int entity_num, void *ctx);
     dp_cb_response_t (*intermission)(void *ctx);

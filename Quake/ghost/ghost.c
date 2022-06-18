@@ -70,7 +70,7 @@ static float Ghost_FindClosest (vec3_t origin, qboolean *match)
 }
 
 
-// Find the index of the first record that is >= time.
+// Find the index of the first record that is > time.
 //
 // If speed becomes a concern we could do this iteratively or with a binary
 // search.
@@ -85,7 +85,7 @@ static int Ghost_FindRecord (float time)
     }
 
     for (idx = 0, rec = ghost_records;
-         idx < ghost_num_records && time > rec->time;
+         idx < ghost_num_records && time >= rec->time;
          idx++, rec++);
 
     if (idx == 0) {
@@ -260,9 +260,10 @@ void Ghost_Draw (void)
 
 
 // Modified from the JoeQuake speedometer
-void Ghost_DrawGhostTime (void)
+extern cvar_t scr_speed_offset;
+static void Ghost_DrawGhostTime (int y)
 {
-    int   x, y, size, bg_color;
+    int   x, size, bg_color;
     float scale;
     char  st[8];
     float relative_time;
@@ -283,7 +284,6 @@ void Ghost_DrawGhostTime (void)
     scale = 1;
     size = 8;
     x = -80;
-    y = 20;
     alpha = 0.5f;
 
     if (relative_time < 1e-3) {
@@ -313,6 +313,34 @@ void Ghost_DrawGhostTime (void)
     }
 
     Draw_String (x + (int)(5.5 * size) - (strlen(st) * size), y, st);
+}
+
+void Ghost_DrawSpeed(int y)
+{
+    float lookup_time;
+    int after_idx;
+    vec3_t hvel;
+    float speed;
+
+    lookup_time = cl.time + ghost_shift;
+    after_idx = Ghost_FindRecord(lookup_time);
+    if (after_idx != -1) {
+        VectorCopy(ghost_records[after_idx - 1].velocity, hvel);
+        hvel[2] = 0;
+        speed = VectorLength(hvel);
+
+        SCR_DrawSpeedGeneric(y, "ghost", speed, 0, false, 0, 0);
+    }
+}
+
+void Ghost_DrawHud (void)
+{
+    if (ghost_records == NULL) {
+        return;
+    }
+
+    Ghost_DrawSpeed(scr_speed_offset.value + 15);
+    Ghost_DrawGhostTime(scr_speed_offset.value + 30);
 }
 
 
