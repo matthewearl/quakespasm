@@ -171,14 +171,18 @@ void Vec_Free (void **pvec);
 
 //============================================================================
 
-extern	qboolean		host_bigendian;
+#if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+#define host_bigendian 1
+#else
+#define host_bigendian 0
+#endif
 
-extern	short	(*BigShort) (short l);
-extern	short	(*LittleShort) (short l);
-extern	int	(*BigLong) (int l);
-extern	int	(*LittleLong) (int l);
-extern	float	(*BigFloat) (float l);
-extern	float	(*LittleFloat) (float l);
+#define BigShort(s)    ((short)SDL_SwapBE16((s)))
+#define LittleShort(s) ((short)SDL_SwapLE16((s)))
+#define BigLong(l)     ((int)SDL_SwapBE32((l)))
+#define LittleLong(l)  ((int)SDL_SwapLE32((l)))
+#define BigFloat(f)    SDL_SwapFloatBE((f))
+#define LittleFloat(f) SDL_SwapFloatLE((f))
 
 //============================================================================
 

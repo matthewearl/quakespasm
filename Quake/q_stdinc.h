@@ -69,6 +69,8 @@
 #include <stdarg.h>
 #include <string.h>
 #include <float.h>
+#include <SDL_endian.h>
+
 
 /*==========================================================================*/
 
