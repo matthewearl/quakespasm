@@ -40,8 +40,8 @@ static const char gui_vertex_shader[] =
 "layout(location=1) in vec2 in_uv;\n"
 "layout(location=2) in vec4 in_color;\n"
 "\n"
-"layout(location=0) out vec2 out_uv;\n"
-"layout(location=1) out vec4 out_color;\n"
+"layout(location=0) centroid out vec2 out_uv;\n"
+"layout(location=1) centroid out vec4 out_color;\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -49,7 +49,7 @@ static const char gui_vertex_shader[] =
 "	out_uv = in_uv;\n"
 "	out_color = in_color;\n"
 "}\n";
-	
+
 ////////////////////////////////////////////////////////////////
 
 static const char gui_fragment_shader[] =
