@@ -30,6 +30,7 @@ void (*vid_menukeyfn)(int key);
 void (*vid_menumousefn)(int cx, int cy);
 
 extern cvar_t cl_mousemenu;
+extern qboolean quake64;
 
 enum m_state_e m_state;
 extern qboolean	keydown[256];
@@ -39,6 +40,7 @@ void M_Menu_Main_f (void);
 	void M_Menu_SinglePlayer_f (void);
 		void M_Menu_Load_f (void);
 		void M_Menu_Save_f (void);
+		void M_Menu_Skill_f (void);
 	void M_Menu_MultiPlayer_f (void);
 		void M_Menu_Setup_f (void);
 		void M_Menu_Net_f (void);
@@ -57,6 +59,7 @@ void M_Main_Draw (void);
 	void M_SinglePlayer_Draw (void);
 		void M_Load_Draw (void);
 		void M_Save_Draw (void);
+		void M_Skill_Draw (void);
 	void M_MultiPlayer_Draw (void);
 		void M_Setup_Draw (void);
 		void M_Net_Draw (void);
@@ -75,6 +78,7 @@ void M_Main_Key (int key);
 	void M_SinglePlayer_Key (int key);
 		void M_Load_Key (int key);
 		void M_Save_Key (int key);
+		void M_Skill_Key (int key);
 	void M_MultiPlayer_Key (int key);
 		void M_Setup_Key (int key);
 		void M_Net_Key (int key);
@@ -93,6 +97,7 @@ void M_Main_Mousemove (int cx, int cy);
 	void M_SinglePlayer_Mousemove (int cx, int cy);
 		void M_Load_Mousemove (int cx, int cy);
 		void M_Save_Mousemove (int cx, int cy);
+		void M_Skill_Mousemove (int cx, int cy);
 	void M_MultiPlayer_Mousemove (int cx, int cy);
 		void M_Setup_Mousemove (int cx, int cy);
 		void M_Net_Mousemove (int cx, int cy);
@@ -106,6 +111,8 @@ void M_Main_Mousemove (int cx, int cy);
 	void M_Mods_Mousemove (int cx, int cy);
 	//void M_Help_Mousemove (int cx, int cy);
 	//void M_Quit_Mousemove (int cx, int cy);
+
+qboolean M_Menu_Skill_IsSupported (void);
 
 qboolean	m_entersound;		// play after drawing a frame, so caching
 								// won't disrupt the sound
@@ -834,6 +841,11 @@ void M_SinglePlayer_Key (int key)
 			if (sv.active)
 				if (!SCR_ModalMessage("Are you sure you want to\nstart a new game?\n", 0.0f))
 					break;
+			if (quake64 && M_Menu_Skill_IsSupported ())
+			{
+				M_Menu_Skill_f ();
+				break;
+			}
 			IN_Activate();
 			key_dest = key_game;
 			if (sv.active)
@@ -1056,6 +1068,86 @@ void M_Load_Mousemove (int cx, int cy)
 void M_Save_Mousemove (int cx, int cy)
 {
 	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
+}
+
+//=============================================================================
+/* SKILL MENU */
+
+int m_skill_cursor;
+
+void M_Menu_Skill_f (void)
+{
+	IN_Deactivate();
+	key_dest = key_menu;
+	m_state = m_skill;
+	m_entersound = true;
+	m_skill_cursor = (int)skill.value;
+	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
+}
+
+qboolean M_Menu_Skill_IsSupported (void)
+{
+	return COM_FileExists ("gfx/skillmenu.lmp", NULL);
+}
+
+void M_Skill_Draw (void)
+{
+	int		f;
+	qpic_t	*p;
+
+	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
+	M_DrawPic ( (320-p->width)/2, 4, p);
+	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/skillmenu.lmp") );
+
+	f = (int)(realtime * 10)%6;
+
+	M_DrawTransPic (54, 32 + m_skill_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+}
+
+void M_Skill_Key (int key)
+{
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		M_Menu_SinglePlayer_f ();
+		break;
+
+	case K_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (++m_skill_cursor > 3)
+			m_skill_cursor = 0;
+		break;
+
+	case K_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (--m_skill_cursor < 0)
+			m_skill_cursor = 3;
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		IN_Activate();
+		key_dest = key_game;
+		if (sv.active)
+			Cbuf_AddText ("disconnect\n");
+		Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
+		Cbuf_AddText ("maxplayers 1\n");
+		Cbuf_AddText ("deathmatch 0\n"); //johnfitz
+		Cbuf_AddText ("coop 0\n"); //johnfitz
+		Cbuf_AddText ("map start\n");
+		break;
+	}
+}
+
+void M_Skill_Mousemove (int cx, int cy)
+{
+	M_UpdateCursor (cy, 32, 20, 4, &m_skill_cursor);
 }
 
 //=============================================================================
@@ -3610,6 +3702,10 @@ void M_Draw (void)
 		M_Save_Draw ();
 		break;
 
+	case m_skill:
+		M_Skill_Draw ();
+		break;
+
 	case m_multiplayer:
 		M_MultiPlayer_Draw ();
 		break;
@@ -3705,6 +3801,10 @@ void M_Keydown (int key)
 		M_Save_Key (key);
 		return;
 
+	case m_skill:
+		M_Skill_Key (key);
+		return;
+
 	case m_multiplayer:
 		M_MultiPlayer_Key (key);
 		return;
@@ -3790,6 +3890,10 @@ void M_Mousemove (int x, int y)
 
 	case m_save:
 		M_Save_Mousemove (x, y);
+		return;
+
+	case m_skill:
+		M_Skill_Mousemove (x, y);
 		return;
 
 	case m_multiplayer:

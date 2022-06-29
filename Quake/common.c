@@ -59,7 +59,7 @@ char	**com_argv;
 #define CMDLINE_LENGTH	256		/* johnfitz -- mirrored in cmd.c */
 char	com_cmdline[CMDLINE_LENGTH];
 
-qboolean standard_quake = true, rogue, hipnotic;
+qboolean standard_quake = true, rogue, hipnotic, quake64;
 
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] =
@@ -2065,6 +2065,9 @@ static void COM_AddGameDirectory (const char *dir)
 		hipnotic = true;
 		standard_quake = false;
 	}
+	if (!q_strcasecmp(dir,"q64")) {
+		quake64 = true;
+	}
 
 	// assign a path_id to this game directory
 	if (com_searchpaths)
@@ -2131,6 +2134,7 @@ void COM_ResetGameDirectories(char *newgamedirs)
 	}
 	hipnotic = false;
 	rogue = false;
+	quake64 = false;
 	standard_quake = true;
 	//wipe the list of mod gamedirs
 	*com_gamenames = 0;

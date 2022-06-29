@@ -29,6 +29,7 @@ enum m_state_e {
 	m_singleplayer,
 	m_load,
 	m_save,
+	m_skill,
 	m_multiplayer,
 	m_setup,
 	m_net,
