@@ -41,6 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TEXPREF_CUBEMAP			0x1000	// cubemap texture
 #define TEXPREF_BINDLESS		0x2000	// enable bindless usage
 #define TEXPREF_ALPHABRIGHT		0x4000	// use palette with lighting mask in alpha channel (0=fullbright, 1=lit)
+#define TEXPREF_CLAMP			0x8000	// clamp UVs
 
 #define TEXPREF_HASALPHA		(TEXPREF_ALPHA|TEXPREF_ALPHABRIGHT) // texture has alpha channel
 

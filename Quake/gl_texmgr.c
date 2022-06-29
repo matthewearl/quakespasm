@@ -192,6 +192,12 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].magfilter);
 	}
+
+	if (glt->flags & TEXPREF_CLAMP)
+	{
+		glTexParameteri(glt->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(glt->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
 }
 
 /*
