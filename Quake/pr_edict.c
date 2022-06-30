@@ -23,9 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-qboolean	pr_alpha_supported; //johnfitz
-int			pr_effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
-
 globalvars_t	*pr_global_struct;
 
 int		type_size[8] = {
@@ -648,7 +645,7 @@ void ED_Write (FILE *f, edict_t *ed)
 	}
 
 	//johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
-	if (!pr_alpha_supported && ed->alpha != ENTALPHA_DEFAULT)
+	if (!qcvm->alpha_supported && ed->alpha != ENTALPHA_DEFAULT)
 		fprintf (f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE(ed->alpha));
 	//johnfitz
 
@@ -1360,7 +1357,7 @@ void PR_LoadProgs (void)
 		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
 	}
 
-	pr_alpha_supported = false; //johnfitz
+	qcvm->alpha_supported = false; //johnfitz
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
@@ -1372,7 +1369,7 @@ void PR_LoadProgs (void)
 
 		//johnfitz -- detect alpha support in progs.dat
 		if (!strcmp(qcvm->strings + qcvm->fielddefs[i].s_name,"alpha"))
-			pr_alpha_supported = true;
+			qcvm->alpha_supported = true;
 		//johnfitz
 	}
 
@@ -1390,7 +1387,7 @@ void PR_LoadProgs (void)
 	PR_InitBuiltins ();
 	PR_PatchRereleaseBuiltins ();
 
-	pr_effects_mask = PR_FindSupportedEffects ();
+	qcvm->effects_mask = PR_FindSupportedEffects ();
 }
 
 /*

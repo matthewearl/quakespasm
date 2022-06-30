@@ -30,9 +30,6 @@ static char	localmodels[MAX_MODELS][8];	// inline model names for precache
 
 int		sv_protocol = PROTOCOL_RMQ; //johnfitz
 
-extern qboolean	pr_alpha_supported; //johnfitz
-extern int pr_effects_mask;
-
 extern cvar_t nomonsters;
 
 static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
@@ -785,14 +782,14 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if (ent->baseline.frame != ent->v.frame)
 			bits |= U_FRAME;
 
-		if ((ent->baseline.effects ^ (int)ent->v.effects) & pr_effects_mask)
+		if ((ent->baseline.effects ^ (int)ent->v.effects) & qcvm->effects_mask)
 			bits |= U_EFFECTS;
 
 		if (ent->baseline.modelindex != ent->v.modelindex)
 			bits |= U_MODEL;
 
 		//johnfitz -- alpha
-		if (pr_alpha_supported)
+		if (qcvm->alpha_supported)
 		{
 			// TODO: find a cleaner place to put this code
 			eval_t	*val;
@@ -802,7 +799,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		}
 
 		//don't send invisible entities unless they have effects
-		if (ent->alpha == ENTALPHA_ZERO && !((int)ent->v.effects & pr_effects_mask))
+		if (ent->alpha == ENTALPHA_ZERO && !((int)ent->v.effects & qcvm->effects_mask))
 			continue;
 		//johnfitz
 
@@ -854,7 +851,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if (bits & U_SKIN)
 			MSG_WriteByte (msg, ent->v.skin);
 		if (bits & U_EFFECTS)
-			MSG_WriteByte (msg, (int)ent->v.effects & pr_effects_mask);
+			MSG_WriteByte (msg, (int)ent->v.effects & qcvm->effects_mask);
 		if (bits & U_ORIGIN1)
 			MSG_WriteCoord (msg, ent->v.origin[0], sv.protocolflags);
 		if (bits & U_ANGLE1)

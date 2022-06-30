@@ -86,6 +86,9 @@ typedef struct qcvm_s
 
 	int				edict_size;	/* in bytes */
 
+	qboolean		alpha_supported; //johnfitz
+	int				effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
+
 	builtin_t		builtins[MAX_BUILTINS];
 	int				numbuiltins;
 
