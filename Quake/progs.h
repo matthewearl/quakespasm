@@ -60,18 +60,86 @@ typedef struct edict_s
 
 //============================================================================
 
-extern	dprograms_t	*progs;
-extern	dfunction_t	*pr_functions;
-extern	dstatement_t	*pr_statements;
+#define MAX_BUILTINS		1280
+typedef void (*builtin_t) (void);
+
+typedef struct
+{
+	int		s;
+	dfunction_t	*f;
+} prstack_t;
+
+typedef struct prhashtable_s
+{
+	int			capacity;
+	const char	**strings;
+	int			*indices;
+} prhashtable_t;
+
+typedef struct qcvm_s
+{
+	dprograms_t		*progs;
+	dfunction_t		*functions;
+	dstatement_t	*statements;
+	float			*globals;	/* same as pr_global_struct */
+	ddef_t			*fielddefs;	//yay reflection.
+
+	int				edict_size;	/* in bytes */
+
+	builtin_t		builtins[MAX_BUILTINS];
+	int				numbuiltins;
+
+	int				argc;
+
+	qboolean		trace;
+	dfunction_t		*xfunction;
+	int				xstatement;
+
+	unsigned short	crc;
+
+	//was static inside pr_edict
+	char			*strings;
+	int				stringssize;
+	const char		**knownstrings;
+	int				maxknownstrings;
+	int				numknownstrings;
+	int				freeknownstrings;
+	const char		**firstfreeknownstring; // free list (singly linked)
+	ddef_t			*globaldefs;
+
+	prhashtable_t	ht_fields;
+	prhashtable_t	ht_functions;
+	prhashtable_t	ht_globals;
+
+	//originally defined in pr_exec, but moved into the switchable qcvm struct
+#define	MAX_STACK_DEPTH		1024 /*was 64*/	/* was 32 */
+	prstack_t		stack[MAX_STACK_DEPTH];
+	int				depth;
+
+#define	LOCALSTACK_SIZE		16384 /* was 2048*/
+	int				localstack[LOCALSTACK_SIZE];
+	int				localstack_used;
+
+	//originally part of the sv_state_t struct
+	//FIXME: put worldmodel in here too.
+	double		time;
+	int			num_edicts;
+	int			max_edicts;
+	link_t		free_edicts;		// linked list of free edicts
+	edict_t		*edicts;			// can NOT be array indexed, because
+									// edict_t is variable sized, but can
+									// be used to reference the world ent
+} qcvm_t;
+
 extern	globalvars_t	*pr_global_struct;
-extern	float		*pr_globals;	/* same as pr_global_struct */
 
-extern	int		pr_edict_size;	/* in bytes */
-
+extern qcvm_t *qcvm;
+void PR_SwitchQCVM(qcvm_t *nvm);
 
 void PR_Init (void);
 
 void PR_ExecuteProgram (func_t fnum);
+void PR_ClearProgs(qcvm_t *vm);
 void PR_LoadProgs (void);
 
 const char *PR_GetString (int num);
@@ -100,18 +168,18 @@ void ED_LoadFromFile (const char *data);
 edict_t *EDICT_NUM(int);
 int NUM_FOR_EDICT(edict_t*);
 
-#define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + pr_edict_size))
+#define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
 
-#define	EDICT_TO_PROG(e)	((byte *)e - (byte *)sv.edicts)
-#define PROG_TO_EDICT(e)	((edict_t *)((byte *)sv.edicts + e))
+#define	EDICT_TO_PROG(e)	((byte *)e - (byte *)qcvm->edicts)
+#define PROG_TO_EDICT(e)	((edict_t *)((byte *)qcvm->edicts + e))
 
-#define	G_FLOAT(o)		(pr_globals[o])
-#define	G_INT(o)		(*(int *)&pr_globals[o])
-#define	G_EDICT(o)		((edict_t *)((byte *)sv.edicts+ *(int *)&pr_globals[o]))
+#define	G_FLOAT(o)		(qcvm->globals[o])
+#define	G_INT(o)		(*(int *)&qcvm->globals[o])
+#define	G_EDICT(o)		((edict_t *)((byte *)qcvm->edicts+ *(int *)&qcvm->globals[o]))
 #define G_EDICTNUM(o)		NUM_FOR_EDICT(G_EDICT(o))
-#define	G_VECTOR(o)		(&pr_globals[o])
-#define	G_STRING(o)		(PR_GetString(*(string_t *)&pr_globals[o]))
-#define	G_FUNCTION(o)		(*(func_t *)&pr_globals[o])
+#define	G_VECTOR(o)		(&qcvm->globals[o])
+#define	G_STRING(o)		(PR_GetString(*(string_t *)&qcvm->globals[o]))
+#define	G_FUNCTION(o)		(*(func_t *)&qcvm->globals[o])
 
 #define	E_FLOAT(e,o)		(((float*)&e->v)[o])
 #define	E_INT(e,o)		(*(int *)&((float*)&e->v)[o])
@@ -120,10 +188,6 @@ int NUM_FOR_EDICT(edict_t*);
 
 extern	int		type_size[8];
 
-#define MAX_BUILTINS		1280
-typedef void (*builtin_t) (void);
-extern	builtin_t	pr_builtins[MAX_BUILTINS];
-extern	int			pr_numbuiltins;
 extern	builtin_t	pr_basebuiltins[];
 extern	int			pr_numbasebuiltins;
 
@@ -136,15 +200,6 @@ typedef struct extbuiltin_s
 
 extern extbuiltin_t	pr_extbuiltins[];
 extern int			pr_numextbuiltins;
-
-
-extern	int		pr_argc;
-
-extern	qboolean	pr_trace;
-extern	dfunction_t	*pr_xfunction;
-extern	int		pr_xstatement;
-
-extern	unsigned short	pr_crc;
 
 FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
 #ifdef __WATCOMC__

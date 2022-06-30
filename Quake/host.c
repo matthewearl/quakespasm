@@ -141,6 +141,8 @@ void Host_EndGame (const char *message, ...)
 	va_end (argptr);
 	Con_DPrintf ("Host_EndGame: %s\n",string);
 
+	PR_SwitchQCVM(NULL);
+
 	if (sv.active)
 		Host_ShutdownServer (false);
 
@@ -171,6 +173,8 @@ void Host_Error (const char *error, ...)
 	if (inerror)
 		Sys_Error ("Host_Error: recursively entered");
 	inerror = true;
+
+	PR_SwitchQCVM(NULL);
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 
@@ -444,10 +448,15 @@ void SV_DropClient (qboolean crash)
 		{
 		// call the prog function for removing a client
 		// this will set the body to a dead frame, among other things
+			qcvm_t *oldvm = qcvm;
+			PR_SwitchQCVM(NULL);
+			PR_SwitchQCVM(&sv.qcvm);
 			saveSelf = pr_global_struct->self;
 			pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
 			PR_ExecuteProgram (pr_global_struct->ClientDisconnect);
 			pr_global_struct->self = saveSelf;
+			PR_SwitchQCVM(NULL);
+			PR_SwitchQCVM(oldvm);
 		}
 
 		Sys_Printf ("Client %s removed\n",host_client->name);
@@ -539,9 +548,12 @@ void Host_ShutdownServer(qboolean crash)
 	if (count)
 		Con_Printf("Host_ShutdownServer: NET_SendToAll failed for %u clients\n", count);
 
+	PR_SwitchQCVM(&sv.qcvm);
 	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
 		if (host_client->active)
 			SV_DropClient(crash);
+
+	PR_SwitchQCVM(NULL);
 
 //
 // clear structures
@@ -565,10 +577,10 @@ void Host_ClearMemory (void)
 	D_FlushCaches ();
 	Mod_ClearAll ();
 	Sky_ClearAll();
+	PR_ClearProgs(&sv.qcvm);
 /* host_hunklevel MUST be set at this point */
 	Hunk_FreeToLowMark (host_hunklevel);
 	CL_ClearSignons ();
-	free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
 	memset (&sv, 0, sizeof(sv));
 	memset (&cl, 0, sizeof(cl));
 }
@@ -690,14 +702,14 @@ void Host_ServerFrame (void)
 //johnfitz -- devstats
 	if (cls.signon == SIGNONS)
 	{
-		for (i=0, active=0; i<sv.num_edicts; i++)
+		for (i=0, active=0; i<qcvm->num_edicts; i++)
 		{
 			ent = EDICT_NUM(i);
 			if (!ent->free)
 				active++;
 		}
 		if (active > 600 && dev_peakstats.edicts <= 600)
-			Con_DWarning ("%i edicts exceeds standard limit of 600 (max = %d).\n", active, sv.max_edicts);
+			Con_DWarning ("%i edicts exceeds standard limit of 600 (max = %d).\n", active, qcvm->max_edicts);
 		dev_stats.edicts = active;
 		dev_peakstats.edicts = q_max(active, dev_peakstats.edicts);
 	}
@@ -844,7 +856,9 @@ void _Host_Frame (double time)
 		CL_SendCmd ();
 		if (sv.active)
 		{
+			PR_SwitchQCVM(&sv.qcvm);
 			Host_ServerFrame ();
+			PR_SwitchQCVM(NULL);
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();

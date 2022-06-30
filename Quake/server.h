@@ -48,10 +48,10 @@ typedef struct
 	qboolean	loadgame;			// handle connections specially
 	qboolean	nomonsters;			// server started with 'nomonsters' cvar active
 
-	double		time;
-
 	int			lastcheck;			// used by PF_checkclient
 	double		lastchecktime;
+
+	qcvm_t		qcvm;				// Spike: entire qcvm state
 
 	char		name[64];			// map name
 	char		modelname[64];		// maps/<name>.bsp, for model_precache[0]
@@ -60,12 +60,6 @@ typedef struct
 	struct qmodel_s	*models[MAX_MODELS];
 	const char	*sound_precache[MAX_SOUNDS];	// NULL terminated
 	const char	*lightstyles[MAX_LIGHTSTYLES];
-	int			num_edicts;
-	int			max_edicts;
-	link_t		free_edicts;		// linked list of free edicts
-	edict_t		*edicts;			// can NOT be array indexed, because
-									// edict_t is variable sized, but can
-									// be used to reference the world ent
 	server_state_t	state;			// some actions are only valid during load
 
 	sizebuf_t	datagram;

@@ -502,6 +502,8 @@ void Sys_Error (const char *error, ...)
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
+	PR_SwitchQCVM(NULL);
+
 	if (!MultiByteToWideChar (CP_UTF8, 0, text, -1, wtext, countof (wtext)))
 		wcscpy (wtext, L"An unknown error has occurred");
 
