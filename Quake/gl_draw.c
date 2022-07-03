@@ -132,7 +132,7 @@ typedef struct cachepic_s
 	byte		padding[32];	// for appended glpic
 } cachepic_t;
 
-#define	MAX_CACHED_PICS		128
+#define	MAX_CACHED_PICS		512	//Spike -- increased to avoid csqc issues.
 cachepic_t	menu_cachepics[MAX_CACHED_PICS];
 int			menu_numcachepics;
 
@@ -227,14 +227,34 @@ void Scrap_Upload (void)
 Draw_PicFromWad
 ================
 */
-qpic_t *Draw_PicFromWad (const char *name)
+qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 {
+	int i;
+	cachepic_t *pic;
 	qpic_t	*p;
 	glpic_t	gl;
 	src_offset_t offset; //johnfitz
+	lumpinfo_t *info;
 
-	p = (qpic_t *) W_GetLumpName (name);
-	if (!p) return pic_nul; //johnfitz
+	//Spike -- added cachepic stuff here, to avoid glitches if the function is called multiple times with the same image.
+	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
+	{
+		if (!strcmp (name, pic->name))
+			return &pic->pic;
+	}
+	if (menu_numcachepics == MAX_CACHED_PICS)
+		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
+
+	p = (qpic_t *) W_GetLumpName (name, &info);
+	if (!p)
+	{
+		Con_SafePrintf ("W_GetLumpName: %s not found\n", name);
+		return pic_nul; //johnfitz
+	}
+	if (info->type != TYP_QPIC) {Con_SafePrintf ("Draw_PicFromWad: lump \"%s\" is not a qpic\n", name); return pic_nul;}
+	if ((size_t)info->size < sizeof(int)*2) {Con_SafePrintf ("Draw_PicFromWad: pic \"%s\" is too small for its qpic header (%u bytes)\n", name, info->size); return pic_nul;}
+	if ((size_t)info->size < sizeof(int)*2+p->width*p->height) {Con_SafePrintf ("Draw_PicFromWad: pic \"%s\" truncated (%u*%u requires %u at least bytes)\n", name, p->width,p->height, 8+p->width*p->height); return pic_nul;}
+	if ((size_t)info->size > sizeof(int)*2+p->width*p->height) Con_DPrintf ("Draw_PicFromWad: pic \"%s\" over-sized (%u*%u requires only %u bytes)\n", name, p->width,p->height, 8+p->width*p->height);
 
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)
@@ -266,16 +286,24 @@ qpic_t *Draw_PicFromWad (const char *name)
 		offset = (src_offset_t)p - (src_offset_t)wad_base + sizeof(int)*2; //johnfitz
 
 		gl.gltexture = TexMgr_LoadImage (NULL, texturename, p->width, p->height, SRC_INDEXED, p->data, WADFILENAME,
-										  offset, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP); //johnfitz -- TexMgr
+										  offset, texflags); //johnfitz -- TexMgr
 		gl.sl = 0;
-		gl.sh = (float)p->width/(float)TexMgr_PadConditional(p->width); //johnfitz
+		gl.sh = (texflags&TEXPREF_PAD)?(float)p->width/(float)TexMgr_PadConditional(p->width):1; //johnfitz
 		gl.tl = 0;
-		gl.th = (float)p->height/(float)TexMgr_PadConditional(p->height); //johnfitz
+		gl.th = (texflags&TEXPREF_PAD)?(float)p->height/(float)TexMgr_PadConditional(p->height):1; //johnfitz
 	}
 
-	memcpy (p->data, &gl, sizeof(glpic_t));
+	menu_numcachepics++;
+	strcpy (pic->name, name);
+	pic->pic = *p;
+	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
-	return p;
+	return &pic->pic;
+}
+
+qpic_t *Draw_PicFromWad (const char *name)
+{
+	return Draw_PicFromWad2 (name, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
 }
 
 /*
@@ -283,7 +311,7 @@ qpic_t *Draw_PicFromWad (const char *name)
 Draw_CachePic
 ================
 */
-qpic_t	*Draw_CachePic (const char *path)
+qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 {
 	cachepic_t	*pic;
 	int			i;
@@ -305,7 +333,7 @@ qpic_t	*Draw_CachePic (const char *path)
 //
 	dat = (qpic_t *)COM_LoadTempFile (path, NULL);
 	if (!dat)
-		Sys_Error ("Draw_CachePic: failed to load %s", path);
+		return NULL;
 	SwapPic (dat);
 
 	// HACK HACK HACK --- we need to keep the bytes for
@@ -318,7 +346,7 @@ qpic_t	*Draw_CachePic (const char *path)
 	pic->pic.height = dat->height;
 
 	gl.gltexture = TexMgr_LoadImage (NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path,
-									  sizeof(int)*2, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP | TEXPREF_CLAMP); //johnfitz -- TexMgr
+									  sizeof(int)*2, texflags); //johnfitz -- TexMgr
 	gl.sl = 0;
 	gl.sh = (float)dat->width/(float)TexMgr_PadConditional(dat->width); //johnfitz
 	gl.tl = 0;
@@ -326,6 +354,14 @@ qpic_t	*Draw_CachePic (const char *path)
 	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
 	return &pic->pic;
+}
+
+qpic_t	*Draw_CachePic (const char *path)
+{
+	qpic_t *pic = Draw_TryCachePic(path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP | TEXPREF_CLAMP);
+	if (!pic)
+		Sys_Error ("Draw_CachePic: failed to load %s", path);
+	return pic;
 }
 
 /*
@@ -366,10 +402,11 @@ Draw_LoadPics -- johnfitz
 */
 void Draw_LoadPics (void)
 {
+	lumpinfo_t	*info;
 	byte		*data;
 	src_offset_t	offset;
 
-	data = (byte *) W_GetLumpName ("conchars");
+	data = (byte *) W_GetLumpName ("conchars", &info);
 	if (!data) Sys_Error ("Draw_LoadPics: couldn't load conchars");
 	offset = (src_offset_t)data - (src_offset_t)wad_base;
 	char_texture = TexMgr_LoadImage (NULL, WADFILENAME":conchars", 128, 128, SRC_INDEXED, data,
@@ -395,16 +432,17 @@ void Draw_NewGame (void)
 
 	Scrap_Upload (); //creates 2 empty gltextures
 
+	// empty lmp cache
+	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
+		pic->name[0] = 0;
+	menu_numcachepics = 0;
+
 	// reload wad pics
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty
 	Draw_LoadPics ();
 	SCR_LoadPics ();
 	Sbar_LoadPics ();
-
-	// empty lmp cache
-	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
-		pic->name[0] = 0;
-	menu_numcachepics = 0;
+	PR_ReloadPics (false);
 }
 
 /*
@@ -571,7 +609,7 @@ static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 Draw_CharacterQuadEx -- johnfitz -- seperate function to spit out verts
 ================
 */
-void Draw_CharacterQuadEx (int x, int y, int dim, char num)
+void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 {
 	int				row, col;
 	float			frow, fcol, fsize;
@@ -585,10 +623,10 @@ void Draw_CharacterQuadEx (int x, int y, int dim, char num)
 	fsize = 0.0625;
 
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, x,     y,     fcol,         frow);
-	Draw_SetVertex (verts++, x+dim, y,     fcol + fsize, frow);
-	Draw_SetVertex (verts++, x+dim, y+dim, fcol + fsize, frow + fsize);
-	Draw_SetVertex (verts++, x,     y+dim, fcol,         frow + fsize);
+	Draw_SetVertex (verts++, x,      y,      fcol,         frow);
+	Draw_SetVertex (verts++, x+dimx, y,      fcol + fsize, frow);
+	Draw_SetVertex (verts++, x+dimx, y+dimy, fcol + fsize, frow + fsize);
+	Draw_SetVertex (verts++, x,      y+dimy, fcol,         frow + fsize);
 }
 
 /*
@@ -598,7 +636,7 @@ Draw_CharacterQuad
 */
 void Draw_CharacterQuad (int x, int y, char num)
 {
-	Draw_CharacterQuadEx (x, y, 8, num);
+	Draw_CharacterQuadEx (x, y, 8, 8, num);
 }
 
 /*
@@ -606,9 +644,9 @@ void Draw_CharacterQuad (int x, int y, char num)
 Draw_CharacterEx
 ================
 */
-void Draw_CharacterEx (int x, int y, int dim, int num)
+void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num)
 {
-	if (y <= -dim)
+	if (y <= -dimy)
 		return;			// totally off screen
 
 	num &= 255;
@@ -617,7 +655,7 @@ void Draw_CharacterEx (int x, int y, int dim, int num)
 		return; //don't waste verts on spaces
 
 	Draw_SetTexture (char_texture);
-	Draw_CharacterQuadEx (x, y, dim, (char) num);
+	Draw_CharacterQuadEx (x, y, dimx, dimy, (char) num);
 }
 
 /*
@@ -627,7 +665,7 @@ Draw_Character
 */
 void Draw_Character (int x, int y, int num)
 {
-	Draw_CharacterEx (x, y, 8, (char) num);
+	Draw_CharacterEx (x, y, 8, 8, (char) num);
 }
 
 /*
@@ -645,7 +683,7 @@ void Draw_StringEx (int x, int y, int dim, const char *str)
 	while (*str)
 	{
 		if (*str != 32) //don't waste verts on spaces
-			Draw_CharacterQuadEx (x, y, dim, *str);
+			Draw_CharacterQuadEx (x, y, dim, dim, *str);
 		str++;
 		x += dim;
 	}
@@ -799,17 +837,16 @@ void Draw_TileClear (int x, int y, int w, int h)
 
 /*
 =============
-Draw_Fill
+Draw_FillEx
 
 Fills a box of pixels with a single color
 =============
 */
-void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- added alpha
+void Draw_FillEx (float x, float y, float w, float h, const float *rgb, float alpha)
 {
-	byte *pal = (byte *)d_8to24table; //johnfitz -- use d_8to24table instead of host_basepal
 	guivertex_t *verts;
-
-	GL_SetCanvasColor (pal[c*4]/255.0, pal[c*4+1]/255.0, pal[c*4+2]/255.0, alpha); //johnfitz -- added alpha
+	
+	GL_SetCanvasColor (rgb[0], rgb[1], rgb[2], alpha); //johnfitz -- added alpha
 	Draw_SetTexture (whitetexture);
 
 	verts = Draw_AllocQuad ();
@@ -819,6 +856,18 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 	Draw_SetVertex (verts++, x,   y+h, 0.f, 0.f);
 
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+}
+
+void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- added alpha
+{
+	byte *pal = (byte *)d_8to24table; //johnfitz -- use d_8to24table instead of host_basepal
+	float rgb[3];
+
+	rgb[0] = pal[c*4+0] * (1.f/255.f);
+	rgb[1] = pal[c*4+1] * (1.f/255.f);
+	rgb[2] = pal[c*4+2] * (1.f/255.f);
+
+	Draw_FillEx (x, y, w, h, rgb, alpha);
 }
 
 /*
@@ -952,6 +1001,11 @@ void GL_SetCanvas (canvastype newcanvas)
 		Draw_GetMenuTransform (&bounds, &viewport);
 		Draw_SetTransform (bounds.x, bounds.x+bounds.width, bounds.y+bounds.height, bounds.y);
 		glViewport (viewport.x, viewport.y, viewport.width, viewport.height);
+		break;
+	case CANVAS_CSQC:
+		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
+		glViewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);

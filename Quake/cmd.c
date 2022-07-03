@@ -480,14 +480,6 @@ void Cmd_Unaliasall_f (void)
 =============================================================================
 */
 
-typedef struct cmd_function_s
-{
-	struct cmd_function_s	*next;
-	const char		*name;
-	xcommand_t		function;
-} cmd_function_t;
-
-
 #define	MAX_ARGS		80
 
 static	int			cmd_argc;
@@ -726,36 +718,48 @@ void Cmd_TokenizeString (const char *text)
 /*
 ============
 Cmd_AddCommand
+
+spike -- added an extra arg for client (also renamed and made a macro)
 ============
 */
-void	Cmd_AddCommand (const char *cmd_name, xcommand_t function)
+cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype, qboolean qcinterceptable)
 {
 	cmd_function_t	*cmd;
 	cmd_function_t	*cursor,*prev; //johnfitz -- sorted list insert
-
-	if (host_initialized)	// because hunk allocation would get stomped
-		Sys_Error ("Cmd_AddCommand after host_initialized");
 
 // fail if the command is a variable name
 	if (Cvar_VariableString(cmd_name)[0])
 	{
 		Con_Printf ("Cmd_AddCommand: %s already defined as a var\n", cmd_name);
-		return;
+		return NULL;
 	}
 
 // fail if the command already exists
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (!Q_strcmp (cmd_name, cmd->name))
+		if (!Q_strcmp (cmd_name, cmd->name) && cmd->srctype == srctype)
 		{
-			Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
-			return;
+			if (cmd->function != function && function)
+				Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
+			return NULL;
 		}
 	}
 
-	cmd = (cmd_function_t *) Hunk_Alloc (sizeof(cmd_function_t));
-	cmd->name = cmd_name;
+	if (host_initialized)
+	{
+		cmd = (cmd_function_t *) malloc(sizeof(*cmd) + strlen(cmd_name)+1);
+		cmd->name = strcpy((char*)(cmd + 1), cmd_name);
+		cmd->dynamic = true;
+	}
+	else
+	{
+		cmd = (cmd_function_t *) Hunk_Alloc (sizeof(*cmd));
+		cmd->name = cmd_name;
+		cmd->dynamic = false;
+	}
 	cmd->function = function;
+	cmd->srctype = srctype;
+	cmd->qcinterceptable = qcinterceptable;
 
 	//johnfitz -- insert each entry in alphabetical order
 	if (cmd_functions == NULL || strcmp(cmd->name, cmd_functions->name) < 0) //insert at front
@@ -776,6 +780,24 @@ void	Cmd_AddCommand (const char *cmd_name, xcommand_t function)
 		prev->next = cmd;
 	}
 	//johnfitz
+
+	if (cmd->dynamic)
+		return cmd;
+	return NULL;
+}
+void Cmd_RemoveCommand (cmd_function_t *cmd)
+{
+	cmd_function_t **link;
+	for (link = &cmd_functions; *link; link = &(*link)->next)
+	{
+		if (*link == cmd)
+		{
+			*link = cmd->next;
+			free(cmd);
+			return;
+		}
+	}
+	Sys_Error ("Cmd_RemoveCommand unable to remove command %s",cmd->name);
 }
 
 /*

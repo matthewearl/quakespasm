@@ -104,6 +104,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_aim);
 	Cvar_RegisterVariable (&sv_nostep);
 	Cvar_RegisterVariable (&sv_freezenonclients);
+	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); //johnfitz
 	Cvar_RegisterVariable (&sv_gameplayfix_random);
 	Cvar_RegisterVariable (&sv_netsort);
@@ -1579,9 +1580,9 @@ void SV_SpawnServer (const char *server)
 	}
 	else sv.protocolflags = 0;
 
-// load progs to get entity field count
 	PR_SwitchQCVM(vm);
-	PR_LoadProgs ();
+// load progs to get entity field count
+	PR_LoadProgs ("progs.dat", true);
 
 // allocate server memory
 	/* Host_ClearMemory() called above already cleared the whole sv structure */

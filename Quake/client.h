@@ -228,6 +228,10 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+
+	qboolean	sendprespawn;
+
+	qcvm_t		qcvm;	//for csqc.
 } client_state_t;
 
 

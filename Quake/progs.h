@@ -76,6 +76,43 @@ typedef struct prhashtable_s
 	int			*indices;
 } prhashtable_t;
 
+struct pr_extfuncs_s
+{
+#define QCEXTFUNCS_CS \
+	QCEXTFUNC(CSQC_Init,				"void(float apilevel, string enginename, float engineversion)")	\
+	QCEXTFUNC(CSQC_Shutdown,			"void()")	\
+	QCEXTFUNC(CSQC_DrawHud,				"void(vector virtsize, float showscores)")							/*simple: for the simple(+limited) hud-only csqc interface.*/	\
+	QCEXTFUNC(CSQC_DrawScores,			"void(vector virtsize, float showscores)")							/*simple: (optional) for the simple hud-only csqc interface.*/		\
+
+#define QCEXTFUNC(n,t) func_t n;
+	QCEXTFUNCS_CS
+#undef QCEXTFUNC
+};
+extern	cvar_t	pr_checkextension;	//if 0, extensions are disabled (unless they'd be fatal, but they're still spammy)
+	
+struct pr_extglobals_s
+{
+#define QCEXTGLOBALS_CSQC \
+	QCEXTGLOBAL_FLOAT(cltime)\
+	QCEXTGLOBAL_FLOAT(clframetime)\
+	QCEXTGLOBAL_FLOAT(maxclients)\
+	QCEXTGLOBAL_FLOAT(intermission)\
+	QCEXTGLOBAL_FLOAT(intermission_time)\
+	QCEXTGLOBAL_FLOAT(player_localnum)\
+	QCEXTGLOBAL_FLOAT(player_localentnum)\
+	QCEXTGLOBAL_VECTOR(view_angles)\
+	QCEXTGLOBAL_FLOAT(clientcommandframe)\
+	QCEXTGLOBAL_FLOAT(servercommandframe)\
+	//end
+#define QCEXTGLOBAL_FLOAT(n) float *n;
+#define QCEXTGLOBAL_INT(n) int *n;
+#define QCEXTGLOBAL_VECTOR(n) float *n;
+	QCEXTGLOBALS_CSQC
+#undef QCEXTGLOBAL_FLOAT
+#undef QCEXTGLOBAL_INT
+#undef QCEXTGLOBAL_VECTOR
+};
+
 typedef struct qcvm_s
 {
 	dprograms_t		*progs;
@@ -100,14 +137,20 @@ typedef struct qcvm_s
 
 	unsigned short	crc;
 
+	struct pr_extfuncs_s extfuncs;
+	struct pr_extglobals_s extglobals;
+
 	//was static inside pr_edict
 	char			*strings;
 	int				stringssize;
 	const char		**knownstrings;
 	int				maxknownstrings;
 	int				numknownstrings;
-	int				freeknownstrings;
 	const char		**firstfreeknownstring; // free list (singly linked)
+
+	unsigned char	*knownzone;
+	size_t			knownzonesize;
+
 	ddef_t			*globaldefs;
 
 	prhashtable_t	ht_fields;
@@ -127,6 +170,7 @@ typedef struct qcvm_s
 	//FIXME: put worldmodel in here too.
 	double		time;
 	int			num_edicts;
+	int			reserved_edicts;
 	int			max_edicts;
 	link_t		free_edicts;		// linked list of free edicts
 	edict_t		*edicts;			// can NOT be array indexed, because
@@ -143,10 +187,14 @@ void PR_Init (void);
 
 void PR_ExecuteProgram (func_t fnum);
 void PR_ClearProgs(qcvm_t *vm);
-void PR_LoadProgs (void);
+qboolean PR_LoadProgs (const char *filename, qboolean fatal);
+void PR_EnableExtensions (void);
+
+void PR_ReloadPics (qboolean purge);					//for gamedir or video changes
 
 const char *PR_GetString (int num);
 int PR_SetEngineString (const char *s);
+void PR_ClearEngineString (int num);
 int PR_AllocString (int bufferlength, char **ptr);
 
 void PR_Profile_f (void);
@@ -184,6 +232,8 @@ int NUM_FOR_EDICT(edict_t*);
 #define	G_STRING(o)		(PR_GetString(*(string_t *)&qcvm->globals[o]))
 #define	G_FUNCTION(o)		(*(func_t *)&qcvm->globals[o])
 
+#define G_VECTORSET(r,x,y,z) do{G_FLOAT((r)+0) = x; G_FLOAT((r)+1) = y;G_FLOAT((r)+2) = z;}while(0)
+
 #define	E_FLOAT(e,o)		(((float*)&e->v)[o])
 #define	E_INT(e,o)		(*(int *)&((float*)&e->v)[o])
 #define	E_VECTOR(e,o)		(&((float*)&e->v)[o])
@@ -191,13 +241,11 @@ int NUM_FOR_EDICT(edict_t*);
 
 extern	int		type_size[8];
 
-extern	builtin_t	pr_basebuiltins[];
-extern	int			pr_numbasebuiltins;
-
 typedef struct extbuiltin_s
 {
 	const char	*name;
-	builtin_t	func;
+	builtin_t	ssqcfunc;
+	builtin_t	csqcfunc;
 	int			number;
 } extbuiltin_t;
 

@@ -77,23 +77,37 @@ not apropriate.
 
 */
 
-typedef void (*xcommand_t) (void);
-
 typedef enum
 {
 	src_client,		// came in over a net connection as a clc_stringcmd
 					// host_client will be valid during this state.
-	src_command		// from the command buffer
+	src_command,	// from the command buffer
+	src_server		// from a svc_stufftext
 } cmd_source_t;
-
 extern	cmd_source_t	cmd_source;
+
+typedef void (*xcommand_t) (void);
+typedef struct cmd_function_s
+{
+	struct cmd_function_s	*next;
+	const char		*name;
+	xcommand_t		function;
+	cmd_source_t	srctype;
+	qboolean		dynamic;
+	qboolean		qcinterceptable;
+} cmd_function_t;
 
 void	Cmd_Init (void);
 
-void	Cmd_AddCommand (const char *cmd_name, xcommand_t function);
+cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype, qboolean qcinterceptable);
+void Cmd_RemoveCommand (cmd_function_t *cmd);
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
+#define Cmd_AddCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_command,false)				//regular console commands
+#define Cmd_AddCommand_ClientCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_client,false)	//command is meant to be safe for anyone to execute.
+#define Cmd_AddCommand_ServerCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_server,false)	//command came from a server
+#define Cmd_AddCommand_Console Cmd_AddCommand	//to make the disabiguation more obvious
 
 qboolean Cmd_Exists (const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap

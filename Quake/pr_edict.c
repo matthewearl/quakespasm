@@ -37,7 +37,7 @@ int		type_size[8] = {
 };
 
 static ddef_t	*ED_FieldAtOfs (int ofs);
-static qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s);
+static qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned);
 
 cvar_t	nomonsters = {"nomonsters", "0", CVAR_NONE};
 cvar_t	gamecfg = {"gamecfg", "0", CVAR_NONE};
@@ -819,7 +819,7 @@ const char *ED_ParseGlobals (const char *data)
 			continue;
 		}
 
-		if (!ED_ParseEpair ((void *)qcvm->globals, key, com_token))
+		if (!ED_ParseEpair ((void *)qcvm->globals, key, com_token, false))
 			Host_Error ("ED_ParseGlobals: parse error");
 	}
 	return data;
@@ -859,6 +859,37 @@ static string_t ED_NewString (const char *string)
 	return num;
 }
 
+static void ED_RezoneString (string_t *ref, const char *str)
+{
+	char *buf;
+	size_t len = strlen(str)+1;
+	size_t id;
+
+	if (*ref)
+	{	//if the reference is already a zoned string then free it first.
+		id = -1-*ref;
+		if (id < qcvm->knownzonesize && (qcvm->knownzone[id>>3] & (1u<<(id&7))))
+		{	//okay, it was zoned.
+			qcvm->knownzone[id>>3] &= ~(1u<<(id&7));
+			buf = (char*)PR_GetString(*ref);
+			PR_ClearEngineString(*ref);
+			Z_Free(buf);
+		}
+//		else
+//			Con_Warning("ED_RezoneString: string wasn't strzoned\n");	//warnings would trigger from the default cvar value that autocvars are initialised with
+	}
+
+	buf = Z_Malloc(len);
+	memcpy(buf, str, len);
+	id = -1-(*ref = PR_SetEngineString(buf));
+	//make sure its flagged as zoned so we can clean up properly after.
+	if (id >= qcvm->knownzonesize)
+	{
+		qcvm->knownzonesize = (id+32)&~7;
+		qcvm->knownzone = Z_Realloc(qcvm->knownzone, (qcvm->knownzonesize+7)>>3);
+	}
+	qcvm->knownzone[id>>3] |= 1u<<(id&7);
+}
 
 /*
 =============
@@ -868,7 +899,7 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
+static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 {
 	int		i;
 	char	string[128];
@@ -883,7 +914,10 @@ static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
 	switch (key->type & ~DEF_SAVEGLOBAL)
 	{
 	case ev_string:
-		*(string_t *)d = ED_NewString(s);
+		if (zoned)	//zoned version allows us to change the strings more freely
+			ED_RezoneString((string_t *)d, s);
+		else
+			*(string_t *)d = ED_NewString(s);
 		break;
 
 	case ev_float:
@@ -1039,7 +1073,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			sprintf (com_token, "0 %s 0", temp);
 		}
 
-		if (!ED_ParseEpair ((void *)&ent->v, key, com_token))
+		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
 			Host_Error ("ED_ParseEdict: parse error");
 	}
 
@@ -1148,6 +1182,38 @@ void ED_LoadFromFile (const char *data)
 	Con_DPrintf ("%i entities inhibited\n", inhibit);
 }
 
+void PR_UnzoneAll(void)
+{	//called to clean up all zoned strings.
+	while (qcvm->knownzonesize --> 0)
+	{
+		size_t id = qcvm->knownzonesize;
+		if (qcvm->knownzone[id>>3] & (1u<<(id&7)))
+		{
+			string_t s = -1-(int)id;
+			char *ptr = (char*)PR_GetString(s);
+			PR_ClearEngineString(s);
+			Z_Free(ptr);
+		}
+	}
+	if (qcvm->knownzone)
+		Z_Free(qcvm->knownzone);
+	qcvm->knownzonesize = 0;
+	qcvm->knownzone = NULL;
+}
+
+/*
+===============
+PR_ShutdownExtensions
+
+called at map end
+===============
+*/
+void PR_ShutdownExtensions (void)
+{
+	PR_UnzoneAll();
+	if (qcvm == &cl.qcvm)
+		PR_ReloadPics(true);
+}
 
 qcvm_t *qcvm;
 globalvars_t	*pr_global_struct;
@@ -1169,6 +1235,7 @@ void PR_ClearProgs(qcvm_t *vm)
 		return;	//wasn't loaded.
 	qcvm = NULL;
 	PR_SwitchQCVM(vm);
+	PR_ShutdownExtensions();
 
 	if (qcvm->knownstrings)
 		Z_Free ((void *)qcvm->knownstrings);
@@ -1181,6 +1248,50 @@ void PR_ClearProgs(qcvm_t *vm)
 	PR_SwitchQCVM(oldvm);
 }
 
+static func_t PR_FindExtFunction(const char *entryname)
+{	//depends on 0 being an invalid function,
+	dfunction_t *func = ED_FindFunction(entryname);
+	if (func)
+		return func - qcvm->functions;
+	return 0;
+}
+
+static void *PR_FindExtGlobal(int type, const char *name)
+{
+	ddef_t *def = ED_FindGlobal(name);
+	if (def && (def->type&~DEF_SAVEGLOBAL) == type && def->ofs < qcvm->progs->numglobals)
+		return qcvm->globals + def->ofs;
+	return NULL;
+}
+
+/*
+===============
+PR_EnableExtensions
+
+called at map start
+===============
+*/
+void PR_EnableExtensions (void)
+{
+#define QCEXTFUNC(n,t) qcvm->extfuncs.n = PR_FindExtFunction(#n);
+#define QCEXTGLOBAL_FLOAT(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_float, #n);
+#define QCEXTGLOBAL_INT(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_ext_integer, #n);
+#define QCEXTGLOBAL_VECTOR(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_vector, #n);
+
+	if (qcvm == &cl.qcvm)
+	{	//csqc
+		QCEXTFUNCS_CS
+		QCEXTGLOBALS_CSQC
+	}
+
+#undef QCEXTGLOBAL_FLOAT
+#undef QCEXTGLOBAL_INT
+#undef QCEXTGLOBAL_VECTOR
+#undef QCEXTFUNC
+}
+
+extern void PF_Fixme (void);
+
 /*
 ===============
 PR_InitBuiltins
@@ -1192,19 +1303,18 @@ static void PR_InitBuiltins (void)
 	const char	*name;
 	int			i, j;
 
-	// add base builtins
-	memcpy (qcvm->builtins, pr_basebuiltins, pr_numbasebuiltins * sizeof (pr_basebuiltins[0]));
+	for (i = 0; i < MAX_BUILTINS; i++)
+		qcvm->builtins[i] = PF_Fixme;
 
-	// fill all other entries with PF_Fixme
-	for (i = pr_numbasebuiltins; i < MAX_BUILTINS; i++)
-		qcvm->builtins[i] = pr_basebuiltins[0];
-
-	// fill top slots (excluding the very last one) with extension builtins
-	for (j = 0; j < pr_numextbuiltins; j++)
+	for (i = MAX_BUILTINS - 2, j = 0; j < pr_numextbuiltins; j++)
 	{
 		extbuiltin_t *ext = &pr_extbuiltins[j];
-		ext->number = MAX_BUILTINS - 1 - pr_numextbuiltins + j;
-		qcvm->builtins[ext->number] = ext->func;
+		builtin_t func = (qcvm == &sv.qcvm) ? ext->ssqcfunc : ext->csqcfunc;
+		if (!func)
+			continue;
+		if (!ext->number)
+			ext->number = i--;
+		qcvm->builtins[ext->number] = func;
 	}
 
 	qcvm->numbuiltins = MAX_BUILTINS;
@@ -1286,17 +1396,18 @@ static void PR_PatchRereleaseBuiltins (void)
 PR_LoadProgs
 ===============
 */
-void PR_LoadProgs (void)
+qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 {
 	int			i;
 
-	CRC_Init (&qcvm->crc);
+	PR_ClearProgs(qcvm);	//just in case.
 
-	qcvm->progs = (dprograms_t *)COM_LoadHunkFile ("progs.dat", NULL);
+	qcvm->progs = (dprograms_t *)COM_LoadHunkFile (filename, NULL);
 	if (!qcvm->progs)
-		Host_Error ("PR_LoadProgs: couldn't load progs.dat");
+		return false;
 	Con_DPrintf ("Programs occupy %iK.\n", com_filesize/1024);
 
+	CRC_Init (&qcvm->crc);
 	for (i = 0; i < com_filesize; i++)
 		CRC_ProcessByte (&qcvm->crc, ((byte *)qcvm->progs)[i]);
 
@@ -1305,9 +1416,54 @@ void PR_LoadProgs (void)
 		((int *)qcvm->progs)[i] = LittleLong ( ((int *)qcvm->progs)[i] );
 
 	if (qcvm->progs->version != PROG_VERSION)
-		Host_Error ("progs.dat has wrong version number (%i should be %i)", qcvm->progs->version, PROG_VERSION);
+	{
+		if (fatal)
+			Host_Error ("%s has wrong version number (%i should be %i)", filename, qcvm->progs->version, PROG_VERSION);
+		else
+		{
+			Con_Printf("%s ABI set not supported\n", filename);
+			qcvm->progs = NULL;
+			return false;
+		}
+	}
+
 	if (qcvm->progs->crc != PROGHEADER_CRC)
-		Host_Error ("progs.dat system vars have been modified, progdefs.h is out of date");
+	{
+		if (fatal)
+			Host_Error ("%s system vars have been modified, progdefs.h is out of date", filename);
+		else
+		{
+			switch(qcvm->progs->crc)
+			{
+			case 22390:	//full csqc
+				Con_Printf("%s - full csqc is not supported\n", filename);
+				break;
+			case 52195:	//dp csqc
+				Con_Printf("%s - obsolete csqc is not supported\n", filename);
+				break;
+			case 54730:	//quakeworld
+				Con_Printf("%s - quakeworld gamecode is not supported\n", filename);
+				break;
+			case 26940:	//prerelease
+				Con_Printf("%s - prerelease gamecode is not supported\n", filename);
+				break;
+			case 32401:	//tenebrae
+				Con_Printf("%s - tenebrae gamecode is not supported\n", filename);
+				break;
+			case 38488:	//hexen2 release
+			case 26905:	//hexen2 mission pack
+			case 14046: //hexen2 demo
+				Con_Printf("%s - hexen2 gamecode is not supported\n", filename);
+				break;
+			//case 5927: //nq PROGHEADER_CRC as above. shouldn't happen, obviously.
+			default:
+				Con_Printf("%s system vars are not supported\n", filename);
+				break;
+			}
+			qcvm->progs = NULL;
+			return false;
+		}
+	}
 
 	qcvm->functions = (dfunction_t *)((byte *)qcvm->progs + qcvm->progs->ofs_functions);
 	qcvm->strings = (char *)qcvm->progs + qcvm->progs->ofs_strings;
@@ -1386,8 +1542,11 @@ void PR_LoadProgs (void)
 	PR_InitHashTables ();
 	PR_InitBuiltins ();
 	PR_PatchRereleaseBuiltins ();
+	PR_EnableExtensions ();
 
 	qcvm->effects_mask = PR_FindSupportedEffects ();
+
+	return true;
 }
 
 /*
@@ -1504,6 +1663,16 @@ const char *PR_GetString (int num)
 	{
 		Host_Error("PR_GetString: invalid string offset %d\n", num);
 		return "";
+	}
+}
+
+void PR_ClearEngineString (int num)
+{
+	if (num < 0 && num >= -qcvm->numknownstrings)
+	{
+		num = -1 - num;
+		qcvm->knownstrings[num] = (const char*) qcvm->firstfreeknownstring;
+		qcvm->firstfreeknownstring = &qcvm->knownstrings[num];
 	}
 }
 

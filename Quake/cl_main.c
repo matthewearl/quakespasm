@@ -82,8 +82,18 @@ CL_ClearState
 */
 void CL_ClearState (void)
 {
+	if (cl.qcvm.extfuncs.CSQC_Shutdown)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		PR_ExecuteProgram(qcvm->extfuncs.CSQC_Shutdown);
+		qcvm->extfuncs.CSQC_Shutdown = 0;
+		PR_SwitchQCVM(NULL);
+	}
+
 	if (!sv.active)
 		Host_ClearMemory ();
+
+	PR_ClearProgs(&cl.qcvm);
 
 // wipe the entire cl structure
 	memset (&cl, 0, sizeof(cl));
@@ -145,6 +155,7 @@ void CL_Disconnect (void)
 	cls.demoplayback = cls.timedemo = false;
 	cls.demopaused = false;
 	cl.intermission = 0;
+	cl.sendprespawn = false;
 	CL_ClearSignons ();
 
 	V_ResetEffects ();
@@ -202,8 +213,7 @@ void CL_SignonReply (void)
 	switch (cls.signon)
 	{
 	case 1:
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, "prespawn");
+		cl.sendprespawn = true;
 		break;
 
 	case 2:

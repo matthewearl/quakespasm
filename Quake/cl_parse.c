@@ -749,6 +749,7 @@ void CL_ParseClientdata (void)
 			if ( (i & (1<<j)) && !(cl.items & (1<<j)))
 				cl.item_gettime[j] = cl.time;
 		cl.items = i;
+		cl.stats[STAT_ITEMS] = i;
 	}
 
 	cl.onground = (bits & SU_ONGROUND) != 0;
