@@ -1416,11 +1416,10 @@ static void PR_InitBuiltins (void)
 	{
 		extbuiltin_t *ext = &pr_extbuiltins[j];
 		builtin_t func = (qcvm == &sv.qcvm) ? ext->ssqcfunc : ext->csqcfunc;
-		if (!func)
-			continue;
 		if (!ext->number)
 			ext->number = i--;
-		qcvm->builtins[ext->number] = func;
+		if (func)
+			qcvm->builtins[ext->number] = func;
 	}
 
 	qcvm->numbuiltins = MAX_BUILTINS;
