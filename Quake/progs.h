@@ -113,6 +113,46 @@ struct pr_extglobals_s
 #undef QCEXTGLOBAL_VECTOR
 };
 
+struct pr_extfields_s
+{	//various fields that might be wanted by the engine. -1 == invalid
+
+#define QCEXTFIELDS_ALL	\
+	/*renderscene means we need a number of fields here*/	\
+	QCEXTFIELD(alpha,					".float")				/*float*/	\
+	QCEXTFIELD(scale,					".float")				/*float*/	\
+	QCEXTFIELD(colormod,				".vector")			/*vector*/	\
+	/*end of list*/
+#define QCEXTFIELDS_GAME	\
+	/*stuff used by csqc+ssqc, but not menu*/	\
+	QCEXTFIELD(customphysics,			".void()")/*function*/	\
+	QCEXTFIELD(gravity,					".float")			/*float*/	\
+	//end of list
+#define QCEXTFIELDS_SS	\
+	/*ssqc-only*/	\
+	QCEXTFIELD(items2,					"//.float")				/*float*/	\
+	QCEXTFIELD(movement,				".vector")			/*vector*/	\
+	QCEXTFIELD(viewmodelforclient,		".entity")	/*entity*/	\
+	QCEXTFIELD(exteriormodeltoclient,	".entity")	/*entity*/	\
+	QCEXTFIELD(traileffectnum,			".float")		/*float*/	\
+	QCEXTFIELD(emiteffectnum,			".float")		/*float*/	\
+	QCEXTFIELD(button3,					".float")			/*float*/	\
+	QCEXTFIELD(button4,					".float")			/*float*/	\
+	QCEXTFIELD(button5,					".float")			/*float*/	\
+	QCEXTFIELD(button6,					".float")			/*float*/	\
+	QCEXTFIELD(button7,					".float")			/*float*/	\
+	QCEXTFIELD(button8,					".float")			/*float*/	\
+	QCEXTFIELD(viewzoom,				".float")			/*float*/	\
+	QCEXTFIELD(SendEntity,				".float(entity to, float changedflags)")			/*function*/	\
+	QCEXTFIELD(SendFlags,				".float")			/*float. :( */	\
+	//end of list
+
+#define QCEXTFIELD(n,t) int n;
+	QCEXTFIELDS_ALL
+	QCEXTFIELDS_GAME
+	QCEXTFIELDS_SS
+#undef QCEXTFIELD
+};
+
 typedef struct qcvm_s
 {
 	dprograms_t		*progs;
@@ -123,7 +163,6 @@ typedef struct qcvm_s
 
 	int				edict_size;	/* in bytes */
 
-	qboolean		alpha_supported; //johnfitz
 	int				effects_mask; // only enable 2021 rerelease quad/penta dlights when applicable
 
 	builtin_t		builtins[MAX_BUILTINS];
@@ -139,6 +178,7 @@ typedef struct qcvm_s
 
 	struct pr_extfuncs_s extfuncs;
 	struct pr_extglobals_s extglobals;
+	struct pr_extfields_s extfields;
 
 	//was static inside pr_edict
 	char			*strings;
@@ -260,6 +300,7 @@ FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
 void ED_PrintEdicts (void);
 void ED_PrintNum (int ent);
 
-eval_t *GetEdictFieldValue(edict_t *ed, const char *field);
+eval_t *GetEdictFieldValue(edict_t *ed, int fldofs);
+eval_t *GetEdictFieldValueByName(edict_t *ed, const char *name);
 
 #endif	/* QUAKE_PROGS_H */

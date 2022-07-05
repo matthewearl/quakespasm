@@ -1925,7 +1925,7 @@ static void Host_Give_f (void)
 	case 's':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_shells1");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_shells1");
 		    if (val)
 			val->_float = v;
 		}
@@ -1935,7 +1935,7 @@ static void Host_Give_f (void)
 	case 'n':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_nails1");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_nails1");
 		    if (val)
 		    {
 			val->_float = v;
@@ -1952,7 +1952,7 @@ static void Host_Give_f (void)
 	case 'l':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_lava_nails");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_lava_nails");
 		    if (val)
 		    {
 			val->_float = v;
@@ -1965,7 +1965,7 @@ static void Host_Give_f (void)
 	case 'r':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_rockets1");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_rockets1");
 		    if (val)
 		    {
 			val->_float = v;
@@ -1982,7 +1982,7 @@ static void Host_Give_f (void)
 	case 'm':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_multi_rockets");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_multi_rockets");
 		    if (val)
 		    {
 			val->_float = v;
@@ -1999,7 +1999,7 @@ static void Host_Give_f (void)
 	case 'c':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_cells1");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_cells1");
 		    if (val)
 		    {
 			val->_float = v;
@@ -2016,7 +2016,7 @@ static void Host_Give_f (void)
 	case 'p':
 		if (rogue)
 		{
-		    val = GetEdictFieldValue(sv_player, "ammo_plasma");
+		    val = GetEdictFieldValueByName(sv_player, "ammo_plasma");
 		    if (val)
 		    {
 			val->_float = v;
@@ -2322,34 +2322,34 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("mapname", Host_Mapname_f); //johnfitz
 	Cmd_AddCommand ("randmap", Host_Randmap_f); //ericw
 
-	Cmd_AddCommand ("status", Host_Status_f);
+	Cmd_AddCommand_ClientCommand ("status", Host_Status_f);
 	Cmd_AddCommand ("quit", Host_Quit_f);
-	Cmd_AddCommand ("god", Host_God_f);
-	Cmd_AddCommand ("notarget", Host_Notarget_f);
-	Cmd_AddCommand ("fly", Host_Fly_f);
+	Cmd_AddCommand_ClientCommand ("god", Host_God_f);
+	Cmd_AddCommand_ClientCommand ("notarget", Host_Notarget_f);
+	Cmd_AddCommand_ClientCommand ("fly", Host_Fly_f);
 	Cmd_AddCommand ("map", Host_Map_f);
 	Cmd_AddCommand ("restart", Host_Restart_f);
 	Cmd_AddCommand ("changelevel", Host_Changelevel_f);
 	Cmd_AddCommand ("connect", Host_Connect_f);
-	Cmd_AddCommand ("reconnect", Host_Reconnect_f);
-	Cmd_AddCommand ("name", Host_Name_f);
-	Cmd_AddCommand ("noclip", Host_Noclip_f);
-	Cmd_AddCommand ("setpos", Host_SetPos_f); //QuakeSpasm
+	Cmd_AddCommand_Console ("reconnect", Host_Reconnect_f);
+	Cmd_AddCommand_ClientCommand ("name", Host_Name_f);
+	Cmd_AddCommand_ClientCommand ("noclip", Host_Noclip_f);
+	Cmd_AddCommand_ClientCommand ("setpos", Host_SetPos_f); //QuakeSpasm
 
-	Cmd_AddCommand ("say", Host_Say_f);
-	Cmd_AddCommand ("say_team", Host_Say_Team_f);
-	Cmd_AddCommand ("tell", Host_Tell_f);
-	Cmd_AddCommand ("color", Host_Color_f);
-	Cmd_AddCommand ("kill", Host_Kill_f);
-	Cmd_AddCommand ("pause", Host_Pause_f);
-	Cmd_AddCommand ("spawn", Host_Spawn_f);
-	Cmd_AddCommand ("begin", Host_Begin_f);
-	Cmd_AddCommand ("prespawn", Host_PreSpawn_f);
-	Cmd_AddCommand ("kick", Host_Kick_f);
-	Cmd_AddCommand ("ping", Host_Ping_f);
+	Cmd_AddCommand_ClientCommand ("say", Host_Say_f);
+	Cmd_AddCommand_ClientCommand ("say_team", Host_Say_Team_f);
+	Cmd_AddCommand_ClientCommand ("tell", Host_Tell_f);
+	Cmd_AddCommand_ClientCommand ("color", Host_Color_f);
+	Cmd_AddCommand_ClientCommand ("kill", Host_Kill_f);
+	Cmd_AddCommand_ClientCommand ("pause", Host_Pause_f);
+	Cmd_AddCommand_ClientCommand ("spawn", Host_Spawn_f);
+	Cmd_AddCommand_ClientCommand ("begin", Host_Begin_f);
+	Cmd_AddCommand_ClientCommand ("prespawn", Host_PreSpawn_f);
+	Cmd_AddCommand_ClientCommand ("kick", Host_Kick_f);
+	Cmd_AddCommand_ClientCommand ("ping", Host_Ping_f);
 	Cmd_AddCommand ("load", Host_Loadgame_f);
 	Cmd_AddCommand ("save", Host_Savegame_f);
-	Cmd_AddCommand ("give", Host_Give_f);
+	Cmd_AddCommand_ClientCommand ("give", Host_Give_f);
 
 	Cmd_AddCommand ("startdemos", Host_Startdemos_f);
 	Cmd_AddCommand ("demos", Host_Demos_f);

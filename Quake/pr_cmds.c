@@ -1741,7 +1741,7 @@ EXTENSION BUILT-INS
 ===============================================================================
 */
 
-cvar_t pr_checkextension = {"pr_checkextension", "0", CVAR_NONE};	//spike - enables qc extensions. if 0 then they're ALL BLOCKED! MWAHAHAHA! *cough* *splutter*
+cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE};	//spike - enables qc extensions. if 0 then they're ALL BLOCKED! MWAHAHAHA! *cough* *splutter*
 
 static void PF_checkextension(void)
 {
@@ -1930,10 +1930,6 @@ int PR_Markup_Parse(struct markup_s *mu)
 static void PF_cl_getstat_int(void)
 {
 	int stnum = G_FLOAT(OFS_PARM0);
-	if (stnum == STAT_SHELLS)
-	{
-		int abcd = 0;
-	}
 	if (stnum < 0 || stnum >= countof(cl.stats))
 		G_INT(OFS_RETURN) = 0;
 	else
@@ -1951,7 +1947,19 @@ static void PF_cl_getstat_float(void)
 		G_FLOAT(OFS_RETURN) = (cl.stats[stnum]>>firstbit) & ((1<<bitcount)-1);
 	}
 	else
-		G_FLOAT(OFS_RETURN) = cl.stats[stnum];
+		G_FLOAT(OFS_RETURN) = cl.statsf[stnum];
+}
+static void PF_cl_getstat_string(void)
+{
+	int stnum = G_FLOAT(OFS_PARM0);
+	if (stnum < 0 || stnum >= countof(cl.statss) || !cl.statss[stnum])
+		G_INT(OFS_RETURN) = 0;
+	else
+	{
+		char *result = PR_GetTempString();
+		q_strlcpy(result, cl.statss[stnum], STRINGTEMP_LENGTH);
+		G_INT(OFS_RETURN) = PR_SetEngineString(result);
+	}
 }
 
 static struct
@@ -2999,6 +3007,46 @@ static void PF_cl_registercommand(void)
 	Cmd_AddCommand(cmdname, NULL);
 }
 
+static struct svcustomstat_s *PR_CustomStat(int idx, int type)
+{
+	size_t i;
+	if (idx < 0 || idx >= MAX_CL_STATS)
+		return NULL;
+	switch(type)
+	{
+	case ev_ext_integer:
+	case ev_float:
+	case ev_vector:
+	case ev_entity:
+		break;
+	default:
+		return NULL;
+	}
+
+	for (i = 0; i < sv.numcustomstats; i++)
+	{
+		if (sv.customstats[i].idx == idx && (sv.customstats[i].type==ev_string) == (type==ev_string))
+			break;
+	}
+	if (i == sv.numcustomstats)
+		sv.numcustomstats++;
+	sv.customstats[i].idx = idx;
+	sv.customstats[i].type = type;
+	sv.customstats[i].fld = 0;
+	sv.customstats[i].ptr = NULL;
+	return &sv.customstats[i];
+}
+static void PF_clientstat(void)
+{
+	int idx = G_FLOAT(OFS_PARM0);
+	int type = G_FLOAT(OFS_PARM1);
+	int fldofs = G_INT(OFS_PARM2);
+	struct svcustomstat_s *stat = PR_CustomStat(idx, type);
+	if (!stat)
+		return;
+	stat->fld = fldofs;
+}
+
 #define PF_BOTH(x)	x,x
 #define PF_CSQC(x)	NULL,x
 #define PF_SSQC(x)	x,NULL
@@ -3122,6 +3170,8 @@ extbuiltin_t pr_extbuiltins[] =
 	{"str2chr",					PF_BOTH(PF_str2chr),			222},	// float(string str, float index)
 	{"chr2str",					PF_BOTH(PF_chr2str),			223},	// string(float chr, ...)
 
+	{"clientstat",				PF_SSQC(PF_clientstat),			232},	// void(float num, float type, .__variant fld)
+
 	{"mod",						PF_BOTH(PF_mod),				245},	// float(float a, float n)
 
 	{"ftoi",					PF_BOTH(PF_ftoi)},						// int(float)
@@ -3142,6 +3192,7 @@ extbuiltin_t pr_extbuiltins[] =
 
 	{"getstati",				PF_CSQC(PF_cl_getstat_int),		330},	// #define getstati_punf(stnum) (float)(__variant)getstati(stnum)\nint(float stnum)
 	{"getstatf",				PF_CSQC(PF_cl_getstat_float),	331},	// #define getstatbits getstatf\nfloat(float stnum, optional float firstbit, optional float bitcount)
+	{"getstats",				PF_CSQC(PF_cl_getstat_string),	332},	// string(float stnum)
 
 	{"registercommand",			PF_CSQC(PF_cl_registercommand),	352},	// void(string cmdname)
 

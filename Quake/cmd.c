@@ -110,6 +110,16 @@ void Cbuf_AddText (const char *text)
 
 	SZ_Write (&cmd_text, text, Q_strlen (text));
 }
+void Cbuf_AddTextLen (const char *text, int l)
+{
+	if (cmd_text.cursize + l >= cmd_text.maxsize)
+	{
+		Con_Printf ("Cbuf_AddText: overflow\n");
+		return;
+	}
+
+	SZ_Write (&cmd_text, text, l);
+}
 
 
 /*
@@ -851,7 +861,7 @@ A complete command line has been parsed, so try to execute it
 FIXME: lookupnoadd the token to speed search?
 ============
 */
-void	Cmd_ExecuteString (const char *text, cmd_source_t src)
+qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 {
 	cmd_function_t	*cmd;
 	cmdalias_t		*a;
@@ -861,17 +871,34 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 
 // execute the command line
 	if (!Cmd_Argc())
-		return;		// no tokens
+		return true;		// no tokens
 
 // check functions
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
 		if (!q_strcasecmp (cmd_argv[0],cmd->name))
 		{
-			cmd->function ();
-			return;
+			if (src == src_client && cmd->srctype != src_client)
+				Con_DPrintf("%s tried to %s\n", host_client->name, text);	//src_client only allows client commands
+			else if (src == src_command && cmd->srctype == src_server)
+				continue;	//src_command can execute anything but server commands (which it ignores, allowing for alternative behaviour)
+			else if (src == src_server && cmd->srctype != src_server)
+				continue;	//src_server may only execute server commands (such commands must be safe to parse within the context of a network message, so no disconnect/connect/playdemo/etc)
+			else if (cmd->function)
+				cmd->function ();
+			else
+				Con_Printf ("gamecode not running, cannot \"%s\"\n", Cmd_Argv(0));
+			return true;
 		}
 	}
+
+	if (src == src_client)
+	{	//spike -- please don't execute similarly named aliases, nor custom cvars...
+		Con_DPrintf("%s tried to %s\n", host_client->name, text);
+		return false;
+	}
+	if (src != src_command)
+		return false;
 
 // check alias
 	for (a=cmd_alias ; a ; a=a->next)
@@ -879,7 +906,7 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 		if (!q_strcasecmp (cmd_argv[0], a->name))
 		{
 			Cbuf_InsertText (a->value);
-			return;
+			return true;
 		}
 	}
 
@@ -891,6 +918,8 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 		else
 			Cmd_ListAllContaining (Cmd_Argv(0));
 	}
+
+	return true;
 }
 
 

@@ -593,7 +593,8 @@ void Host_ClearMemory (void)
 	Hunk_FreeToLowMark (host_hunklevel);
 	CL_ClearSignons ();
 	memset (&sv, 0, sizeof(sv));
-	memset (&cl, 0, sizeof(cl));
+
+	CL_FreeState ();
 }
 
 

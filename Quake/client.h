@@ -151,6 +151,8 @@ typedef struct
 
 // information for local display
 	int			stats[MAX_CL_STATS];	// health, etc
+	float		statsf[MAX_CL_STATS];
+	char		*statss[MAX_CL_STATS];
 	int			items;			// inventory bit flags
 	float	item_gettime[32];	// cl.time of aquiring item, for blinking
 	float		faceanimtime;	// use anim frame if cl.time < this
@@ -230,6 +232,8 @@ typedef struct
 	unsigned	protocolflags;
 
 	qboolean	sendprespawn;
+
+	char		stuffcmdbuf[1024];	//comment-extensions are a thing with certain servers, make sure we can handle them properly without further hacks/breakages. there's also some server->client only console commands that we might as well try to handle a bit better, like reconnect
 
 	qcvm_t		qcvm;	//for csqc.
 } client_state_t;
@@ -335,6 +339,7 @@ void CL_BaseMove (usercmd_t *cmd);
 void CL_ParseTEnt (void);
 void CL_UpdateTEnts (void);
 
+void CL_FreeState(void);
 void CL_ClearState (void);
 
 //

@@ -74,6 +74,15 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+
+	struct svcustomstat_s
+	{
+		int idx;
+		int type;
+		int fld;
+		eval_t *ptr;
+	} customstats[MAX_CL_STATS*2];	//strings or numeric...
+	size_t		numcustomstats;
 } server_t;
 
 
@@ -117,6 +126,10 @@ typedef struct client_s
 
 // client known data for deltas
 	int				old_frags;
+
+	int				oldstats_i[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	float			oldstats_f[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	char			*oldstats_s[MAX_CL_STATS];
 } client_t;
 
 

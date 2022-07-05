@@ -36,6 +36,72 @@ static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
 
 //============================================================================
 
+SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **statss)
+{
+	size_t i;
+	edict_t *ent = client->edict;
+	//FIXME: string stats!
+	int items;
+	eval_t *val = GetEdictFieldValue(ent, qcvm->extfields.items2);
+	if (val)
+		items = (int)ent->v.items | ((int)val->_float << 23);
+	else
+		items = (int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
+
+	memset(statsi, 0, sizeof(*statsi)*MAX_CL_STATS);
+	memset(statsf, 0, sizeof(*statsf)*MAX_CL_STATS);
+	memset((void*)statss, 0, sizeof(*statss)*MAX_CL_STATS);
+	statsf[STAT_HEALTH] = ent->v.health;
+//	statsf[STAT_FRAGS] = ent->v.frags;	//obsolete
+	statsi[STAT_WEAPON] = SV_ModelIndex(PR_GetString(ent->v.weaponmodel));
+	//if ((unsigned int)statsi[STAT_WEAPON] >= client->limit_models)
+	//	statsi[STAT_WEAPON] = 0;
+	statsf[STAT_AMMO] = ent->v.currentammo;
+	statsf[STAT_ARMOR] = ent->v.armorvalue;
+	statsf[STAT_WEAPONFRAME] = ent->v.weaponframe;
+	statsf[STAT_SHELLS] = ent->v.ammo_shells;
+	statsf[STAT_NAILS] = ent->v.ammo_nails;
+	statsf[STAT_ROCKETS] = ent->v.ammo_rockets;
+	statsf[STAT_CELLS] = ent->v.ammo_cells;
+	statsf[STAT_ACTIVEWEAPON] = ent->v.weapon;	//sent in a way that does NOT depend upon the current mod...
+
+	//FIXME: add support for clientstat/globalstat qc builtins.
+
+	for (i = 0; i < sv.numcustomstats; i++)
+	{
+		eval_t *eval = sv.customstats[i].ptr;
+		if (!eval)
+			eval = GetEdictFieldValue(ent, sv.customstats[i].fld);
+
+		switch(sv.customstats[i].type)
+		{
+		case ev_ext_integer:
+			statsi[sv.customstats[i].idx] = eval->_int;
+			break;
+		case ev_entity:
+			statsi[sv.customstats[i].idx] = NUM_FOR_EDICT(PROG_TO_EDICT(eval->edict));
+			break;
+		case ev_float:
+			statsf[sv.customstats[i].idx] = eval->_float;
+			break;
+		case ev_vector:
+			statsf[sv.customstats[i].idx+0] = eval->vector[0];
+			statsf[sv.customstats[i].idx+1] = eval->vector[1];
+			statsf[sv.customstats[i].idx+2] = eval->vector[2];
+			break;
+		case ev_string:		//not supported in this build... send with svcfte_updatestatstring on change, which is annoying.
+			statss[sv.customstats[i].idx] = PR_GetString(eval->string);
+			break;
+		case ev_void:		//nothing...
+		case ev_field:		//panic! everyone panic!
+		case ev_function:	//doesn't make much sense
+		case ev_pointer:	//doesn't make sense
+		default:
+			break;
+		}
+	}
+}
+
 /*
 ===============
 SV_Protocol_f
@@ -626,6 +692,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	byte	*pvs;
 	vec3_t	org, forward, right, up;
 	float	miss, dist, size;
+	eval_t	*val;
 	edict_t	*ent;
 
 // find the client's PVS
@@ -790,14 +857,10 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			bits |= U_MODEL;
 
 		//johnfitz -- alpha
-		if (qcvm->alpha_supported)
-		{
-			// TODO: find a cleaner place to put this code
-			eval_t	*val;
-			val = GetEdictFieldValue(ent, "alpha");
-			if (val)
-				ent->alpha = ENTALPHA_ENCODE(val->_float);
-		}
+		// TODO: find a cleaner place to put this code
+		val = GetEdictFieldValueByName(ent, "alpha");
+		if (val)
+			ent->alpha = ENTALPHA_ENCODE(val->_float);
 
 		//don't send invisible entities unless they have effects
 		if (ent->alpha == ENTALPHA_ZERO && !((int)ent->v.effects & qcvm->effects_mask))
@@ -959,7 +1022,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 
 // stuff the sigil bits into the high bits of items for sbar, or else
 // mix in items2
-	val = GetEdictFieldValue(ent, "items2");
+	val = GetEdictFieldValueByName(ent, "items2");
 
 	if (val)
 		items = (int)ent->v.items | ((int)val->_float << 23);
@@ -1130,6 +1193,74 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 /*
 =======================
+SV_WriteStats
+
+TODO: group multiple stats in a single stuffcmd, the client already supports this
+=======================
+*/
+void SV_WriteStats (client_t *client)
+{
+	int			statsi[MAX_CL_STATS];
+	float		statsf[MAX_CL_STATS];
+	const char	*statss[MAX_CL_STATS];
+	int			i;
+
+	SV_CalcStats (client, statsi, statsf, statss);
+
+	for (i = 0; i < MAX_CL_STATS; i++)
+	{
+		//small cleanup
+		if (!statsi[i])
+			statsi[i] =	statsf[i];
+		else
+			statsf[i] =	0;//statsi[i];
+
+		if (statsi[i] != client->oldstats_i[i] || statsf[i] != client->oldstats_f[i])
+		{
+			client->oldstats_i[i] = statsi[i];
+			client->oldstats_f[i] = statsf[i];
+
+			if ((double)statsi[i] != statsf[i] && statsf[i])
+			{	//didn't round nicely, so send as a float
+				MSG_WriteByte (&client->message, svc_stufftext);
+				MSG_WriteString (&client->message, va ("//st %i %g\n", i, statsf[i]));
+			}
+			else
+			{
+				if (i < MAX_CL_BASE_STATS)
+				{
+					MSG_WriteByte (&client->message, svc_updatestat);
+					MSG_WriteByte (&client->message, i);
+					MSG_WriteLong (&client->message, statsi[i]);
+				}
+				else
+				{
+					MSG_WriteByte (&client->message, svc_stufftext);
+					MSG_WriteString (&client->message, va ("//st %i %i\n", i, statsi[i]));
+				}
+			}
+		}
+
+		if (statss[i] || client->oldstats_s[i])
+		{
+			const char *os = client->oldstats_s[i];
+			const char *ns = statss[i];
+			if (!ns)	ns="";
+			if (!os)	os="";
+			if (strcmp(os,ns))
+			{
+				free(client->oldstats_s[i]);
+				client->oldstats_s[i] = strdup(ns);
+
+				MSG_WriteByte (&client->message, svc_stufftext);
+				MSG_WriteString (&client->message, va ("//sts %i \"%s\"\n", i, ns));
+			}
+		}
+	}
+}
+
+/*
+=======================
 SV_UpdateToReliableMessages
 =======================
 */
@@ -1160,6 +1291,7 @@ void SV_UpdateToReliableMessages (void)
 	{
 		if (!client->active)
 			continue;
+		SV_WriteStats (client);
 		SZ_Write (&client->message, sv.reliable_datagram.data, sv.reliable_datagram.cursize);
 	}
 

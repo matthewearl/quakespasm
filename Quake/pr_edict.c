@@ -316,6 +316,19 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
+/*
+============
+ED_FindFieldOffset
+============
+*/
+int ED_FindFieldOffset (const char *name)
+{
+	ddef_t		*def = ED_FindField(name);
+	if (!def)
+		return -1;
+	return def->ofs;
+}
+
 
 /*
 ============
@@ -377,15 +390,22 @@ static dfunction_t *ED_FindFunction (const char *fn_name)
 GetEdictFieldValue
 ============
 */
-eval_t *GetEdictFieldValue(edict_t *ed, const char *field)
+eval_t *GetEdictFieldValue(edict_t *ed, int fldofs)
 {
-	ddef_t *def;
-
-	def = ED_FindField (field);
-	if (!def)
+	if (fldofs < 0)
 		return NULL;
 
-	return (eval_t *)((char *)&ed->v + def->ofs*4);
+	return (eval_t *)((char *)&ed->v + fldofs*4);
+}
+
+/*
+============
+GetEdictFieldValueByName
+============
+*/
+eval_t *GetEdictFieldValueByName(edict_t *ed, const char *name)
+{
+	return GetEdictFieldValue(ed, ED_FindFieldOffset(name));
 }
 
 
@@ -645,7 +665,7 @@ void ED_Write (FILE *f, edict_t *ed)
 	}
 
 	//johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
-	if (!qcvm->alpha_supported && ed->alpha != ENTALPHA_DEFAULT)
+	if (!qcvm->extfields.alpha<0 && ed->alpha != ENTALPHA_DEFAULT)
 		fprintf (f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE(ed->alpha));
 	//johnfitz
 
@@ -1290,6 +1310,88 @@ void PR_EnableExtensions (void)
 #undef QCEXTFUNC
 }
 
+//makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.
+static void PR_MergeEngineFieldDefs (void)
+{
+	struct {
+		const char *fname;
+		etype_t type;
+		int newidx;
+	} extrafields[] =
+	{	//table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
+		//this is useful for fields that should be defined for mappers which are not defined by the mod.
+		//future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
+		{"alpha",			ev_float},	//just because we can (though its already handled in a weird hacky way)
+		{"scale",			ev_float},	//hurrah for being able to rescale entities.
+		{"emiteffectnum",	ev_float},	//constantly emitting particles, even without moving.
+		{"traileffectnum",	ev_float},	//custom effect for trails
+		//{"glow_size",		ev_float},	//deprecated particle trail rubbish
+		//{"glow_color",	ev_float},	//deprecated particle trail rubbish
+		{"tag_entity",		ev_float},	//for setattachment to not bug out when omitted.
+		{"tag_index",		ev_float},	//for setattachment to not bug out when omitted.
+		{"modelflags",		ev_float},	//deprecated rubbish to fill the high 8 bits of effects.
+		//{"vw_index",		ev_float},	//modelindex2
+		//{"pflags",		ev_float},	//for rtlights
+		//{"drawflags",		ev_float},	//hexen2 compat
+		//{"abslight",		ev_float},	//hexen2 compat
+		{"colormod",		ev_vector},	//lighting tints
+		//{"glowmod",		ev_vector},	//fullbright tints
+		//{"fatness",		ev_float},	//bloated rendering...
+		//{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
+
+	};
+	int maxofs = qcvm->progs->entityfields;
+	int maxdefs = qcvm->progs->numfielddefs;
+	unsigned int j, a;
+
+	//figure out where stuff goes
+	for (j = 0; j < countof(extrafields); j++)
+	{
+		extrafields[j].newidx = ED_FindFieldOffset(extrafields[j].fname);
+		if (extrafields[j].newidx < 0)
+		{
+			extrafields[j].newidx = maxofs;
+			maxdefs++;
+			if (extrafields[j].type == ev_vector)
+				maxdefs+=3;
+			maxofs+=type_size[extrafields[j].type];
+		}
+	}
+
+	if (maxdefs != qcvm->progs->numfielddefs)
+	{	//we now know how many entries we need to add...
+		ddef_t *olddefs = qcvm->fielddefs;
+		qcvm->fielddefs = malloc(maxdefs * sizeof(*qcvm->fielddefs));
+		memcpy(qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs*sizeof(*qcvm->fielddefs));
+		if (olddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
+			free(olddefs);
+
+		//allocate the extra defs
+		for (j = 0; j < countof(extrafields); j++)
+		{
+			if (extrafields[j].newidx >= qcvm->progs->entityfields && extrafields[j].newidx < maxofs)
+			{	//looks like its new. make sure ED_FindField can find it.
+				qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx;
+				qcvm->fielddefs[qcvm->progs->numfielddefs].type = extrafields[j].type;
+				qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(extrafields[j].fname);
+				qcvm->progs->numfielddefs++;
+
+				if (extrafields[j].type == ev_vector)
+				{	//vectors are weird and annoying.
+					for (a = 0; a < 3; a++)
+					{
+						qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx+a;
+						qcvm->fielddefs[qcvm->progs->numfielddefs].type = ev_float;
+						qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(va("%s_%c", extrafields[j].fname, 'x'+a));
+						qcvm->progs->numfielddefs++;
+					}
+				}
+			}
+		}
+		qcvm->progs->entityfields = maxofs;
+	}
+}
+
 extern void PF_Fixme (void);
 
 /*
@@ -1513,8 +1615,6 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
 	}
 
-	qcvm->alpha_supported = false; //johnfitz
-
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
 		qcvm->fielddefs[i].type = LittleShort (qcvm->fielddefs[i].type);
@@ -1522,15 +1622,18 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 			Host_Error ("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
 		qcvm->fielddefs[i].ofs = LittleShort (qcvm->fielddefs[i].ofs);
 		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
-
-		//johnfitz -- detect alpha support in progs.dat
-		if (!strcmp(qcvm->strings + qcvm->fielddefs[i].s_name,"alpha"))
-			qcvm->alpha_supported = true;
-		//johnfitz
 	}
 
 	for (i = 0; i < qcvm->progs->numglobals; i++)
 		((int *)qcvm->globals)[i] = LittleLong (((int *)qcvm->globals)[i]);
+
+	//spike: detect extended fields from progs
+	PR_MergeEngineFieldDefs ();
+#define QCEXTFIELD(n,t) qcvm->extfields.n = ED_FindFieldOffset (#n);
+	QCEXTFIELDS_ALL
+	QCEXTFIELDS_GAME
+	QCEXTFIELDS_SS
+#undef QCEXTFIELD
 
 	qcvm->edict_size = qcvm->progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 	// round off to next highest whole word address (esp for Alpha)
