@@ -78,6 +78,10 @@ typedef struct prhashtable_s
 
 struct pr_extfuncs_s
 {
+/*ssqc*/
+#define QCEXTFUNCS_SV \
+	QCEXTFUNC(SV_ParseClientCommand,	"void(string cmd)")		\
+/*csqc*/
 #define QCEXTFUNCS_CS \
 	QCEXTFUNC(CSQC_Init,				"void(float apilevel, string enginename, float engineversion)")	\
 	QCEXTFUNC(CSQC_Shutdown,			"void()")	\
@@ -85,6 +89,7 @@ struct pr_extfuncs_s
 	QCEXTFUNC(CSQC_DrawScores,			"void(vector virtsize, float showscores)")							/*simple: (optional) for the simple hud-only csqc interface.*/		\
 
 #define QCEXTFUNC(n,t) func_t n;
+	QCEXTFUNCS_SV
 	QCEXTFUNCS_CS
 #undef QCEXTFUNC
 };

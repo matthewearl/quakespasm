@@ -527,6 +527,17 @@ nextmsg:
 
 			case clc_stringcmd:
 				s = MSG_ReadString ();
+				if (q_strncasecmp(s, "spawn", 5) && q_strncasecmp(s, "begin", 5) && q_strncasecmp(s, "prespawn", 8) && qcvm->extfuncs.SV_ParseClientCommand)
+				{	//the spawn/begin/prespawn are because of numerous mods that disobey the rules.
+					//at a minimum, we must be able to join the server, so that we can see any sprints/bprints (because dprint sucks, yes there's proper ways to deal with this, but moders don't always know them).
+					client_t *ohc = host_client;
+					G_INT(OFS_PARM0) = PR_SetEngineString(s);
+					pr_global_struct->time = qcvm->time;
+					pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
+					PR_ExecuteProgram(qcvm->extfuncs.SV_ParseClientCommand);
+					host_client = ohc;
+					break;
+				}
 				ret = 0;
 				if (q_strncasecmp(s, "status", 6) == 0)
 					ret = 1;

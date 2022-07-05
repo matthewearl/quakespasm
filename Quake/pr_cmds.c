@@ -2905,6 +2905,185 @@ static void PF_sprintf(void)
 	G_INT(OFS_RETURN) = PR_SetEngineString(outbuf);
 }
 
+//string tokenizing (gah)
+#define MAXQCTOKENS 64
+static struct {
+	char *token;
+	unsigned int start;
+	unsigned int end;
+} qctoken[MAXQCTOKENS];
+static unsigned int qctoken_count;
+
+static void tokenize_flush(void)
+{
+	while(qctoken_count > 0)
+	{
+		qctoken_count--;
+		free(qctoken[qctoken_count].token);
+	}
+	qctoken_count = 0;
+}
+
+static void PF_ArgC(void)
+{
+	G_FLOAT(OFS_RETURN) = qctoken_count;
+}
+
+static int tokenizeqc(const char *str, qboolean dpfuckage)
+{
+	//FIXME: if dpfuckage, then we should handle punctuation specially, as well as /*.
+	const char *start = str;
+	while(qctoken_count > 0)
+	{
+		qctoken_count--;
+		free(qctoken[qctoken_count].token);
+	}
+	qctoken_count = 0;
+	while (qctoken_count < MAXQCTOKENS)
+	{
+		/*skip whitespace here so the token's start is accurate*/
+		while (*str && *(const unsigned char*)str <= ' ')
+			str++;
+
+		if (!*str)
+			break;
+
+		qctoken[qctoken_count].start = str - start;
+//		if (dpfuckage)
+//			str = COM_ParseDPFuckage(str);
+//		else
+			str = COM_Parse(str);
+		if (!str)
+			break;
+
+		qctoken[qctoken_count].token = strdup(com_token);
+
+		qctoken[qctoken_count].end = str - start;
+		qctoken_count++;
+	}
+	return qctoken_count;
+}
+
+/*KRIMZON_SV_PARSECLIENTCOMMAND added these two - note that for compatibility with DP, this tokenize builtin is veeery vauge and doesn't match the console*/
+static void PF_Tokenize(void)
+{
+	G_FLOAT(OFS_RETURN) = tokenizeqc(G_STRING(OFS_PARM0), true);
+}
+
+static void PF_tokenize_console(void)
+{
+	G_FLOAT(OFS_RETURN) = tokenizeqc(G_STRING(OFS_PARM0), false);
+}
+
+static void PF_tokenizebyseparator(void)
+{
+	const char *str = G_STRING(OFS_PARM0);
+	const char *sep[7];
+	int seplen[7];
+	int seps = 0, s;
+	const char *start = str;
+	int tlen;
+	qboolean found = true;
+
+	while (seps < qcvm->argc - 1 && seps < 7)
+	{
+		sep[seps] = G_STRING(OFS_PARM1 + seps*3);
+		seplen[seps] = strlen(sep[seps]);
+		seps++;
+	}
+
+	tokenize_flush();
+
+	qctoken[qctoken_count].start = 0;
+	if (*str)
+	for(;;)
+	{
+		found = false;
+		/*see if its a separator*/
+		if (!*str)
+		{
+			qctoken[qctoken_count].end = str - start;
+			found = true;
+		}
+		else
+		{
+			for (s = 0; s < seps; s++)
+			{
+				if (!strncmp(str, sep[s], seplen[s]))
+				{
+					qctoken[qctoken_count].end = str - start;
+					str += seplen[s];
+					found = true;
+					break;
+				}
+			}
+		}
+		/*it was, split it out*/
+		if (found)
+		{
+			tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
+			qctoken[qctoken_count].token = malloc(tlen + 1);
+			memcpy(qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
+			qctoken[qctoken_count].token[tlen] = 0;
+
+			qctoken_count++;
+
+			if (*str && qctoken_count < MAXQCTOKENS)
+				qctoken[qctoken_count].start = str - start;
+			else
+				break;
+		}
+		str++;
+	}
+	G_FLOAT(OFS_RETURN) = qctoken_count;
+}
+
+static void PF_argv_start_index(void)
+{
+	int idx = G_FLOAT(OFS_PARM0);
+
+	/*negative indexes are relative to the end*/
+	if (idx < 0)
+		idx += qctoken_count;	
+
+	if ((unsigned int)idx >= qctoken_count)
+		G_FLOAT(OFS_RETURN) = -1;
+	else
+		G_FLOAT(OFS_RETURN) = qctoken[idx].start;
+}
+
+static void PF_argv_end_index(void)
+{
+	int idx = G_FLOAT(OFS_PARM0);
+
+	/*negative indexes are relative to the end*/
+	if (idx < 0)
+		idx += qctoken_count;	
+
+	if ((unsigned int)idx >= qctoken_count)
+		G_FLOAT(OFS_RETURN) = -1;
+	else
+		G_FLOAT(OFS_RETURN) = qctoken[idx].end;
+}
+
+static void PF_ArgV(void)
+{
+	int idx = G_FLOAT(OFS_PARM0);
+
+	/*negative indexes are relative to the end*/
+	if (idx < 0)
+		idx += qctoken_count;
+
+	if ((unsigned int)idx >= qctoken_count)
+		G_INT(OFS_RETURN) = 0;
+	else
+	{
+		char *ret = PR_GetTempString();
+		q_strlcpy(ret, qctoken[idx].token, STRINGTEMP_LENGTH);
+		G_INT(OFS_RETURN) = PR_SetEngineString(ret);
+	}
+}
+
 //conversions (mostly string)
 static void PF_strtoupper(void)
 {
@@ -3046,6 +3225,24 @@ static void PF_clientstat(void)
 		return;
 	stat->fld = fldofs;
 }
+
+//server/client stuff
+static void PF_clientcommand(void)
+{
+	edict_t	*ed				= G_EDICT(OFS_PARM0);
+	const char *str			= G_STRING(OFS_PARM1);
+	unsigned int i			= NUM_FOR_EDICT(ed)-1;
+	if (i < (unsigned int)svs.maxclients && svs.clients[i].active)
+	{
+		client_t *ohc = host_client;
+		host_client = &svs.clients[i];
+		Cmd_ExecuteString (str, src_client);
+		host_client = ohc;
+	}
+	else
+		Con_Printf("PF_clientcommand: not a client\n");
+}
+
 
 #define PF_BOTH(x)	x,x
 #define PF_CSQC(x)	NULL,x
@@ -3198,11 +3395,18 @@ extbuiltin_t pr_extbuiltins[] =
 
 	{"vectorvectors",			PF_BOTH(PF_vectorvectors),		432},	// void(vector dir)
 
+	{"clientcommand",			PF_SSQC(PF_clientcommand),		440},	// void(entity e, string s)
+	{"tokenize",				PF_BOTH(PF_Tokenize),			441},	// float(string s)
+	{"argv",					PF_BOTH(PF_ArgV),				442},	// string(float n)
+	{"argc",					PF_BOTH(PF_ArgC)},						// float()
+
 	{"asin",					PF_BOTH(PF_asin),				471},	// float(float s)
 	{"acos",					PF_BOTH(PF_acos),				472},	// float(float c)
 	{"atan",					PF_BOTH(PF_atan),				473},	// float(float t)
 	{"atan2",					PF_BOTH(PF_atan2),				474},	// float(float c, float s)
 	{"tan",						PF_BOTH(PF_tan),				475},	// float(float a)
+
+	{"tokenize_console",		PF_BOTH(PF_tokenize_console),	514},	// float(string str)
 
 	{"sprintf",					PF_BOTH(PF_sprintf),			627},	// string(string fmt, ...)
 };

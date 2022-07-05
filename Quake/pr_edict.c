@@ -1303,6 +1303,10 @@ void PR_EnableExtensions (void)
 		QCEXTFUNCS_CS
 		QCEXTGLOBALS_CSQC
 	}
+	else
+	{	//ssqc
+		QCEXTFUNCS_SV
+	}
 
 #undef QCEXTGLOBAL_FLOAT
 #undef QCEXTGLOBAL_INT
