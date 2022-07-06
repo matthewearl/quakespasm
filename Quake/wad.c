@@ -129,7 +129,7 @@ lumpinfo_t	*W_GetLumpinfo (const char *name)
 	return NULL;
 }
 
-void *W_GetLumpName (const char *name)
+void *W_GetLumpName (const char *name, lumpinfo_t **out_info)	//Spike: so caller can verify that the qpic was written properly.
 {
 	lumpinfo_t	*lump;
 
@@ -137,6 +137,7 @@ void *W_GetLumpName (const char *name)
 
 	if (!lump) return NULL; //johnfitz
 
+	*out_info = lump;
 	return (void *)(wad_base + lump->filepos);
 }
 

@@ -145,7 +145,7 @@ void M_PrintEx (int cx, int cy, int dim, const char *str)
 {
 	while (*str)
 	{
-		Draw_CharacterEx (cx, cy, dim, (*str)+128);
+		Draw_CharacterEx (cx, cy, dim, dim, (*str)+128);
 		str++;
 		cx += dim;
 	}
@@ -160,7 +160,7 @@ void M_PrintWhiteEx (int cx, int cy, int dim, const char *str)
 {
 	while (*str)
 	{
-		Draw_CharacterEx (cx, cy, dim, *str);
+		Draw_CharacterEx (cx, cy, dim, dim, *str);
 		str++;
 		cx += dim;
 	}

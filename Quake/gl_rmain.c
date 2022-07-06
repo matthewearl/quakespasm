@@ -1086,11 +1086,16 @@ static void R_ShowBoundingBoxes (void)
 	edict_t		*ed;
 	int			i, mode;
 	uint32_t	color;
+	qcvm_t 		*oldvm;	//in case we ever draw a scene from within csqc.
 
 	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
 
 	GL_BeginGroup ("Show bounding boxes");
+
+	oldvm = qcvm;
+	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM(&sv.qcvm);
 
 	mode = abs ((int)r_showbboxes.value);
 	if (mode >= 2)
@@ -1102,7 +1107,7 @@ static void R_ShowBoundingBoxes (void)
 	else
 		pvs = NULL;
 
-	for (i=0, ed=NEXT_EDICT(sv.edicts) ; i<sv.num_edicts ; i++, ed=NEXT_EDICT(ed))
+	for (i=0, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
 		if (ed == sv_player)
 			continue;
@@ -1150,6 +1155,9 @@ static void R_ShowBoundingBoxes (void)
 			R_EmitWireBox (mins, maxs, color);
 		}
 	}
+
+	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM(oldvm);
 
 	R_FlushDebugGeometry ();
 

@@ -48,10 +48,10 @@ typedef struct
 	qboolean	loadgame;			// handle connections specially
 	qboolean	nomonsters;			// server started with 'nomonsters' cvar active
 
-	double		time;
-
 	int			lastcheck;			// used by PF_checkclient
 	double		lastchecktime;
+
+	qcvm_t		qcvm;				// Spike: entire qcvm state
 
 	char		name[64];			// map name
 	char		modelname[64];		// maps/<name>.bsp, for model_precache[0]
@@ -60,12 +60,6 @@ typedef struct
 	struct qmodel_s	*models[MAX_MODELS];
 	const char	*sound_precache[MAX_SOUNDS];	// NULL terminated
 	const char	*lightstyles[MAX_LIGHTSTYLES];
-	int			num_edicts;
-	int			max_edicts;
-	link_t		free_edicts;		// linked list of free edicts
-	edict_t		*edicts;			// can NOT be array indexed, because
-									// edict_t is variable sized, but can
-									// be used to reference the world ent
 	server_state_t	state;			// some actions are only valid during load
 
 	sizebuf_t	datagram;
@@ -80,6 +74,15 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+
+	struct svcustomstat_s
+	{
+		int idx;
+		int type;
+		int fld;
+		eval_t *ptr;
+	} customstats[MAX_CL_STATS*2];	//strings or numeric...
+	size_t		numcustomstats;
 } server_t;
 
 
@@ -123,6 +126,10 @@ typedef struct client_s
 
 // client known data for deltas
 	int				old_frags;
+
+	int				oldstats_i[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	float			oldstats_f[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	char			*oldstats_s[MAX_CL_STATS];
 } client_t;
 
 

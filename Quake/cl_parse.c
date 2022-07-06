@@ -749,6 +749,7 @@ void CL_ParseClientdata (void)
 			if ( (i & (1<<j)) && !(cl.items & (1<<j)))
 				cl.item_gettime[j] = cl.time;
 		cl.items = i;
+		cl.stats[STAT_ITEMS] = i;
 	}
 
 	cl.onground = (bits & SU_ONGROUND) != 0;
@@ -993,6 +994,43 @@ static void CL_DumpPacket (void)
 
 #define SHOWNET(x) if(cl_shownet.value==2)Con_Printf ("%3i:%s\n", msg_readcount-1, x);
 
+//mods and servers might not send the \n instantly.
+//some mods bug out and omit the \n entirely, this function helps prevent the damage from spreading too much.
+//some servers or mods use //prefixed commands as extensions to avoid spam about unrecognised commands.
+//proquake has its own extension coding thing.
+static void CL_ParseStuffText(const char *msg)
+{
+	const char *str;
+	q_strlcat(cl.stuffcmdbuf, msg, sizeof(cl.stuffcmdbuf));
+	for (; (str = strchr(cl.stuffcmdbuf, '\n')); memmove(cl.stuffcmdbuf, str, Q_strlen(str)+1))
+	{
+		qboolean handled = false;
+
+		str++;//skip past the \n
+
+		if (*cl.stuffcmdbuf == 0x01 && cl.protocol == PROTOCOL_NETQUAKE) //proquake message, just strip this and try again (doesn't necessarily have a trailing \n straight away)
+		{
+			for (str = cl.stuffcmdbuf+1; *str >= 0x01 && *str <= 0x1f; str++)
+				;//FIXME: parse properly
+			continue;
+		}
+
+		//handle special commands
+		if (cl.stuffcmdbuf[0] == '/' && cl.stuffcmdbuf[1] == '/')
+		{
+			handled = Cmd_ExecuteString(cl.stuffcmdbuf+2, src_server);
+			if (!handled)
+				Con_DPrintf("Server sent unknown command %s\n", Cmd_Argv(0));
+		}
+		else
+			handled = Cmd_ExecuteString(cl.stuffcmdbuf, src_server);
+
+		//let the server exec general user commands (massive security hole)
+		if (!handled)
+			Cbuf_AddTextLen(cl.stuffcmdbuf, str-cl.stuffcmdbuf);
+	}
+}
+
 /*
 =====================
 CL_ParseServerMessage
@@ -1031,6 +1069,10 @@ void CL_ParseServerMessage (void)
 		if (cmd == -1)
 		{
 			SHOWNET("END OF MESSAGE");
+
+			if (*cl.stuffcmdbuf && net_message.cursize < 512)
+				CL_ParseStuffText("\n");	//there's a few mods that forget to write \ns, that then fuck up other things too. So make sure it gets flushed to the cbuf. the cursize check is to reduce backbuffer overflows that would give a false positive.
+
 			return;		// end of message
 		}
 
@@ -1092,7 +1134,7 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_stufftext:
-			Cbuf_AddText (MSG_ReadString ());
+			CL_ParseStuffText (MSG_ReadString ());
 			break;
 
 		case svc_damage:
@@ -1230,7 +1272,8 @@ void CL_ParseServerMessage (void)
 			i = MSG_ReadByte ();
 			if (i < 0 || i >= MAX_CL_STATS)
 				Sys_Error ("svc_updatestat: %i is invalid", i);
-			cl.stats[i] = MSG_ReadLong ();;
+			cl.stats[i] = MSG_ReadLong ();
+			cl.statsf[i] = cl.stats[i];
 			break;
 
 		case svc_spawnstaticsound:

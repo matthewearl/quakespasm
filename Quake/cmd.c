@@ -110,6 +110,16 @@ void Cbuf_AddText (const char *text)
 
 	SZ_Write (&cmd_text, text, Q_strlen (text));
 }
+void Cbuf_AddTextLen (const char *text, int l)
+{
+	if (cmd_text.cursize + l >= cmd_text.maxsize)
+	{
+		Con_Printf ("Cbuf_AddText: overflow\n");
+		return;
+	}
+
+	SZ_Write (&cmd_text, text, l);
+}
 
 
 /*
@@ -480,14 +490,6 @@ void Cmd_Unaliasall_f (void)
 =============================================================================
 */
 
-typedef struct cmd_function_s
-{
-	struct cmd_function_s	*next;
-	const char		*name;
-	xcommand_t		function;
-} cmd_function_t;
-
-
 #define	MAX_ARGS		80
 
 static	int			cmd_argc;
@@ -726,36 +728,48 @@ void Cmd_TokenizeString (const char *text)
 /*
 ============
 Cmd_AddCommand
+
+spike -- added an extra arg for client (also renamed and made a macro)
 ============
 */
-void	Cmd_AddCommand (const char *cmd_name, xcommand_t function)
+cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype, qboolean qcinterceptable)
 {
 	cmd_function_t	*cmd;
 	cmd_function_t	*cursor,*prev; //johnfitz -- sorted list insert
-
-	if (host_initialized)	// because hunk allocation would get stomped
-		Sys_Error ("Cmd_AddCommand after host_initialized");
 
 // fail if the command is a variable name
 	if (Cvar_VariableString(cmd_name)[0])
 	{
 		Con_Printf ("Cmd_AddCommand: %s already defined as a var\n", cmd_name);
-		return;
+		return NULL;
 	}
 
 // fail if the command already exists
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (!Q_strcmp (cmd_name, cmd->name))
+		if (!Q_strcmp (cmd_name, cmd->name) && cmd->srctype == srctype)
 		{
-			Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
-			return;
+			if (cmd->function != function && function)
+				Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
+			return NULL;
 		}
 	}
 
-	cmd = (cmd_function_t *) Hunk_Alloc (sizeof(cmd_function_t));
-	cmd->name = cmd_name;
+	if (host_initialized)
+	{
+		cmd = (cmd_function_t *) malloc(sizeof(*cmd) + strlen(cmd_name)+1);
+		cmd->name = strcpy((char*)(cmd + 1), cmd_name);
+		cmd->dynamic = true;
+	}
+	else
+	{
+		cmd = (cmd_function_t *) Hunk_Alloc (sizeof(*cmd));
+		cmd->name = cmd_name;
+		cmd->dynamic = false;
+	}
 	cmd->function = function;
+	cmd->srctype = srctype;
+	cmd->qcinterceptable = qcinterceptable;
 
 	//johnfitz -- insert each entry in alphabetical order
 	if (cmd_functions == NULL || strcmp(cmd->name, cmd_functions->name) < 0) //insert at front
@@ -776,6 +790,24 @@ void	Cmd_AddCommand (const char *cmd_name, xcommand_t function)
 		prev->next = cmd;
 	}
 	//johnfitz
+
+	if (cmd->dynamic)
+		return cmd;
+	return NULL;
+}
+void Cmd_RemoveCommand (cmd_function_t *cmd)
+{
+	cmd_function_t **link;
+	for (link = &cmd_functions; *link; link = &(*link)->next)
+	{
+		if (*link == cmd)
+		{
+			*link = cmd->next;
+			free(cmd);
+			return;
+		}
+	}
+	Sys_Error ("Cmd_RemoveCommand unable to remove command %s",cmd->name);
 }
 
 /*
@@ -829,7 +861,7 @@ A complete command line has been parsed, so try to execute it
 FIXME: lookupnoadd the token to speed search?
 ============
 */
-void	Cmd_ExecuteString (const char *text, cmd_source_t src)
+qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 {
 	cmd_function_t	*cmd;
 	cmdalias_t		*a;
@@ -839,17 +871,34 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 
 // execute the command line
 	if (!Cmd_Argc())
-		return;		// no tokens
+		return true;		// no tokens
 
 // check functions
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
 		if (!q_strcasecmp (cmd_argv[0],cmd->name))
 		{
-			cmd->function ();
-			return;
+			if (src == src_client && cmd->srctype != src_client)
+				Con_DPrintf("%s tried to %s\n", host_client->name, text);	//src_client only allows client commands
+			else if (src == src_command && cmd->srctype == src_server)
+				continue;	//src_command can execute anything but server commands (which it ignores, allowing for alternative behaviour)
+			else if (src == src_server && cmd->srctype != src_server)
+				continue;	//src_server may only execute server commands (such commands must be safe to parse within the context of a network message, so no disconnect/connect/playdemo/etc)
+			else if (cmd->function)
+				cmd->function ();
+			else
+				Con_Printf ("gamecode not running, cannot \"%s\"\n", Cmd_Argv(0));
+			return true;
 		}
 	}
+
+	if (src == src_client)
+	{	//spike -- please don't execute similarly named aliases, nor custom cvars...
+		Con_DPrintf("%s tried to %s\n", host_client->name, text);
+		return false;
+	}
+	if (src != src_command)
+		return false;
 
 // check alias
 	for (a=cmd_alias ; a ; a=a->next)
@@ -857,7 +906,7 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 		if (!q_strcasecmp (cmd_argv[0], a->name))
 		{
 			Cbuf_InsertText (a->value);
-			return;
+			return true;
 		}
 	}
 
@@ -869,6 +918,8 @@ void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 		else
 			Cmd_ListAllContaining (Cmd_Argv(0));
 	}
+
+	return true;
 }
 
 

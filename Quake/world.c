@@ -339,10 +339,10 @@ void SV_TouchLinks (edict_t *ent)
 	int		old_self, old_other;
 	int		i, listcount;
 
-	list = alloca (sv.num_edicts*sizeof(edict_t *));
+	list = alloca (qcvm->num_edicts*sizeof(edict_t *));
 
 	listcount = 0;
-	SV_AreaTriggerEdicts (ent, sv_areanodes, list, &listcount, sv.num_edicts);
+	SV_AreaTriggerEdicts (ent, sv_areanodes, list, &listcount, qcvm->num_edicts);
 
 	for (i = 0; i < listcount; i++)
 	{
@@ -365,7 +365,7 @@ void SV_TouchLinks (edict_t *ent)
 
 		pr_global_struct->self = EDICT_TO_PROG(touch);
 		pr_global_struct->other = EDICT_TO_PROG(ent);
-		pr_global_struct->time = sv.time;
+		pr_global_struct->time = qcvm->time;
 		PR_ExecuteProgram (touch->v.touch);
 
 		pr_global_struct->self = old_self;
@@ -465,7 +465,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	if (ent->area.prev)
 		SV_UnlinkEdict (ent);	// unlink from old position
 
-	if (ent == sv.edicts)
+	if (ent == qcvm->edicts)
 		return;		// don't add the world
 
 	if (ent->free)
@@ -612,7 +612,7 @@ edict_t	*SV_TestEntityPosition (edict_t *ent)
 	trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent);
 
 	if (trace.startsolid)
-		return sv.edicts;
+		return qcvm->edicts;
 
 	return NULL;
 }
@@ -932,7 +932,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	memset ( &clip, 0, sizeof ( moveclip_t ) );
 
 // clip to world
-	clip.trace = SV_ClipMoveToEntity ( sv.edicts, start, mins, maxs, end );
+	clip.trace = SV_ClipMoveToEntity ( qcvm->edicts, start, mins, maxs, end );
 
 	clip.start = start;
 	clip.end = end;

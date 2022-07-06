@@ -74,6 +74,15 @@ extern float	host_netinterval;	//Spike
 
 extern vec3_t	v_punchangles[2];
 
+void CL_FreeState(void)
+{
+	int i;
+	for (i = 0; i < MAX_CL_STATS; i++)
+		free (cl.statss[i]);
+	PR_ClearProgs (&cl.qcvm);
+	memset (&cl, 0, sizeof(cl));
+}
+
 /*
 =====================
 CL_ClearState
@@ -82,11 +91,19 @@ CL_ClearState
 */
 void CL_ClearState (void)
 {
+	if (cl.qcvm.extfuncs.CSQC_Shutdown)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		PR_ExecuteProgram(qcvm->extfuncs.CSQC_Shutdown);
+		qcvm->extfuncs.CSQC_Shutdown = 0;
+		PR_SwitchQCVM(NULL);
+	}
+
 	if (!sv.active)
 		Host_ClearMemory ();
 
 // wipe the entire cl structure
-	memset (&cl, 0, sizeof(cl));
+	CL_FreeState ();
 
 	SZ_Clear (&cls.message);
 
@@ -145,6 +162,7 @@ void CL_Disconnect (void)
 	cls.demoplayback = cls.timedemo = false;
 	cls.demopaused = false;
 	cl.intermission = 0;
+	cl.sendprespawn = false;
 	CL_ClearSignons ();
 
 	V_ResetEffects ();
@@ -202,8 +220,7 @@ void CL_SignonReply (void)
 	switch (cls.signon)
 	{
 	case 1:
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, "prespawn");
+		cl.sendprespawn = true;
 		break;
 
 	case 2:
@@ -862,6 +879,48 @@ void CL_Viewpos_f (void)
 }
 
 /*
+=============
+CL_SetStat_f
+=============
+*/
+void CL_SetStat_f (void)
+{
+	int i, argc, stnum;
+	double value;
+
+	for (i = 1, argc = Cmd_Argc (); i + 1 < argc; i += 2)
+	{
+		stnum = atoi (Cmd_Argv (i));
+		if (stnum < 0 || stnum >= MAX_CL_STATS)
+			Host_Error ("CL_SetStat_f: stnum(%d) >= MAX_CL_STATS\n", stnum);
+
+		value = atof (Cmd_Argv (i + 1));
+		cl.statsf[stnum] = (float)value;
+		cl.stats[stnum] = (int)value;
+	}
+}
+
+/*
+=============
+CL_SetStatString_f
+=============
+*/
+void CL_SetStatString_f (void)
+{
+	int i, argc, stnum;
+
+	for (i = 1, argc = Cmd_Argc (); i + 1 < argc; i += 2)
+	{
+		stnum = atoi (Cmd_Argv (i));
+		if (stnum < 0 || stnum >= MAX_CL_STATS)
+			Host_Error ("CL_SetStatString_f: stnum(%d) >= MAX_CL_STATS\n", stnum);
+
+		free (cl.statss[stnum]);
+		cl.statss[stnum] = strdup (Cmd_Argv (i + 1));
+	}
+}
+
+/*
 =================
 CL_Init
 =================
@@ -918,5 +977,8 @@ void CL_Init (void)
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); //johnfitz
 	Cmd_AddCommand ("viewpos", CL_Viewpos_f); //johnfitz
+
+	Cmd_AddCommand_ServerCommand ("st", CL_SetStat_f);
+	Cmd_AddCommand_ServerCommand ("sts", CL_SetStatString_f);
 }
 
