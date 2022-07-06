@@ -1412,14 +1412,14 @@ static void PR_InitBuiltins (void)
 	for (i = 0; i < MAX_BUILTINS; i++)
 		qcvm->builtins[i] = PF_Fixme;
 
-	for (i = MAX_BUILTINS - 2, j = 0; j < pr_numextbuiltins; j++)
+	for (i = MAX_BUILTINS - 2, j = 0; j < pr_numbuiltindefs; j++)
 	{
-		extbuiltin_t *ext = &pr_extbuiltins[j];
-		builtin_t func = (qcvm == &sv.qcvm) ? ext->ssqcfunc : ext->csqcfunc;
-		if (!ext->number)
-			ext->number = i--;
+		builtindef_t *def = &pr_builtindefs[j];
+		builtin_t func = (qcvm == &sv.qcvm) ? def->ssqcfunc : def->csqcfunc;
+		if (!def->number)
+			def->number = i--;
 		if (func)
-			qcvm->builtins[ext->number] = func;
+			qcvm->builtins[def->number] = func;
 	}
 
 	qcvm->numbuiltins = MAX_BUILTINS;
@@ -1432,12 +1432,12 @@ static void PR_InitBuiltins (void)
 			continue;
 
 		name = PR_GetString (func->s_name);
-		for (j = 0; j < pr_numextbuiltins; j++)
+		for (j = 0; j < pr_numbuiltindefs; j++)
 		{
-			extbuiltin_t *ext = &pr_extbuiltins[j];
-			if (!strcmp (name, ext->name))
+			builtindef_t *def = &pr_builtindefs[j];
+			if (!strcmp (name, def->name))
 			{
-				func->first_statement = -ext->number;
+				func->first_statement = -def->number;
 				break;
 			}
 		}

@@ -3249,7 +3249,7 @@ static void PF_clientcommand(void)
 #define PF_CSQC(x)	NULL,x
 #define PF_SSQC(x)	x,NULL
 
-extbuiltin_t pr_extbuiltins[] =
+builtindef_t pr_builtindefs[] =
 {
 	{"makevectors",				PF_SSQC(PF_makevectors),		1},		// void(entity e) makevectors		= #1
 	{"setorigin",				PF_SSQC(PF_setorigin),			2},		// void(entity e, vector o) setorigin	= #2
@@ -3411,6 +3411,6 @@ extbuiltin_t pr_extbuiltins[] =
 
 	{"sprintf",					PF_BOTH(PF_sprintf),			627},	// string(string fmt, ...)
 };
-int pr_numextbuiltins = countof (pr_extbuiltins);
+int pr_numbuiltindefs = countof (pr_builtindefs);
 
-COMPILE_TIME_ASSERT (builtin_buffer_size, countof (pr_extbuiltins) + 1 <= MAX_BUILTINS);
+COMPILE_TIME_ASSERT (builtin_buffer_size, countof (pr_builtindefs) + 1 <= MAX_BUILTINS);

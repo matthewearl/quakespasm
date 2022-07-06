@@ -286,16 +286,16 @@ int NUM_FOR_EDICT(edict_t*);
 
 extern	int		type_size[8];
 
-typedef struct extbuiltin_s
+typedef struct builtindef_s
 {
 	const char	*name;
 	builtin_t	ssqcfunc;
 	builtin_t	csqcfunc;
 	int			number;
-} extbuiltin_t;
+} builtindef_t;
 
-extern extbuiltin_t	pr_extbuiltins[];
-extern int			pr_numextbuiltins;
+extern builtindef_t	pr_builtindefs[];
+extern int			pr_numbuiltindefs;
 
 FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
 #ifdef __WATCOMC__
