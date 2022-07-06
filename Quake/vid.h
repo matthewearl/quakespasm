@@ -47,17 +47,18 @@ typedef struct vrect_s
 typedef struct
 {
 	pixel_t		*colormap;	// 256 * VID_GRADES size
-	int		fullbright;	// index of first fullbright color
-	int		rowbytes;	// may be > width if displayed in a window
-	int		width;
-	int		height;
-	int		maxscale;		// maximum r_scale value, based on height
-	int		refreshrate;
-	int		numpages;
-	int		recalc_refdef;	// if true, recalc vid-based stuff
-	int		conrowbytes;
-	int		conwidth;
-	int		conheight;
+	int			fullbright;	// index of first fullbright color
+	int			rowbytes;	// may be > width if displayed in a window
+	int			width;
+	int			height;
+	qboolean	resized;
+	int			maxscale;		// maximum r_scale value, based on height
+	int			refreshrate;
+	int			numpages;
+	int			recalc_refdef;	// if true, recalc vid-based stuff
+	int			conrowbytes;
+	int			conwidth;
+	int			conheight;
 } viddef_t;
 
 extern	viddef_t	vid;				// global video state

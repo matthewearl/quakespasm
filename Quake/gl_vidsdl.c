@@ -161,6 +161,7 @@ cvar_t		vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t		vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 //johnfitz
+cvar_t		vid_saveresize = {"vid_saveresize", "1", CVAR_ARCHIVE};
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
@@ -416,7 +417,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	/* Create the window if needed, hidden */
 	if (!draw_context)
 	{
-		flags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+		flags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE;
 
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
@@ -434,6 +435,8 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 		}
 		if (!draw_context)
 			Sys_Error ("Couldn't create window");
+
+		SDL_SetWindowMinimumSize (draw_context, 320, 240);
 
 		previous_display = -1;
 	}
@@ -627,6 +630,14 @@ void VID_Changed_f (cvar_t *var)
 	vid_changed = true;
 }
 
+void VID_RecalcConsoleSize (void)
+{
+	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
+	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
+	vid.conwidth &= 0xFFFFFFF8;
+	vid.conheight = vid.conwidth * vid.height / vid.width;
+}
+
 /*
 ===================
 VID_Restart -- johnfitz -- change video modes on the fly
@@ -664,10 +675,7 @@ static void VID_Restart (void)
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	//conwidth and conheight need to be recalculated
-	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
-	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
-	vid.conwidth &= 0xFFFFFFF8;
-	vid.conheight = vid.conwidth * vid.height / vid.width;
+	VID_RecalcConsoleSize ();
 
 	GL_CreateFrameBuffers ();
 //
@@ -1239,6 +1247,23 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
 	qboolean postprocess = vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu;
 
+	if (vid.resized)
+	{
+		vid.resized = false;
+		vid.recalc_refdef = true;
+		if (vid_saveresize.value)
+		{
+			qboolean was_locked = vid_locked;
+			vid_locked = true; // avoid "vid_width will be applied after a vid_restart" spam
+			Cvar_SetValueQuick (&vid_width, vid.width);
+			Cvar_SetValueQuick (&vid_height, vid.height);
+			vid_locked = was_locked;
+		}
+		VID_RecalcConsoleSize ();
+		GL_DeleteFrameBuffers ();
+		GL_CreateFrameBuffers ();
+	}
+
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
@@ -1417,6 +1442,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_fsaamode);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
+	Cvar_RegisterVariable (&vid_saveresize);
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
