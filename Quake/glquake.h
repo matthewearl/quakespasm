@@ -179,6 +179,9 @@ extern	qboolean	gl_clipcontrol_able;
 	x(void,			FramebufferTexture2D, (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level))\
 	x(GLenum,		CheckFramebufferStatus, (GLenum target))\
 	x(void,			BlitFramebuffer, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))\
+	x(void,			DrawBuffers, (GLsizei n, const GLenum *bufs))\
+	x(void,			ClearBufferfv, (GLenum buffer, GLint drawbuffer, const GLfloat *value))\
+	x(void,			BlendFunci, (GLuint buf, GLenum sfactor, GLenum dfactor))\
 	x(void,			DebugMessageCallback, (GLDEBUGPROC callback, const void *userParam))\
 	x(void,			ObjectLabel, (GLenum identifier, GLuint name, GLsizei length, const GLchar *label))\
 	x(void,			PushDebugGroup, (GLenum source, GLuint id, GLsizei length, const char * message))\
@@ -261,7 +264,7 @@ typedef enum {
 
 	GLS_BLEND_OPAQUE			= 0 << 2,
 	GLS_BLEND_ALPHA				= 1 << 2,
-	GLS_BLEND_ADD				= 2 << 2,
+	GLS_BLEND_ALPHA_OIT			= 2 << 2,
 	GLS_BLEND_MULTIPLY			= 3 << 2,
 	GLS_MASK_BLEND				= 3 << 2,
 
@@ -481,19 +484,20 @@ typedef struct glprogs_s {
 	/* 2d */
 	GLuint		gui;
 	GLuint		viewblend;
-	GLuint		warpscale[2];	// [warp]
-	GLuint		postprocess[3];	// [palettize:off/dithered/direct]
+	GLuint		warpscale[2];		// [warp]
+	GLuint		postprocess[3];		// [palettize:off/dithered/direct]
+	GLuint		oit_resolve[2];		// [msaa]
 
 	/* 3d */
-	GLuint		world[3][3];	// [dither][mode:solid/alpha test/water]
-	GLuint		water[2];		// [dither]
+	GLuint		world[2][3][3];		// [OIT][dither][mode:solid/alpha test/water]
+	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
-	GLuint		skylayers[2];	// [dither]
-	GLuint		skycubemap[2];	// [dither]
-	GLuint		skyboxside[2];	// [dither]
-	GLuint		alias[3][2];	// [mode:standard/dithered/noperspective][alpha test]
-	GLuint		sprites[2];		// [dither]
-	GLuint		particles[2];	// [dither]
+	GLuint		skylayers[2];		// [dither]
+	GLuint		skycubemap[2];		// [dither]
+	GLuint		skyboxside[2];		// [dither]
+	GLuint		alias[2][3][2];		// [OIT][mode:standard/dithered/noperspective][alpha test]
+	GLuint		sprites[2];			// [dither]
+	GLuint		particles[2][2];	// [OIT][dither]
 	GLuint		debug3d;
 
 	/* compute */
@@ -534,6 +538,18 @@ typedef struct glframebufs_s {
 		GLuint		depth_stencil_tex;
 		GLuint		fbo;
 	}				composite;
+
+	struct {
+		union {
+			GLuint			mrt[2];
+			struct {
+				GLuint		accum_tex;
+				GLuint		revealage_tex;
+			};
+		};
+		GLuint		fbo_scene;
+		GLuint		fbo_composite;
+	}				oit;
 } glframebufs_t;
 
 extern glframebufs_t framebufs;
@@ -574,6 +590,8 @@ void GL_AcquireFrameResources (void);
 void GL_ReleaseFrameResources (void);
 void GL_AddGarbageBuffer (GLuint handle);
 
+qboolean GL_NeedsSceneEffects (void);
+qboolean GL_NeedsPostprocess (void);
 void GL_PostProcess (void);
 
 float GL_WaterAlphaForTextureType (textype_t type);

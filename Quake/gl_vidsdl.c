@@ -1031,17 +1031,24 @@ static void GL_SetStateEx (unsigned mask, unsigned force)
 
 	if (diff & GLS_MASK_BLEND)
 	{
+		extern cvar_t r_oit;
+
 		switch (mask & GLS_MASK_BLEND)
 		{
 			default:
 			case GLS_BLEND_OPAQUE:
 				glBlendFunc(GL_ONE, GL_ZERO);
 				break;
+			case GLS_BLEND_ALPHA_OIT:
+				if (r_oit.value)
+				{
+					GL_BlendFunciFunc(0, GL_ONE, GL_ONE); // accum
+					GL_BlendFunciFunc(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR); // revealage
+					break;
+				}
+				// fallthrough!
 			case GLS_BLEND_ALPHA:
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			case GLS_BLEND_ADD:
-				glBlendFunc(GL_ONE, GL_ONE);
 				break;
 			case GLS_BLEND_MULTIPLY:
 				glBlendFunc(GL_ZERO, GL_SRC_COLOR);
@@ -1251,8 +1258,6 @@ GL_BeginRendering -- sets values of glx, gly, glwidth, glheight
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
-	qboolean postprocess = vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu;
-
 	if (vid.resized)
 	{
 		vid.resized = false;
@@ -1284,7 +1289,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	GL_AcquireFrameResources ();
 	GLPalette_UpdateLookupTable ();
 
-	GL_BindFramebufferFunc (GL_FRAMEBUFFER, postprocess ? framebufs.composite.fbo : 0);
+	GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0);
 }
 
 /*

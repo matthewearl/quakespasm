@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_shaders.h"
 
 glprogs_t glprogs;
-static GLuint gl_programs[64];
+static GLuint gl_programs[128];
 static GLuint gl_current_program;
 static int gl_num_programs;
 
@@ -280,7 +280,7 @@ GL_CreateShaders
 */
 void GL_CreateShaders (void)
 {
-	int palettize, dither, mode, alphatest, warp;
+	int palettize, dither, mode, alphatest, warp, oit;
 
 	glprogs.gui = GL_CreateProgram (gui_vertex_shader, gui_fragment_shader, "gui");
 	glprogs.viewblend = GL_CreateProgram (viewblend_vertex_shader, viewblend_fragment_shader, "viewblend");
@@ -289,24 +289,33 @@ void GL_CreateShaders (void)
 	for (palettize = 0; palettize < 3; palettize++)
 		glprogs.postprocess[palettize] = GL_CreateProgram (postprocess_vertex_shader, postprocess_fragment_shader, "postprocess|PALETTIZE %d", palettize);
 
-	for (dither = 0; dither < 3; dither++)
-		for (mode = 0; mode < 3; mode++)
-			glprogs.world[dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|DITHER %d; MODE %d", dither, mode);
+	for (mode = 0; mode < 2; mode++)
+		glprogs.oit_resolve[mode] = GL_CreateProgram (oit_resove_vertex_shader, oit_resove_fragment_shader, "oit resolve|MSAA %d", mode);
+
+	for (oit = 0; oit < 2; oit++)
+		for (dither = 0; dither < 3; dither++)
+			for (mode = 0; mode < 3; mode++)
+				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d", oit, dither, mode);
 
 	for (dither = 0; dither < 2; dither++)
 	{
-		glprogs.water[dither] = GL_CreateProgram (water_vertex_shader, water_fragment_shader, "water|DITHER %d", dither);
+		for (oit = 0; oit < 2; oit++)
+		{
+			glprogs.water[oit][dither] = GL_CreateProgram (water_vertex_shader, water_fragment_shader, "water|OIT %d; DITHER %d", oit, dither);
+			glprogs.particles[oit][dither] = GL_CreateProgram (particles_vertex_shader, particles_fragment_shader, "particles|OIT %d; DITHER %d", oit, dither);
+		}
 		glprogs.skylayers[dither] = GL_CreateProgram (sky_layers_vertex_shader, sky_layers_fragment_shader, "sky layers|DITHER %d", dither);
 		glprogs.skycubemap[dither] = GL_CreateProgram (sky_cubemap_vertex_shader, sky_cubemap_fragment_shader, "sky cubemap|DITHER %d", dither);
 		glprogs.skyboxside[dither] = GL_CreateProgram (sky_boxside_vertex_shader, sky_boxside_fragment_shader, "skybox side|DITHER %d", dither);
 		glprogs.sprites[dither] = GL_CreateProgram (sprites_vertex_shader, sprites_fragment_shader, "sprites|DITHER %d", dither);
-		glprogs.particles[dither] = GL_CreateProgram (particles_vertex_shader, particles_fragment_shader, "particles|DITHER %d", dither);
 	}
 	glprogs.skystencil = GL_CreateProgram (skystencil_vertex_shader, NULL, "sky stencil");
 
-	for (mode = 0; mode < 3; mode++)
-		for (alphatest = 0; alphatest < 2; alphatest++)
-			glprogs.alias[mode][alphatest] = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|MODE %d; ALPHATEST %d", mode, alphatest);
+	for (oit = 0; oit < 2; oit++)
+		for (mode = 0; mode < 3; mode++)
+			for (alphatest = 0; alphatest < 2; alphatest++)
+				glprogs.alias[oit][mode][alphatest] =
+					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d", oit, mode, alphatest);
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 

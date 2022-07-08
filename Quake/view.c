@@ -546,10 +546,6 @@ V_PolyBlend -- johnfitz -- moved here from gl_rmain.c
 */
 void V_PolyBlend (void)
 {
-	extern qboolean water_warp;
-	qboolean msaa = framebufs.scene.samples > 1;
-	qboolean direct = !msaa && !water_warp && r_refdef.scale == 1;
-
 	if (!gl_polyblend.value || !v_blend[3])
 		return;
 
@@ -572,7 +568,7 @@ void V_PolyBlend (void)
 		// If we're already rendering to an intermediate FBO (for warp/scale/MSAA)
 		// then we can apply the color blending when blitting the intermediate texture
 		// (to save the memory bandwidth an extra full-screen alpha blend would consume)
-		if (!direct)
+		if (GL_NeedsSceneEffects ())
 			return;
 	}
 

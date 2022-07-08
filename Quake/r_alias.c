@@ -25,7 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
-extern cvar_t cl_gun_fovscale;
+extern cvar_t scr_fov, cl_gun_fovscale;
+extern cvar_t r_oit;
 
 //up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz -- changed to an array of pointers
@@ -299,7 +300,7 @@ void R_FlushAliasInstances (void)
 {
 	qmodel_t	*model;
 	aliashdr_t	*paliashdr;
-	qboolean	alphatest;
+	qboolean	alphatest, translucent, oit;
 	GLuint		program;
 	unsigned	state;
 	GLuint		buf;
@@ -318,25 +319,27 @@ void R_FlushAliasInstances (void)
 	GL_BeginGroup (model->name);
 
 	alphatest = model->flags & MF_HOLEY ? 1 : 0;
+	translucent = !ENTALPHA_OPAQUE (ibuf.ent->alpha);
+	oit = translucent && r_oit.value != 0.f;
 	switch (softemu)
 	{
 	case SOFTEMU_BANDED:
-		program = glprogs.alias[ALIASSHADER_NOPERSP][alphatest];
+		program = glprogs.alias[oit][ALIASSHADER_NOPERSP][alphatest];
 		break;
 	case SOFTEMU_COARSE:
-		program = glprogs.alias[ALIASSHADER_DITHER][alphatest];
+		program = glprogs.alias[oit][ALIASSHADER_DITHER][alphatest];
 		break;
 	default:
-		program = glprogs.alias[ALIASSHADER_STANDARD][alphatest];
+		program = glprogs.alias[oit][ALIASSHADER_STANDARD][alphatest];
 		break;
 	}
 	GL_UseProgram (program);
 
 	state = GLS_CULL_BACK | GLS_ATTRIBS(0);
-	if (ENTALPHA_DECODE(ibuf.ent->alpha) == 1.f)
+	if (!translucent)
 		state |= GLS_BLEND_OPAQUE;
 	else
-		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
+		state |= GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE;
 	GL_SetState (state);
 
 	memcpy (ibuf.global.matviewproj, r_matviewproj, sizeof (r_matviewproj));

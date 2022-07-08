@@ -79,6 +79,7 @@ cvar_t	r_novis = {"r_novis","0",CVAR_ARCHIVE};
 cvar_t	r_simd = {"r_simd","1",CVAR_ARCHIVE};
 #endif
 cvar_t	r_alphasort = {"r_alphasort","1",CVAR_NONE};
+cvar_t	r_oit = {"r_oit","1",CVAR_ARCHIVE};
 
 cvar_t	gl_finish = {"gl_finish","0",CVAR_NONE};
 cvar_t	gl_clear = {"gl_clear","1",CVAR_NONE};
@@ -160,17 +161,27 @@ static GLuint GL_CreateFBOAttachment (GLenum format, int samples, GLenum filter,
 GL_CreateFBO
 =============
 */
-static GLuint GL_CreateFBO (GLenum target, GLuint colors, GLuint depth, GLuint stencil, const char *name)
+static GLuint GL_CreateFBO (GLenum target, const GLuint *colors, int numcolors, GLuint depth, GLuint stencil, const char *name)
 {
 	GLenum status;
 	GLuint fbo;
+	GLenum buffers[8];
+	int i;
+
+	if (numcolors > (int)countof (buffers))
+		Sys_Error ("GL_CreateFBO: too many color buffers (%d)", numcolors);
 
 	GL_GenFramebuffersFunc (1, &fbo);
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, fbo);
 	GL_ObjectLabelFunc (GL_FRAMEBUFFER, fbo, -1, name);
 
-	if (colors)
-		GL_FramebufferTexture2DFunc (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, target, colors, 0);
+	for (i = 0; i < numcolors; i++)
+	{
+		GL_FramebufferTexture2DFunc (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, target, colors[i], 0);
+		buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+	}
+	GL_DrawBuffersFunc (numcolors, buffers);
+
 	if (depth)
 		GL_FramebufferTexture2DFunc (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, target, depth, 0);
 	if (stencil)
@@ -181,6 +192,16 @@ static GLuint GL_CreateFBO (GLenum target, GLuint colors, GLuint depth, GLuint s
 		Sys_Error ("Failed to create %s (status code 0x%X)", name, status);
 
 	return fbo;
+}
+
+/*
+=============
+GL_CreateSimpleFBO
+=============
+*/
+static GLuint GL_CreateSimpleFBO (GLenum target, GLuint colors, GLuint depth, GLuint stencil, const char *name)
+{
+	return GL_CreateFBO (target, colors ? &colors : NULL, colors ? 1 : 0, depth, stencil, name);
 }
 
 /*
@@ -201,7 +222,7 @@ void GL_CreateFrameBuffers (void)
 	/* main framebuffer (color + depth + stencil) */
 	framebufs.composite.color_tex = GL_CreateFBOAttachment (color_format, 1, GL_NEAREST, "composite colors");
 	framebufs.composite.depth_stencil_tex = GL_CreateFBOAttachment (depth_format, 1, GL_NEAREST, "composite depth/stencil");
-	framebufs.composite.fbo = GL_CreateFBO (GL_TEXTURE_2D,
+	framebufs.composite.fbo = GL_CreateSimpleFBO (GL_TEXTURE_2D,
 		framebufs.composite.color_tex,
 		framebufs.composite.depth_stencil_tex,
 		framebufs.composite.depth_stencil_tex,
@@ -214,23 +235,40 @@ void GL_CreateFrameBuffers (void)
 
 	framebufs.scene.color_tex = GL_CreateFBOAttachment (color_format, framebufs.scene.samples, GL_NEAREST, "scene colors");
 	framebufs.scene.depth_stencil_tex = GL_CreateFBOAttachment (depth_format, framebufs.scene.samples, GL_NEAREST, "scene depth/stencil");
-	framebufs.scene.fbo = GL_CreateFBO (framebufs.scene.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D,
+	framebufs.scene.fbo = GL_CreateSimpleFBO (framebufs.scene.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D,
 		framebufs.scene.color_tex,
 		framebufs.scene.depth_stencil_tex,
 		framebufs.scene.depth_stencil_tex,
 		"scene fbo"
 	);
 
+	/* weighted blended order-independent transparency (accum + revealage, potentially multisampled */
+	framebufs.oit.accum_tex = GL_CreateFBOAttachment (GL_RGBA16F, framebufs.scene.samples, GL_NEAREST, "oit accum");
+	framebufs.oit.revealage_tex = GL_CreateFBOAttachment (GL_R8, framebufs.scene.samples, GL_NEAREST, "oit revealage");
+	framebufs.oit.fbo_scene = GL_CreateFBO (framebufs.scene.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D,
+		framebufs.oit.mrt, 2,
+		framebufs.scene.depth_stencil_tex,
+		framebufs.scene.depth_stencil_tex,
+		"oit scene fbo"
+	);
+
 	/* resolved scene framebuffer (color only) */
 	if (framebufs.scene.samples > 1)
 	{
 		framebufs.resolved_scene.color_tex = GL_CreateFBOAttachment (color_format, 1, GL_NEAREST, "resolved scene colors");
-		framebufs.resolved_scene.fbo = GL_CreateFBO (GL_TEXTURE_2D, framebufs.resolved_scene.color_tex, 0, 0, "resolved scene fbo");
+		framebufs.resolved_scene.fbo = GL_CreateSimpleFBO (GL_TEXTURE_2D, framebufs.resolved_scene.color_tex, 0, 0, "resolved scene fbo");
 	}
 	else
 	{
 		framebufs.resolved_scene.color_tex = 0;
 		framebufs.resolved_scene.fbo = 0;
+
+		framebufs.oit.fbo_composite = GL_CreateFBO (GL_TEXTURE_2D,
+			framebufs.oit.mrt, 2,
+			framebufs.composite.depth_stencil_tex,
+			framebufs.composite.depth_stencil_tex,
+			"oit composite fbo"
+		);
 	}
 
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0);
@@ -245,11 +283,15 @@ GL_DeleteFrameBuffers
 void GL_DeleteFrameBuffers (void)
 {
 	GL_DeleteFramebuffersFunc (1, &framebufs.resolved_scene.fbo);
+	GL_DeleteFramebuffersFunc (1, &framebufs.oit.fbo_composite);
+	GL_DeleteFramebuffersFunc (1, &framebufs.oit.fbo_scene);
 	GL_DeleteFramebuffersFunc (1, &framebufs.scene.fbo);
 	GL_DeleteFramebuffersFunc (1, &framebufs.composite.fbo);
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0);
 
 	GL_DeleteNativeTexture (framebufs.resolved_scene.color_tex);
+	GL_DeleteNativeTexture (framebufs.oit.revealage_tex);
+	GL_DeleteNativeTexture (framebufs.oit.accum_tex);
 	GL_DeleteNativeTexture (framebufs.scene.depth_stencil_tex);
 	GL_DeleteNativeTexture (framebufs.scene.color_tex);
 	GL_DeleteNativeTexture (framebufs.composite.depth_stencil_tex);
@@ -275,7 +317,7 @@ GL_PostProcess
 void GL_PostProcess (void)
 {
 	int palidx, variant;
-	if (vid_gamma.value == 1 && vid_contrast.value == 1 && !softemu)
+	if (!GL_NeedsPostprocess ())
 		return;
 
 	GL_BeginGroup ("Postprocess");
@@ -525,6 +567,14 @@ static unsigned short visedict_order[2][MAX_VISEDICTS];
 static entity_t *cl_sorted_visedicts[MAX_VISEDICTS + 1]; // +1 for worldspawn
 static int cl_modtype_ofs[mod_numtypes*2 + 1]; // x2: opaque/translucent; +1: total in last slot
 
+typedef struct framesetup_s
+{
+	GLuint		scene_fbo;
+	GLuint		oit_fbo;
+} framesetup_t;
+
+static framesetup_t framesetup;
+
 /*
 =============
 R_SortEntities
@@ -535,6 +585,7 @@ static void R_SortEntities (void)
 	int i, j, pass;
 	int bins[256];
 	int typebins[mod_numtypes*2];
+	qboolean alphasort = r_alphasort.value && !r_oit.value;
 
 	if (!r_drawentities.value)
 		cl_numvisedicts = 0;
@@ -561,7 +612,7 @@ static void R_SortEntities (void)
 		entity_t *ent = cl_visedicts[i];
 		qboolean translucent = !ENTALPHA_OPAQUE (ent->alpha);
 
-		if (translucent && r_alphasort.value)
+		if (translucent && alphasort)
 		{
 			float dist;
 			vec3_t mins, maxs;
@@ -757,23 +808,43 @@ void R_SetFrustum (void)
 
 /*
 =============
+GL_NeedsSceneEffects
+=============
+*/
+qboolean GL_NeedsSceneEffects (void)
+{
+	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1;
+}
+
+/*
+=============
+GL_NeedsPostprocess
+=============
+*/
+qboolean GL_NeedsPostprocess (void)
+{
+	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || r_oit.value;
+}
+
+/*
+=============
 R_SetupGL
 =============
 */
 void R_SetupGL (void)
 {
-	qboolean msaa = framebufs.scene.samples > 1;
-	qboolean direct = !msaa && !water_warp && r_refdef.scale == 1;
-	qboolean postprocess = vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu;
-
-	if (direct)
+	if (!GL_NeedsSceneEffects ())
 	{
-		GL_BindFramebufferFunc (GL_FRAMEBUFFER, postprocess ? framebufs.composite.fbo : 0u);
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u);
+		framesetup.scene_fbo = framebufs.composite.fbo;
+		framesetup.oit_fbo = framebufs.oit.fbo_composite;
 		glViewport (glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height);
 	}
 	else
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framebufs.scene.fbo);
+		framesetup.scene_fbo = framebufs.scene.fbo;
+		framesetup.oit_fbo = framebufs.oit.fbo_scene;
 		glViewport (0, 0, r_refdef.vrect.width / r_refdef.scale, r_refdef.vrect.height / r_refdef.scale);
 	}
 }
@@ -790,6 +861,7 @@ void R_Clear (void)
 		clearbits |= GL_COLOR_BUFFER_BIT;
 
 	GL_SetState (glstate & ~GLS_NO_ZWRITE); // make sure depth writes are enabled
+	glStencilMask (~0u);
 	glClear (clearbits);
 }
 
@@ -923,16 +995,22 @@ entity_t **R_GetVisEntities (modtype_t type, qboolean translucent, int *outcount
 R_DrawWater
 =============
 */
-static void R_DrawWater (void)
+static void R_DrawWater (qboolean translucent)
 {
 	entity_t **entlist = cl_sorted_visedicts;
 	int *ofs = cl_modtype_ofs + 2 * mod_brush;
 
-	// only opaque entities can have opaque water
-	R_DrawBrushModels_Water (entlist + ofs[0], ofs[1] - ofs[0], false);
+	if (translucent)
+	{
+		// all entities can have translucent water
+		R_DrawBrushModels_Water (entlist + ofs[0], ofs[2] - ofs[0], true);
+	}
+	else
+	{
+		// only opaque entities can have opaque water
+		R_DrawBrushModels_Water (entlist + ofs[0], ofs[1] - ofs[0], false);
+	}
 
-	// all entities can have translucent water
-	R_DrawBrushModels_Water (entlist + ofs[0], ofs[2] - ofs[0], true);
 }
 
 /*
@@ -950,7 +1028,8 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
 	R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
 	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
-	R_DrawSpriteModels (entlist + ofs[2*mod_sprite], ofs[2*mod_sprite+1] - ofs[2*mod_sprite]);
+	if (!alphapass)
+		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
 
 	GL_EndGroup ();
 }
@@ -1275,6 +1354,62 @@ void R_ShowTris (void)
 
 /*
 ================
+R_BeginTranslucency
+================
+*/
+static void R_BeginTranslucency (void)
+{
+	static const float zeroes[4] = {0.f, 0.f, 0.f, 0.f};
+	static const float ones[4] = {1.f, 1.f, 1.f, 1.f};
+
+	GL_BeginGroup ("Translucent objects");
+
+	if (r_oit.value)
+	{
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.oit_fbo);
+		GL_ClearBufferfvFunc (GL_COLOR, 0, zeroes);
+		GL_ClearBufferfvFunc (GL_COLOR, 1, ones);
+
+		glEnable (GL_STENCIL_TEST);
+		glStencilMask (2);
+		glStencilFunc (GL_ALWAYS, 2, 2);
+		glStencilOp (GL_KEEP, GL_KEEP, GL_REPLACE);
+	}
+}
+
+/*
+================
+R_EndTranslucency
+================
+*/
+static void R_EndTranslucency (void)
+{
+	if (r_oit.value)
+	{
+		GL_BeginGroup  ("OIT resolve");
+
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.scene_fbo);
+
+		glStencilFunc (GL_EQUAL, 2, 2);
+		glStencilOp (GL_KEEP, GL_KEEP, GL_KEEP);
+
+		GL_UseProgram (glprogs.oit_resolve[framebufs.scene.samples > 1]);
+		GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+		GL_BindNative (GL_TEXTURE0, framebufs.scene.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D, framebufs.oit.accum_tex);
+		GL_BindNative (GL_TEXTURE1, framebufs.scene.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D, framebufs.oit.revealage_tex);
+
+		glDrawArrays (GL_TRIANGLES, 0, 3);
+
+		glDisable (GL_STENCIL_TEST);
+
+		GL_EndGroup ();
+	}
+
+	GL_EndGroup (); // translucent objects
+}
+
+/*
+================
 R_RenderScene
 ================
 */
@@ -1294,11 +1429,17 @@ void R_RenderScene (void)
 
 	Sky_DrawSky (); //johnfitz
 
-	R_DrawWater ();
+	R_DrawWater (false);
+
+	R_BeginTranslucency ();
+
+	R_DrawWater (true);
 
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
 	R_DrawParticles ();
+
+	R_EndTranslucency ();
 
 	R_ShowTris (); //johnfitz
 
@@ -1319,13 +1460,11 @@ void R_WarpScaleView (void)
 {
 	int srcx, srcy, srcw, srch;
 	float smax, tmax;
-	qboolean postprocess = vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu;
 	qboolean msaa = framebufs.scene.samples > 1;
-	qboolean direct = !msaa && !water_warp && r_refdef.scale == 1;
 	qboolean needwarpscale;
 	GLuint fbodest;
 
-	if (direct)
+	if (!GL_NeedsSceneEffects ())
 		return;
 
 	srcx = glx + r_refdef.vrect.x;
@@ -1334,7 +1473,7 @@ void R_WarpScaleView (void)
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
 	needwarpscale = r_refdef.scale != 1 || water_warp || (v_blend[3] && gl_polyblend.value && !softemu);
-	fbodest = postprocess ? framebufs.composite.fbo : 0;
+	fbodest = GL_NeedsPostprocess () ? framebufs.composite.fbo : 0;
 
 	if (msaa)
 	{

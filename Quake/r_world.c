@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
+extern cvar_t r_oit;
 
 extern gltexture_t *lightmap_texture;
 extern gltexture_t *skybox_cubemap;
@@ -364,7 +365,7 @@ typedef enum {
 R_DrawBrushModels_Real
 =============
 */
-static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass)
+static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass, qboolean translucent)
 {
 	int i, j;
 	int totalinst, baseinst;
@@ -373,6 +374,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	GLuint buf;
 	GLbyte *ofs;
 	textype_t texbegin, texend;
+	qboolean oit;
 
 	if (!count)
 		return;
@@ -383,18 +385,19 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		count = countof(bmodel_instances);
 	}
 
+	oit = translucent && r_oit.value != 0.f;
 	switch (pass)
 	{
 	default:
 	case BP_SOLID:
 		texbegin = 0;
 		texend = TEXTYPE_CUTOUT;
-		program = glprogs.world[q_max(0, (int)softemu - 1)][WORLDSHADER_SOLID];
+		program = glprogs.world[oit][q_max(0, (int)softemu - 1)][WORLDSHADER_SOLID];
 		break;
 	case BP_ALPHATEST:
 		texbegin = TEXTYPE_CUTOUT;
 		texend = TEXTYPE_CUTOUT + 1;
-		program = glprogs.world[q_max(0, (int)softemu - 1)][WORLDSHADER_ALPHATEST];
+		program = glprogs.world[oit][q_max(0, (int)softemu - 1)][WORLDSHADER_ALPHATEST];
 		break;
 	case BP_SKYLAYERS:
 		texbegin = TEXTYPE_SKY;
@@ -414,7 +417,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	case BP_SHOWTRIS:
 		texbegin = 0;
 		texend = TEXTYPE_COUNT;
-		program = glprogs.world[0][0];
+		program = glprogs.world[0][0][0];
 		break;
 	}
 
@@ -428,10 +431,10 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	// setup state
 	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
-	if (ents[0] == cl_entities || ENTALPHA_OPAQUE (ents[0]->alpha))
+	if (!translucent)
 		state |= GLS_BLEND_OPAQUE;
 	else
-		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
+		state |= GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE;
 	
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
@@ -500,6 +503,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	unsigned state;
 	GLuint buf, program;
 	GLbyte *ofs;
+	qboolean oit;
 
 	if (count > countof(bmodel_instances))
 	{
@@ -520,14 +524,15 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	// setup state
 	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
 	if (translucent)
-		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
+		state |= GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE;
 	else
 		state |= GLS_BLEND_OPAQUE;
 
+	oit = translucent && r_oit.value != 0.f;
 	if (cl.worldmodel->haslitwater && r_litwater.value)
-		program = glprogs.world[q_max(0, (int)softemu - 1)][WORLDSHADER_WATER];
+		program = glprogs.world[oit][q_max(0, (int)softemu - 1)][WORLDSHADER_WATER];
 	else
-		program = glprogs.water[softemu == SOFTEMU_COARSE];
+		program = glprogs.water[oit][softemu == SOFTEMU_COARSE];
 
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
@@ -574,8 +579,12 @@ R_DrawBrushModels
 */
 void R_DrawBrushModels (entity_t **ents, int count)
 {
-	R_DrawBrushModels_Real (ents, count, BP_SOLID);
-	R_DrawBrushModels_Real (ents, count, BP_ALPHATEST);
+	qboolean translucent;
+	if (!count)
+		return;
+	translucent = (ents[0] != &cl_entities[0]) && !ENTALPHA_OPAQUE (ents[0]->alpha);
+	R_DrawBrushModels_Real (ents, count, BP_SOLID, translucent);
+	R_DrawBrushModels_Real (ents, count, BP_ALPHATEST, translucent);
 }
 
 /*
@@ -585,7 +594,7 @@ R_DrawBrushModels_SkyLayers
 */
 void R_DrawBrushModels_SkyLayers (entity_t **ents, int count)
 {
-	R_DrawBrushModels_Real (ents, count, BP_SKYLAYERS);
+	R_DrawBrushModels_Real (ents, count, BP_SKYLAYERS, false);
 }
 
 /*
@@ -595,7 +604,7 @@ R_DrawBrushModels_SkyCubemap
 */
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count)
 {
-	R_DrawBrushModels_Real (ents, count, BP_SKYCUBEMAP);
+	R_DrawBrushModels_Real (ents, count, BP_SKYCUBEMAP, false);
 }
 
 /*
@@ -605,7 +614,7 @@ R_DrawBrushModels_SkyStencil
 */
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count)
 {
-	R_DrawBrushModels_Real (ents, count, BP_SKYSTENCIL);
+	R_DrawBrushModels_Real (ents, count, BP_SKYSTENCIL, false);
 }
 
 /*
@@ -615,5 +624,5 @@ R_DrawBrushModels_ShowTris
 */
 void R_DrawBrushModels_ShowTris (entity_t **ents, int count)
 {
-	R_DrawBrushModels_Real (ents, count, BP_SHOWTRIS);
+	R_DrawBrushModels_Real (ents, count, BP_SHOWTRIS, false);
 }

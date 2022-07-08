@@ -43,6 +43,7 @@ extern cvar_t r_noshadow_list;
 //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 extern cvar_t r_alphasort;
+extern cvar_t r_oit;
 
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
@@ -201,6 +202,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
 	Cvar_RegisterVariable (&r_alphasort);
+	Cvar_RegisterVariable (&r_oit);
 
 	Cvar_RegisterVariable (&gl_finish);
 	Cvar_RegisterVariable (&gl_clear);

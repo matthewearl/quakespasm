@@ -23,11 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 ////////////////////////////////////////////////////////////////
 //
-// Debug options
+// Compile-time options
 //
 ////////////////////////////////////////////////////////////////
 
-#define SHOW_ACTIVE_LIGHT_CLUSTERS 0
+#define LINEAR_SPACE_OIT			0
+#define SHOW_ACTIVE_LIGHT_CLUSTERS	0
 
 ////////////////////////////////////////////////////////////////
 //
@@ -419,6 +420,47 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "\n"\
 
 ////////////////////////////////////////////////////////////////
+
+#define OIT_OUTPUT(output_name) \
+"#define OUT_COLOR " QS_STRINGIFY (output_name) "\n"\
+"#if OIT\n"\
+"	vec4 OUT_COLOR;\n"\
+"	layout(location=0) out vec4 out_accum;\n"\
+"	layout(location=1) out float out_reveal;\n"\
+"\n"\
+"	vec3 GammaToLinear(vec3 v)\n"\
+"	{\n"\
+"#if " QS_STRINGIFY (LINEAR_SPACE_OIT) "\n"\
+"		return v*v;\n"\
+"#else\n"\
+"		return v;\n"\
+"#endif\n"\
+"	}\n"\
+"\n"\
+"	void main_body();\n"\
+"\n"\
+"	void main()\n"\
+"	{\n"\
+"		main_body();\n"\
+"		OUT_COLOR = clamp(OUT_COLOR, 0.0, 1.0);\n"\
+"		vec4 color = vec4(GammaToLinear(OUT_COLOR.rgb), OUT_COLOR.a);\n"\
+"		float z = 1./gl_FragCoord.w;\n"\
+"#if " QS_STRINGIFY (LINEAR_SPACE_OIT) "\n"\
+"		float weight = clamp(color.a * color.a * 0.03 / (1e-5 + pow(z/2e5, 2.0)), 1e-2, 3e3);\n"\
+"#else\n"\
+"		float weight = clamp(color.a * color.a * 0.03 / (1e-5 + pow(z/1e7, 1.0)), 1e-2, 3e3);\n"\
+"#endif\n"\
+"		out_accum = vec4(color.rgb, color.a * weight);\n"\
+"		out_accum.rgb *= out_accum.a;\n"\
+"		out_reveal = color.a;\n"\
+"	}\n"\
+"\n"\
+"	#define main main_body\n"\
+"#else\n"\
+"	layout(location=0) out vec4 OUT_COLOR;\n"\
+"#endif // OIT\n"\
+
+////////////////////////////////////////////////////////////////
 //
 // World
 //
@@ -532,7 +574,7 @@ NOISE_FUNCTIONS
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 "#endif\n"
 "\n"
-"layout(location=0) out vec4 out_fragcolor;\n"
+OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
@@ -724,7 +766,7 @@ NOISE_FUNCTIONS
 "	layout(location=3) flat in uvec2 in_sampler;\n"
 "#endif\n"
 "\n"
-"layout(location=0) out vec4 out_fragcolor;\n"
+OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
@@ -1040,7 +1082,7 @@ NOISE_FUNCTIONS
 "layout(location=1) in vec4 in_color;\n"
 "layout(location=2) in vec3 in_pos;\n"
 "\n"
-"layout(location=0) out vec4 out_fragcolor;\n"
+OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
@@ -1168,6 +1210,9 @@ FRAMEDATA_BUFFER
 "	out_pos = in_pos - EyePos; // FIXME: use corner position\n"
 "	out_uv = corner * 0.25 + 0.25; // remap corner to uv range\n"
 "	out_color = in_color;\n"
+"#if OIT\n"
+"	out_color.a *= 0.9;\n"
+"#endif\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -1182,7 +1227,7 @@ NOISE_FUNCTIONS
 "layout(location=1) in vec4 in_color;\n"
 "layout(location=2) in vec3 in_pos;\n"
 "\n"
-"layout(location=0) out vec4 out_fragcolor;\n"
+OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
@@ -1231,6 +1276,67 @@ static const char debug3d_fragment_shader[] =
 "void main()\n"
 "{\n"
 "	out_fragcolor = in_color;\n"
+"}\n";
+
+////////////////////////////////////////////////////////////////
+//
+// OIT resolve
+//
+////////////////////////////////////////////////////////////////
+
+static const char oit_resove_vertex_shader[] =
+"void main()\n"
+"{\n"
+"	ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);\n"
+"	gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);\n"
+"}\n";
+
+static const char oit_resove_fragment_shader[] =
+"layout(early_fragment_tests) in;\n"
+"\n"
+"#if MSAA\n"
+"	#define Sampler				sampler2DMS\n"
+"	#define FetchSample(s, c)	texelFetch(s, c, gl_SampleID)\n"
+"#else\n"
+"	#define Sampler				sampler2D\n"
+"	#define FetchSample(s, c)	texelFetch(s, c, 0)\n"
+"#endif\n"
+"\n"
+"layout(binding=0) uniform Sampler TexAccum;\n"
+"layout(binding=1) uniform Sampler TexReveal;\n"
+"\n"
+"layout(location=0) out vec4 out_fragcolor;\n"
+"\n"
+"vec3 LinearToGamma(vec3 v)\n"
+"{\n"
+"#if " QS_STRINGIFY (LINEAR_SPACE_OIT) "\n"
+"	return sqrt(clamp(v, 0.0, 1.0));\n"
+"#else\n"
+"	return clamp(v, 0.0, 1.0);\n"
+"#endif\n"
+"}\n"
+"\n"
+"// get the max value between three values\n"
+"float max3(vec3 v)\n"
+"{\n"
+"	return max(max(v.x, v.y), v.z);\n"
+"}\n"
+"\n"
+"void main()\n"
+"{\n"
+"	ivec2 coords = ivec2(gl_FragCoord.xy);\n"
+"	float revealage = FetchSample(TexReveal, coords).r;\n"
+"	// Note: we're using the stencil buffer to discard pixels with no contribution\n"
+"	//if (revealage >= 0.999)\n"
+"	//	discard;\n"
+"\n"
+"	vec4 accumulation = FetchSample(TexAccum, coords);\n"
+"	// suppress overflow\n"
+"	if (isinf(max3(abs(accumulation.rgb))))\n"
+"		accumulation.rgb = vec3(accumulation.a);\n"
+"\n"
+"	vec3 average_color = accumulation.rgb / max(accumulation.a, 1e-5);\n"
+"	out_fragcolor = vec4(LinearToGamma(average_color), 1.0 - revealage);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////

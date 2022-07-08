@@ -841,6 +841,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	particlevert_t	*v;
 	GLubyte			color[4] = {255, 255, 255, 255}, *c; //johnfitz -- particle transparency
 	extern	cvar_t	r_particles; //johnfitz
+	extern	cvar_t	r_oit;
 	//float			alpha; //johnfitz -- particle transparency
 	float			scalex, scaley;
 	qboolean		dither;
@@ -854,7 +855,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	GL_BeginGroup ("Particles");
 
 	dither = (softemu == SOFTEMU_COARSE && !showtris);
-	GL_UseProgram (glprogs.particles[dither]);
+	GL_UseProgram (glprogs.particles[r_oit.value != 0.f][dither]);
 
 	// compensate for apparent size of different particle textures
 	// this bakes in the additional scaling of vup and vright by 1.5f for billboarding,
@@ -866,7 +867,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	GL_Uniform2fFunc (0, scalex, scaley);
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
-	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
+	GL_SetState (GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
 
 	numpartverts = 0;
 	for (p=active_particles ; p ; p=p->next)

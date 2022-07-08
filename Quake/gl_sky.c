@@ -532,6 +532,7 @@ void Sky_DrawSky (void)
 	else if (skybox_name[0])
 	{
 		glEnable (GL_STENCIL_TEST);
+		glStencilMask (1);
 		glStencilFunc (GL_ALWAYS, 1, 1);
 		glStencilOp (GL_KEEP, GL_KEEP, GL_REPLACE);
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
