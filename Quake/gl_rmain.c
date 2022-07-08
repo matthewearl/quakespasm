@@ -79,6 +79,7 @@ cvar_t	r_novis = {"r_novis","0",CVAR_ARCHIVE};
 #if defined(USE_SIMD)
 cvar_t	r_simd = {"r_simd","1",CVAR_ARCHIVE};
 #endif
+cvar_t	r_alphasort = {"r_alphasort","1",CVAR_NONE};
 
 cvar_t	gl_finish = {"gl_finish","0",CVAR_NONE};
 cvar_t	gl_clear = {"gl_clear","1",CVAR_NONE};
@@ -325,13 +326,11 @@ qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
 
 /*
 ===============
-R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
+R_GetEntityBounds -- johnfitz -- uses correct bounds based on rotation
 ===============
 */
-qboolean R_CullModelForEntity (entity_t *e)
+void R_GetEntityBounds (const entity_t *e, vec3_t mins, vec3_t maxs)
 {
-	vec3_t mins, maxs;
-
 	if (e->angles[0] || e->angles[2]) //pitch or roll
 	{
 		VectorAdd (e->origin, e->model->rmins, mins);
@@ -347,6 +346,18 @@ qboolean R_CullModelForEntity (entity_t *e)
 		VectorAdd (e->origin, e->model->mins, mins);
 		VectorAdd (e->origin, e->model->maxs, maxs);
 	}
+}
+
+/*
+===============
+R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
+===============
+*/
+qboolean R_CullModelForEntity (entity_t *e)
+{
+	vec3_t mins, maxs;
+
+	R_GetEntityBounds (e, mins, maxs);
 
 	return R_CullBox (mins, maxs);
 }
@@ -533,10 +544,25 @@ static void R_SortEntities (void)
 	{
 		entity_t *ent = cl_visedicts[i];
 		qboolean translucent = !ENTALPHA_OPAQUE (ent->alpha);
-		if (ent->model->type == mod_alias)
-			visedict_keys[i] = ent->model->sortkey | (ent->skinnum & MODSORT_FRAMEMASK);
+
+		if (translucent && r_alphasort.value)
+		{
+			float dist;
+			vec3_t mins, maxs;
+
+			R_GetEntityBounds (ent, mins, maxs);
+			for (j = 0, dist = 0.f; j < 3; j++)
+				dist += (CLAMP (mins[j], r_refdef.vieworg[j], maxs[j]) - r_refdef.vieworg[j]) * vpn[j];
+
+			visedict_keys[i] = ~CLAMP (0, (int)dist, 0xffff);
+		}
 		else
-			visedict_keys[i] = ent->model->sortkey | (ent->frame & MODSORT_FRAMEMASK);
+		{
+			if (ent->model->type == mod_alias)
+				visedict_keys[i] = ent->model->sortkey | (ent->skinnum & MODSORT_FRAMEMASK);
+			else
+				visedict_keys[i] = ent->model->sortkey | (ent->frame & MODSORT_FRAMEMASK);
+		}
 
 		if ((unsigned)ent->model->type >= (unsigned)mod_numtypes)
 			Sys_Error ("Model '%s' has invalid type %d", ent->model->name, ent->model->type);
