@@ -3274,7 +3274,7 @@ builtindef_t pr_builtindefs[] =
 	{"findradius",				PF_SSQC(PF_findradius),			22},	// entity(vector org, float rad) findradius	= #22
 	{"bprint",					PF_SSQC(PF_bprint),				23},	// void(string s) bprint		= #23
 	{"sprint",					PF_SSQC(PF_sprint),				24},	// void(entity client, string s) sprint	= #24
-	{"dprint",					PF_SSQC(PF_dprint),				25},	// void(string s) dprint		= #25
+	{"dprint",					PF_BOTH(PF_dprint),				25},	// void(string s) dprint		= #25
 	{"ftos",					PF_BOTH(PF_ftos),				26},	// void(string s) ftos			= #26
 	{"vtos",					PF_BOTH(PF_vtos),				27},	// void(string s) vtos			= #27
 	{"coredump",				PF_SSQC(PF_coredump),			28},
