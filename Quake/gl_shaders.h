@@ -436,7 +436,7 @@ WORLD_VERTEX_BUFFER
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
 "layout(location=2) out vec3 out_pos;\n"
-"#if ALPHATEST\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
 "	layout(location=3) centroid out vec2 out_uv;\n"
 "#else\n"
 "	layout(location=3) out vec2 out_uv;\n"
