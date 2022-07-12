@@ -37,7 +37,7 @@ static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
 
 //============================================================================
 
-SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **statss)
+void SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **statss)
 {
 	size_t i;
 	edict_t *ent = client->edict;
