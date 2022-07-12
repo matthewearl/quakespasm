@@ -55,8 +55,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // Prefer running on dedicated GPUs to avoid bugs in ancient Intel drivers
-_declspec(dllexport) DWORD NvOptimusEnablement = 1;
-_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+__declspec(dllexport) DWORD NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 qboolean		isDedicated;
 
