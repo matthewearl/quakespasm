@@ -3873,7 +3873,7 @@ void M_Mousemove (int x, int y)
 
 	switch (m_state)
 	{
-	case m_none:
+	default:
 		return;
 
 	case m_main:
