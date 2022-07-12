@@ -361,6 +361,9 @@ static void GL_PackLitSurfaces (void)
 
 	blacklm = AllocBlock (maxblack[0]+1, maxblack[1]+1, &blackofs[0], &blackofs[1]);
 
+	if (VEC_SIZE (lit_surfs) == 0)
+		return;
+
 	lit_surf_order[0] = (int *) realloc (lit_surf_order[0], sizeof (lit_surf_order[0][0]) * VEC_SIZE (lit_surfs));
 	lit_surf_order[1] = (int *) realloc (lit_surf_order[1], sizeof (lit_surf_order[1][0]) * VEC_SIZE (lit_surfs));
 
