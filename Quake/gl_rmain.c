@@ -1299,6 +1299,8 @@ void R_WarpScaleView (void)
 	qboolean postprocess = vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu;
 	qboolean msaa = framebufs.scene.samples > 1;
 	qboolean direct = !msaa && !water_warp && r_refdef.scale == 1;
+	qboolean needwarpscale;
+	GLuint fbodest;
 
 	if (direct)
 		return;
@@ -1308,19 +1310,35 @@ void R_WarpScaleView (void)
 	srcw = r_refdef.vrect.width / r_refdef.scale;
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
+	needwarpscale = r_refdef.scale != 1 || water_warp || (v_blend[3] && gl_polyblend.value && !softemu);
+	fbodest = postprocess ? framebufs.composite.fbo : 0;
+
 	if (msaa)
 	{
 		GL_BeginGroup ("MSAA resolve");
+
 		GL_BindFramebufferFunc (GL_READ_FRAMEBUFFER, framebufs.scene.fbo);
-		GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, framebufs.resolved_scene.fbo);
-		GL_BlitFramebufferFunc (0, 0, srcw, srch, 0, 0, srcw, srch, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		if (needwarpscale)
+		{
+			GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, framebufs.resolved_scene.fbo);
+			GL_BlitFramebufferFunc (0, 0, srcw, srch, 0, 0, srcw, srch, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		}
+		else
+		{
+			GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, fbodest);
+			GL_BlitFramebufferFunc (0, 0, srcw, srch, srcx, srcy, srcx + srcw, srcy + srch, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		}
+
 		GL_EndGroup ();
 	}
 
-	GL_BeginGroup ("Warp/scale view");
-
-	GL_BindFramebufferFunc (GL_FRAMEBUFFER, postprocess ? framebufs.composite.fbo : 0);
+	GL_BindFramebufferFunc (GL_FRAMEBUFFER, fbodest);
 	glViewport (srcx, srcy, r_refdef.vrect.width, r_refdef.vrect.height);
+
+	if (!needwarpscale)
+		return;
+
+	GL_BeginGroup ("Warp/scale view");
 
 	smax = srcw/(float)vid.width;
 	tmax = srch/(float)vid.height;
