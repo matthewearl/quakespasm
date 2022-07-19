@@ -66,7 +66,7 @@ keyname_t keynames[] =
 	{"CTRL", K_CTRL},
 	{"SHIFT", K_SHIFT},
 
-//	{"KP_NUMLOCK", K_KP_NUMLOCK},
+	{"KP_NUMLOCK", K_KP_NUMLOCK},
 	{"KP_SLASH", K_KP_SLASH},
 	{"KP_STAR", K_KP_STAR},
 	{"KP_MINUS", K_KP_MINUS},
@@ -105,6 +105,12 @@ keyname_t keynames[] =
 	{"END", K_END},
 
 	{"COMMAND", K_COMMAND},
+
+	{"CAPSLOCK", K_CAPSLOCK},
+	{"SCROLLLOCK", K_SCROLLLOCK},
+	{"NUMLOCK", K_KP_NUMLOCK}, // Note: added a second time, without the KP_ prefix, for consistency with the other LOCK keys
+
+	{"PRINTSCREEN", K_PRINTSCREEN},
 
 	{"MOUSE1", K_MOUSE1},
 	{"MOUSE2", K_MOUSE2},
