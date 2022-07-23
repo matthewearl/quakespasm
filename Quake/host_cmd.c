@@ -29,6 +29,7 @@ extern cvar_t	nomonsters;
 int	current_skill;
 
 void Mod_Print (void);
+char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize);
 
 /*
 ==================
@@ -101,6 +102,45 @@ static void FileList_Clear (filelist_item_t **list)
 		blah = (*list)->next;
 		Z_Free(*list);
 		*list = blah;
+	}
+}
+
+/*
+==================
+FileList_Print
+==================
+*/
+static void FileList_Print (filelist_item_t *list, const char *type, const char *substr)
+{
+	int i;
+	filelist_item_t	*item;
+	char buf[256];
+
+	if (substr && *substr)
+	{
+		for (item = list, i = 0; item; item = item->next)
+		{
+			if (q_strcasestr (item->name, substr))
+			{
+				Con_SafePrintf ("   %s\n", Cmd_TintSubstring (item->name, substr, buf, sizeof (buf)));
+				i++;
+			}
+		}
+
+		if (i)
+			Con_SafePrintf ("%i %s(s) containing \"%s\"\n", i, type, substr);
+		else
+			Con_SafePrintf ("no %ss found containing \"%s\"\n", type, substr);
+	}
+	else
+	{
+		for (item = list, i = 0; item; item = item->next, i++)
+			Con_SafePrintf ("   %s\n", item->name);
+
+		if (i)
+			Con_SafePrintf ("%i %s(s)\n", i, type);
+		else
+			Con_SafePrintf ("no %ss found\n", type);
 	}
 }
 
@@ -177,16 +217,7 @@ Host_Maps_f
 */
 static void Host_Maps_f (void)
 {
-	int i;
-	filelist_item_t	*level;
-
-	for (level = extralevels, i = 0; level; level = level->next, i++)
-		Con_SafePrintf ("   %s\n", level->name);
-
-	if (i)
-		Con_SafePrintf ("%i map(s)\n", i);
-	else
-		Con_SafePrintf ("no maps found\n");
+	FileList_Print (extralevels, "map", Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
 }
 
 //==============================================================================
@@ -368,16 +399,7 @@ list all potential mod directories (contain either a pak file or a progs.dat)
 */
 static void Host_Mods_f (void)
 {
-	int i;
-	filelist_item_t	*mod;
-
-	for (mod = modlist, i=0; mod; mod = mod->next, i++)
-		Con_SafePrintf ("   %s\n", mod->name);
-
-	if (i)
-		Con_SafePrintf ("%i mod(s)\n", i);
-	else
-		Con_SafePrintf ("no mods found\n");
+	FileList_Print (modlist, "mod", Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
 }
 
 //==============================================================================
