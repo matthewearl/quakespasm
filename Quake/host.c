@@ -809,7 +809,7 @@ static void UpdateWindowTitle (void)
 static void CL_LoadCSProgs (void)
 {
 	PR_ClearProgs (&cl.qcvm);
-	if (/*pr_checkextension.value && */!cl_nocsqc.value)
+	if (pr_checkextension.value && !cl_nocsqc.value)
 	{ // only try to use csqc if qc extensions are enabled.
 		PR_SwitchQCVM (&cl.qcvm);
 
