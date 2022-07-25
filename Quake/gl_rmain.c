@@ -275,7 +275,7 @@ GL_PostProcess
 */
 void GL_PostProcess (void)
 {
-	int palidx;
+	int palidx, variant;
 	if (vid_gamma.value == 1 && vid_contrast.value == 1 && !softemu)
 		return;
 
@@ -286,12 +286,14 @@ void GL_PostProcess (void)
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0);
 	glViewport (glx, gly, glwidth, glheight);
 
-	GL_UseProgram (glprogs.postprocess[q_min(softemu, 2)]);
+	variant = q_min(softemu, 2);
+	GL_UseProgram (glprogs.postprocess[variant]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_2D, framebufs.composite.color_tex);
 	GL_BindNative (GL_TEXTURE1, GL_TEXTURE_3D, gl_palette_lut);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[palidx], 0, 256 * sizeof (GLuint));
-	GL_Uniform3fFunc (0, vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)), 1.f/r_refdef.scale);
+	if (variant != 2) // some AMD drivers optimize out the uniform in variant #2
+		GL_Uniform3fFunc (0, vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)), 1.f/r_refdef.scale);
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
