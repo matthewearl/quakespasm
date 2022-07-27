@@ -158,6 +158,31 @@ struct pr_extfields_s
 #undef QCEXTFIELD
 };
 
+#define QCEXTENSIONS_ALL						\
+	QCEXTENSION(FRIK_FILE)						\
+	QCEXTENSION(FTE_STRINGS)					\
+	QCEXTENSION(DP_QC_ETOS)						\
+	QCEXTENSION(DP_QC_MINMAXBOUND)				\
+	QCEXTENSION(DP_QC_SINCOSSQRTPOW)			\
+	QCEXTENSION(DP_QC_ASINACOSATANATAN2TAN)		\
+	QCEXTENSION(DP_QC_VECTORVECTORS)			\
+	QCEXTENSION(DP_QC_STRING_CASE_FUNCTIONS)	\
+	QCEXTENSION(DP_QC_SPRINTF)					\
+	QCEXTENSION(DP_QC_TOKENIZE_CONSOLE)			\
+	QCEXTENSION(DP_QC_STRFTIME)					\
+	QCEXTENSION(KRIMZON_SV_PARSECLIENTCOMMAND)	\
+
+typedef enum
+{
+	STD_QC,
+
+	#define QCEXTENSION(name)		name,
+	QCEXTENSIONS_ALL
+	#undef QCEXTENSION
+
+	QCEXT_COUNT,
+} qcextension_t;
+
 typedef struct qcvm_s
 {
 	dprograms_t		*progs;
@@ -184,6 +209,10 @@ typedef struct qcvm_s
 	struct pr_extfuncs_s extfuncs;
 	struct pr_extglobals_s extglobals;
 	struct pr_extfields_s extfields;
+
+	qcextension_t	builtin_ext[MAX_BUILTINS];
+	uint32_t		warned_builtin[2][(MAX_BUILTINS + 31) / 32];
+	uint32_t		checked_ext[(QCEXT_COUNT + 31) / 32];
 
 	//was static inside pr_edict
 	char			*strings;
@@ -289,10 +318,11 @@ extern	int		type_size[8];
 
 typedef struct builtindef_s
 {
-	const char	*name;
-	builtin_t	ssqcfunc;
-	builtin_t	csqcfunc;
-	int			number;
+	const char		*name;
+	builtin_t		ssqcfunc;
+	builtin_t		csqcfunc;
+	int				number;
+	qcextension_t	ext;
 } builtindef_t;
 
 extern builtindef_t	pr_builtindefs[];

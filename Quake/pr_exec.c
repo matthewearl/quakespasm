@@ -110,6 +110,15 @@ static const char *pr_opnames[] =
 	"BITOR"
 };
 
+static const char *const pr_extnames[QCEXT_COUNT] =
+{
+	"STD_QC",
+
+	#define QCEXTENSION(name) #name,
+	QCEXTENSIONS_ALL
+	#undef QCEXTENSION
+};
+
 const char *PR_GlobalString (int ofs);
 const char *PR_GlobalStringNoContents (int ofs);
 
@@ -326,6 +335,29 @@ static int PR_LeaveFunction (void)
 	return qcvm->stack[qcvm->depth].s;
 }
 
+/*
+====================
+PR_CheckBuiltinExtension
+====================
+*/
+static void PR_CheckBuiltinExtension (dfunction_t *func)
+{
+	uint32_t builtin = -func->first_statement;
+	uint32_t extnum = qcvm->builtin_ext[builtin];
+	uint32_t checked;
+
+	if (!extnum)
+		return;
+	checked = (qcvm->checked_ext[extnum >> 5] >> (extnum & 31)) & 1;
+	if (qcvm->warned_builtin[checked][builtin >> 5] & (1 << (builtin & 31)))
+		return;
+	qcvm->warned_builtin[checked][builtin >> 5] |= (1 << (builtin & 31));
+
+	Con_Warning (checked ?
+		"[%s] \"%s\" ignored when calling \"%s\"\n" :
+		"[%s] check \"%s\" before calling \"%s\"\n",
+		(qcvm == &cl.qcvm) ? "CL" : "SV", pr_extnames[extnum], PR_GetString (func->s_name));
+}
 
 /*
 ====================
@@ -598,6 +630,7 @@ void PR_ExecuteProgram (func_t fnum)
 			int i = -newf->first_statement;
 			if (i >= qcvm->numbuiltins)
 				PR_RunError("Bad builtin call number %d", i);
+			PR_CheckBuiltinExtension (newf);
 			qcvm->builtins[i]();
 			break;
 		}
@@ -633,7 +666,30 @@ void PR_ExecuteProgram (func_t fnum)
 	}
     }	/* end of while(1) loop */
 }
+
+dfunction_t *PR_BuiltinFunction (void)
+{
+	dfunction_t *func;
+	dstatement_t *st;
+
+	if (qcvm->xstatement < 0 || qcvm->xstatement >= qcvm->progs->numstatements)
+		return NULL;
+	st = &qcvm->statements[qcvm->xstatement];
+
+	if ((unsigned)(st->op - OP_CALL0) > 8)
+		return NULL;
+	if (!OPA->function)
+		return NULL;
+	if (OPA->function < 0 || OPA->function >= qcvm->progs->numfunctions)
+		return NULL;
+
+	func = &qcvm->functions[OPA->function];
+	if (func->first_statement >= 0 || func->first_statement <= -MAX_BUILTINS)
+		return NULL;
+
+	return func;
+}
+
 #undef OPA
 #undef OPB
 #undef OPC
-

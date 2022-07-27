@@ -3326,11 +3326,11 @@ builtindef_t pr_builtindefs[] =
 	{"WriteString",				PF_SSQC(PF_WriteString),		58},
 	{"WriteEntity",				PF_SSQC(PF_WriteEntity),		59},
 
-	{"sin",						PF_BOTH(PF_Sin),				60},	// float(float angle)
-	{"cos",						PF_BOTH(PF_Cos),				61},	// float(float angle)
-	{"sqrt",					PF_BOTH(PF_Sqrt),				62},	// float(float value)
+	{"sin",						PF_BOTH(PF_Sin),				60,		DP_QC_SINCOSSQRTPOW},	// float(float angle)
+	{"cos",						PF_BOTH(PF_Cos),				61,		DP_QC_SINCOSSQRTPOW},	// float(float angle)
+	{"sqrt",					PF_BOTH(PF_Sqrt),				62,		DP_QC_SINCOSSQRTPOW},	// float(float value)
 
-	{"etos",					PF_BOTH(PF_etos),				65},	// string(entity ent)
+	{"etos",					PF_BOTH(PF_etos),				65,		DP_QC_ETOS},			// string(entity ent)
 
 	{"movetogoal",				PF_SSQC(SV_MoveToGoal),			67},
 	{"precache_file",			PF_SSQC(PF_precache_file),		68},
@@ -3344,7 +3344,7 @@ builtindef_t pr_builtindefs[] =
 	{"ambientsound",			PF_SSQC(PF_ambientsound),		74},
 
 	{"precache_model2",			PF_SSQC(PF_precache_model),		75},
-	{"precache_sound2",			PF_SSQC(PF_precache_sound),		76}, // precache_sound2 is different only for qcc
+	{"precache_sound2",			PF_SSQC(PF_precache_sound),		76},	// precache_sound2 is different only for qcc
 	{"precache_file2",			PF_SSQC(PF_precache_file),		77},
 
 	{"setspawnparms",			PF_SSQC(PF_setspawnparms),		78},
@@ -3370,22 +3370,23 @@ builtindef_t pr_builtindefs[] =
 	{"ex_walkpathtogoal",		PF_SSQC(PF_walkpathtogoal)},			// float(float movedist, vector goal)
 	{"ex_localsound",			PF_SSQC(PF_localsound)},				// void(entity client, string sample)
 
-	{"min",						PF_BOTH(PF_min),				94},	// float(float a, float b, ...)
-	{"max",						PF_BOTH(PF_max),				95},	// float(float a, float b, ...)
-	{"bound",					PF_BOTH(PF_bound),				96},	// float(float minimum, float val, float maximum)
-	{"pow",						PF_BOTH(PF_pow),				97},	// float(float value, float exp)
+	{"min",						PF_BOTH(PF_min),				94,		DP_QC_MINMAXBOUND},	// float(float a, float b, ...)
+	{"max",						PF_BOTH(PF_max),				95,		DP_QC_MINMAXBOUND},	// float(float a, float b, ...)
+	{"bound",					PF_BOTH(PF_bound),				96,		DP_QC_MINMAXBOUND},	// float(float minimum, float val, float maximum)
+
+	{"pow",						PF_BOTH(PF_pow),				97,		DP_QC_SINCOSSQRTPOW},	// float(float value, float exp)
 
 	{"checkextension",			PF_BOTH(PF_checkextension),		99},	// float(string extname)
 
-	{"strlen",					PF_BOTH(PF_strlen),				114},	// float(string s)
-	{"strcat",					PF_BOTH(PF_strcat),				115},	// string(string s1, optional string s2, optional string s3, optional string s4, optional string s5, optional string s6, optional string s7, optional string s8)
-	{"substring",				PF_BOTH(PF_substring),			116},	// string(string s, float start, float length)
-	{"stov",					PF_BOTH(PF_stov),				117},	// vector(string s)
-	{"strzone",					PF_BOTH(PF_strzone),			118},	// string(string s, ...)
-	{"strunzone",				PF_BOTH(PF_strunzone),			119},	// void(string s)
+	{"strlen",					PF_BOTH(PF_strlen),				114,	FRIK_FILE},	// float(string s)
+	{"strcat",					PF_BOTH(PF_strcat),				115,	FRIK_FILE},	// string(string s1, optional string s2, optional string s3, optional string s4, optional string s5, optional string s6, optional string s7, optional string s8)
+	{"substring",				PF_BOTH(PF_substring),			116,	FRIK_FILE},	// string(string s, float start, float length)
+	{"stov",					PF_BOTH(PF_stov),				117,	FRIK_FILE},	// vector(string s)
+	{"strzone",					PF_BOTH(PF_strzone),			118,	FRIK_FILE},	// string(string s, ...)
+	{"strunzone",				PF_BOTH(PF_strunzone),			119,	FRIK_FILE},	// void(string s)
 
-	{"str2chr",					PF_BOTH(PF_str2chr),			222},	// float(string str, float index)
-	{"chr2str",					PF_BOTH(PF_chr2str),			223},	// string(float chr, ...)
+	{"str2chr",					PF_BOTH(PF_str2chr),			222,	FTE_STRINGS},	// float(string str, float index)
+	{"chr2str",					PF_BOTH(PF_chr2str),			223,	FTE_STRINGS},	// string(float chr, ...)
 
 	{"clientstat",				PF_SSQC(PF_clientstat),			232},	// void(float num, float type, .__variant fld)
 
@@ -3415,22 +3416,22 @@ builtindef_t pr_builtindefs[] =
 
 	{"registercommand",			PF_CSQC(PF_cl_registercommand),	352},	// void(string cmdname)
 
-	{"vectorvectors",			PF_BOTH(PF_vectorvectors),		432},	// void(vector dir)
+	{"vectorvectors",			PF_BOTH(PF_vectorvectors),		432,	DP_QC_VECTORVECTORS},	// void(vector dir)
 
-	{"clientcommand",			PF_SSQC(PF_clientcommand),		440},	// void(entity e, string s)
-	{"tokenize",				PF_BOTH(PF_Tokenize),			441},	// float(string s)
-	{"argv",					PF_BOTH(PF_ArgV),				442},	// string(float n)
+	{"clientcommand",			PF_SSQC(PF_clientcommand),		440,	KRIMZON_SV_PARSECLIENTCOMMAND},	// void(entity e, string s)
+	{"tokenize",				PF_BOTH(PF_Tokenize),			441,	KRIMZON_SV_PARSECLIENTCOMMAND},	// float(string s)
+	{"argv",					PF_BOTH(PF_ArgV),				442,	KRIMZON_SV_PARSECLIENTCOMMAND},	// string(float n)
 	{"argc",					PF_BOTH(PF_ArgC)},						// float()
 
-	{"asin",					PF_BOTH(PF_asin),				471},	// float(float s)
-	{"acos",					PF_BOTH(PF_acos),				472},	// float(float c)
-	{"atan",					PF_BOTH(PF_atan),				473},	// float(float t)
-	{"atan2",					PF_BOTH(PF_atan2),				474},	// float(float c, float s)
-	{"tan",						PF_BOTH(PF_tan),				475},	// float(float a)
+	{"asin",					PF_BOTH(PF_asin),				471,	DP_QC_ASINACOSATANATAN2TAN},	// float(float s)
+	{"acos",					PF_BOTH(PF_acos),				472,	DP_QC_ASINACOSATANATAN2TAN},	// float(float c)
+	{"atan",					PF_BOTH(PF_atan),				473,	DP_QC_ASINACOSATANATAN2TAN},	// float(float t)
+	{"atan2",					PF_BOTH(PF_atan2),				474,	DP_QC_ASINACOSATANATAN2TAN},	// float(float c, float s)
+	{"tan",						PF_BOTH(PF_tan),				475,	DP_QC_ASINACOSATANATAN2TAN},	// float(float a)
 
-	{"tokenize_console",		PF_BOTH(PF_tokenize_console),	514},	// float(string str)
+	{"tokenize_console",		PF_BOTH(PF_tokenize_console),	514,	DP_QC_TOKENIZE_CONSOLE},		// float(string str)
 
-	{"sprintf",					PF_BOTH(PF_sprintf),			627},	// string(string fmt, ...)
+	{"sprintf",					PF_BOTH(PF_sprintf),			627,	DP_QC_SPRINTF},					// string(string fmt, ...)
 };
 int pr_numbuiltindefs = countof (pr_builtindefs);
 
