@@ -359,9 +359,12 @@ static void PR_CheckBuiltinExtension (dfunction_t *func)
 	SetBit (qcvm->warned_builtin[checked], builtin);
 
 	Con_Warning (checked ?
-		"[%s] \"%s\" ignored when calling \"%s\"\n" :
-		"[%s] check \"%s\" before calling \"%s\"\n",
-		(qcvm == &cl.qcvm) ? "CL" : "SV", pr_extnames[extnum], PR_GetString (func->s_name));
+		"[%s] \"%s\" ignored when calling %s (%s: %s)\n" :
+		"[%s] check \"%s\" before calling %s (%s: %s)\n",
+		(qcvm == &cl.qcvm) ? "CL" : "SV",
+		pr_extnames[extnum], PR_GetString (func->s_name),
+		PR_GetString (qcvm->xfunction->s_file), PR_GetString (qcvm->xfunction->s_name)
+	);
 }
 
 /*
