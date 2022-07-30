@@ -344,11 +344,16 @@ static void PR_CheckBuiltinExtension (dfunction_t *func)
 {
 	uint32_t builtin = -func->first_statement;
 	uint32_t extnum = qcvm->builtin_ext[builtin];
-	uint32_t checked;
+	uint32_t checked, advertised;
 
 	if (!extnum)
 		return;
+
 	checked = GetBit (qcvm->checked_ext, extnum);
+	advertised = GetBit (qcvm->advertised_ext, extnum);
+	if (checked && advertised)
+		return;
+
 	if (GetBit (qcvm->warned_builtin[checked], builtin))
 		return;
 	SetBit (qcvm->warned_builtin[checked], builtin);

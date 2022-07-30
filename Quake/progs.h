@@ -213,6 +213,7 @@ typedef struct qcvm_s
 	qcextension_t	builtin_ext[MAX_BUILTINS];
 	uint32_t		warned_builtin[2][(MAX_BUILTINS + 31) / 32];
 	uint32_t		checked_ext[(QCEXT_COUNT + 31) / 32];
+	uint32_t		advertised_ext[(QCEXT_COUNT + 31) / 32];
 
 	//was static inside pr_edict
 	char			*strings;
