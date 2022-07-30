@@ -348,10 +348,10 @@ static void PR_CheckBuiltinExtension (dfunction_t *func)
 
 	if (!extnum)
 		return;
-	checked = (qcvm->checked_ext[extnum >> 5] >> (extnum & 31)) & 1;
-	if (qcvm->warned_builtin[checked][builtin >> 5] & (1 << (builtin & 31)))
+	checked = GetBit (qcvm->checked_ext, extnum);
+	if (GetBit (qcvm->warned_builtin[checked], builtin))
 		return;
-	qcvm->warned_builtin[checked][builtin >> 5] |= (1 << (builtin & 31));
+	SetBit (qcvm->warned_builtin[checked], builtin);
 
 	Con_Warning (checked ?
 		"[%s] \"%s\" ignored when calling \"%s\"\n" :
