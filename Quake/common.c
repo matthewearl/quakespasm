@@ -2241,6 +2241,7 @@ static void COM_Game_f (void)
 			R_NewGame ();
 		}
 		ExtraMaps_NewGame ();
+		Host_Resetdemos ();
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
 		M_CheckMods ();
