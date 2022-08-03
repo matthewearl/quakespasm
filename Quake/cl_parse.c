@@ -684,6 +684,7 @@ void CL_ParseBaseline (entity_t *ent, int version) //johnfitz -- added argument
 	ent->baseline.alpha = (bits & B_ALPHA) ? MSG_ReadByte() : ENTALPHA_DEFAULT; //johnfitz -- PROTOCOL_FITZQUAKE
 }
 
+#define CL_SetHudStat(stat) cl.statsf[stat] = cl.stats[stat]
 
 /*
 ==================
@@ -845,6 +846,17 @@ void CL_ParseClientdata (void)
 	else
 		cl.viewent.alpha = ENTALPHA_DEFAULT;
 	//johnfitz
+
+	CL_SetHudStat (STAT_WEAPONFRAME);
+	CL_SetHudStat (STAT_ARMOR);
+	CL_SetHudStat (STAT_WEAPON);
+	CL_SetHudStat (STAT_ACTIVEWEAPON);
+	CL_SetHudStat (STAT_HEALTH);
+	CL_SetHudStat (STAT_AMMO);
+	CL_SetHudStat (STAT_SHELLS);
+	CL_SetHudStat (STAT_NAILS);
+	CL_SetHudStat (STAT_ROCKETS);
+	CL_SetHudStat (STAT_CELLS);
 
 	//johnfitz -- lerping
 	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
