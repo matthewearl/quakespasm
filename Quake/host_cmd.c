@@ -245,6 +245,10 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 	if (Sys_FileTime (itempath) != -1)
 		return true;
 
+	q_snprintf (itempath, sizeof (itempath), "%s/csprogs.dat", modpath);
+	if (Sys_FileTime (itempath) != -1)
+		return true;
+
 	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
 	if (Sys_FileTime (itempath) != -1)
 		return true;
