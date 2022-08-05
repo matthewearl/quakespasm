@@ -3359,6 +3359,8 @@ builtindef_t pr_builtindefs[] =
 	{"finaleFinished",			PF_SSQC(PF_finalefinished),		79},	// float() finaleFinished = #79
 	{"localsound",				PF_SSQC(PF_localsound),			80},	// void localsound (entity client, string sample) = #80
 
+	{"stof",					PF_BOTH(PF_stof),				81,		FRIK_FILE},			// float(string)
+
 	// 2021 re-release update 3
 	{"ex_centerprint",			PF_SSQC(PF_centerprint)},				// void(entity client, string s, ...)
 	{"ex_bprint",				PF_SSQC(PF_bprint)},					// void(string s, ...)
