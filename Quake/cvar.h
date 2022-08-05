@@ -73,6 +73,8 @@ interface from being ambiguous.
 #define	CVAR_LOCKED		(1U << 8)	// locked temporarily
 #define	CVAR_REGISTERED		(1U << 10)	// the var is added to the list of variables
 #define	CVAR_CALLBACK		(1U << 16)	// var has a callback
+#define CVAR_USERDEFINED	(1U << 17)	// cvar was created by the user/mod, and needs to be saved a bit differently.
+#define CVAR_AUTOCVAR		(1U << 18)	// cvar changes need to feed back to qc global changes.
 
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
@@ -91,6 +93,9 @@ typedef struct cvar_s
 void	Cvar_RegisterVariable (cvar_t *variable);
 // registers a cvar that already has the name, string, and optionally
 // the archive elements set.
+
+cvar_t *Cvar_Create (const char *name, const char *value);
+//creates+registers a cvar, otherwise just returns it.
 
 void Cvar_SetCallback (cvar_t *var, cvarcallback_t func);
 // set a callback function to the var

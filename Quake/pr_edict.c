@@ -1284,6 +1284,39 @@ static void *PR_FindExtGlobal(int type, const char *name)
 	return NULL;
 }
 
+void PR_AutoCvarChanged(cvar_t *var)
+{
+	char *n;
+	ddef_t *glob;
+	qcvm_t *oldqcvm = qcvm;
+	PR_SwitchQCVM(NULL);
+	if (sv.active)
+	{
+		PR_SwitchQCVM(&sv.qcvm);
+		n = va("autocvar_%s", var->name);
+		glob = ED_FindGlobal(n);
+		if (glob)
+		{
+			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
+				Con_Warning("EXT: Unable to configure %s\n", n);
+		}
+		PR_SwitchQCVM(NULL);
+	}
+	if (cl.qcvm.globals)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		n = va("autocvar_%s", var->name);
+		glob = ED_FindGlobal(n);
+		if (glob)
+		{
+			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
+				Con_Warning("EXT: Unable to configure %s\n", n);
+		}
+		PR_SwitchQCVM(NULL);
+	}
+	PR_SwitchQCVM(oldqcvm);
+}
+
 /*
 ===============
 PR_EnableExtensions
@@ -1293,6 +1326,15 @@ called at map start
 */
 void PR_EnableExtensions (void)
 {
+	unsigned int i;
+	unsigned int numautocvars = 0;
+
+	if (!pr_checkextension.value && qcvm == &sv.qcvm)
+	{
+		Con_DPrintf("not enabling qc extensions\n");
+		return;
+	}
+
 #define QCEXTFUNC(n,t) qcvm->extfuncs.n = PR_FindExtFunction(#n);
 #define QCEXTGLOBAL_FLOAT(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_float, #n);
 #define QCEXTGLOBAL_INT(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_ext_integer, #n);
@@ -1312,6 +1354,26 @@ void PR_EnableExtensions (void)
 #undef QCEXTGLOBAL_INT
 #undef QCEXTGLOBAL_VECTOR
 #undef QCEXTFUNC
+
+	//autocvars
+	for (i = 0; i < (unsigned int)qcvm->progs->numglobaldefs; i++)
+	{
+		const char *n = PR_GetString(qcvm->globaldefs[i].s_name);
+		if (!strncmp(n, "autocvar_", 9))
+		{
+			//really crappy approach
+			cvar_t *var = Cvar_Create(n + 9, PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs)));
+			numautocvars++;
+			if (!var)
+				continue;	//name conflicts with a command?
+
+			if (!ED_ParseEpair ((void *)qcvm->globals, &qcvm->globaldefs[i], var->string, true))
+				Con_Warning("EXT: Unable to configure %s\n", n);
+			var->flags |= CVAR_AUTOCVAR;
+		}
+	}
+	if (numautocvars)
+		Con_DPrintf2("Found %i autocvars\n", numautocvars);
 }
 
 //makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.

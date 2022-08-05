@@ -234,6 +234,7 @@ void PR_ExecuteProgram (func_t fnum);
 void PR_ClearProgs(qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal);
 void PR_EnableExtensions (void);
+void PR_AutoCvarChanged (cvar_t *var);					//updates the autocvar_ globals when their cvar is changed
 
 void PR_ReloadPics (qboolean purge);					//for gamedir or video changes
 

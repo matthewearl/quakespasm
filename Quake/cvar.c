@@ -426,6 +426,9 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 
 	if (var->callback)
 		var->callback (var);
+
+	if (var->flags & CVAR_AUTOCVAR)
+		PR_AutoCvarChanged(var);
 }
 
 void Cvar_SetValueQuick (cvar_t *var, const float value)
@@ -586,6 +589,34 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	Cvar_SetQuick (variable, value);
 	if (set_rom)
 		variable->flags |= CVAR_ROM;
+}
+
+/*
+============
+Cvar_Create -- spike
+
+Creates a cvar if it does not already exist, otherwise does nothing.
+Must not be used until after all other cvars are registered.
+Cvar will be persistent.
+============
+*/
+cvar_t *Cvar_Create (const char *name, const char *value)
+{
+	cvar_t *newvar;
+	newvar = Cvar_FindVar(name);
+	if (newvar)
+		return newvar;	//already exists.
+	if (Cmd_Exists (name))
+		return NULL;	//error! panic! oh noes!
+
+	newvar = Z_Malloc(sizeof(cvar_t) + strlen(name)+1);
+	newvar->name = (char*)(newvar+1);
+	strcpy((char*)(newvar+1), name);
+	newvar->flags = CVAR_USERDEFINED;
+
+	newvar->string = value;
+	Cvar_RegisterVariable(newvar);
+	return newvar;
 }
 
 /*
