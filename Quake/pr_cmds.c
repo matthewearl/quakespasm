@@ -1754,8 +1754,11 @@ static void PF_checkextension(void)
 	// Note: we expose FTE_QC_CHECKCOMMAND so that AD considers the engine
 	// FTE-like instead of DP-like, in order to avoid a bug in the DP codepath
 	// in older AD versions (e.g. 1.42, used in jam8)
-	if (!strcmp (extname, "FTE_QC_CHECKCOMMAND"))
+	if (i == FTE_QC_CHECKCOMMAND)
+	{
 		G_FLOAT(OFS_RETURN) = true;
+		SetBit (qcvm->advertised_ext, i);
+	}
 	else
 		G_FLOAT(OFS_RETURN) = false;
 }
@@ -3398,7 +3401,7 @@ builtindef_t pr_builtindefs[] =
 	{"ftoi",					PF_BOTH(PF_ftoi)},						// int(float)
 	{"itof",					PF_BOTH(PF_itof)},						// float(int)
 
-	{"checkcommand",			PF_BOTH(PF_checkcommand),		294},	// float(string name)
+	{"checkcommand",			PF_BOTH(PF_checkcommand),		294,	FTE_QC_CHECKCOMMAND},	// float(string name)
 
 	{"iscachedpic",				PF_CSQC(PF_cl_iscachedpic),		316},	// float(string name)
 	{"precache_pic",			PF_CSQC(PF_cl_precachepic),		317},	// string(string name, optional float flags)
