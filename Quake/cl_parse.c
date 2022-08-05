@@ -1274,10 +1274,12 @@ void CL_ParseServerMessage (void)
 
 		case svc_killedmonster:
 			cl.stats[STAT_MONSTERS]++;
+			cl.statsf[STAT_MONSTERS] = cl.stats[STAT_MONSTERS];
 			break;
 
 		case svc_foundsecret:
 			cl.stats[STAT_SECRETS]++;
+			cl.statsf[STAT_SECRETS] = cl.stats[STAT_SECRETS];
 			break;
 
 		case svc_updatestat:
