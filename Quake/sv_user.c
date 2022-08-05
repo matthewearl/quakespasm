@@ -531,10 +531,19 @@ nextmsg:
 				{	//the spawn/begin/prespawn are because of numerous mods that disobey the rules.
 					//at a minimum, we must be able to join the server, so that we can see any sprints/bprints (because dprint sucks, yes there's proper ways to deal with this, but moders don't always know them).
 					client_t *ohc = host_client;
+					qboolean checked = GetBit (qcvm->checked_ext, KRIMZON_SV_PARSECLIENTCOMMAND);
+					// disable warnings for KRIMZON_SV_PARSECLIENTCOMMAND temporarily
+					// by marking the extension as checked and advertised
+					SetBit (qcvm->checked_ext, KRIMZON_SV_PARSECLIENTCOMMAND);
+					SetBit (qcvm->advertised_ext, KRIMZON_SV_PARSECLIENTCOMMAND);
 					G_INT(OFS_PARM0) = PR_SetEngineString(s);
 					pr_global_struct->time = qcvm->time;
 					pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
 					PR_ExecuteProgram(qcvm->extfuncs.SV_ParseClientCommand);
+					// re-enable warnings
+					ClearBit (qcvm->advertised_ext, KRIMZON_SV_PARSECLIENTCOMMAND);
+					if (!checked)
+						ClearBit (qcvm->checked_ext, KRIMZON_SV_PARSECLIENTCOMMAND);
 					host_client = ohc;
 					break;
 				}

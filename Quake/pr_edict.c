@@ -1481,7 +1481,10 @@ static void PR_InitBuiltins (void)
 		if (!def->number)
 			def->number = i--;
 		if (func)
+		{
 			qcvm->builtins[def->number] = func;
+			qcvm->builtin_ext[def->number] = def->ext;
+		}
 	}
 
 	qcvm->numbuiltins = MAX_BUILTINS;

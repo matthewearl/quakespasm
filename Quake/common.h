@@ -170,6 +170,28 @@ void Vec_Free (void **pvec);
 
 //============================================================================
 
+static inline qboolean GetBit (const uint32_t *arr, uint32_t i)
+{
+	return (arr[i/32u] & (1u<<(i%32u))) != 0u;
+}
+
+static inline void SetBit (uint32_t *arr, uint32_t i)
+{
+	arr[i/32u] |= 1u<<(i%32u);
+}
+
+static inline void ClearBit (uint32_t *arr, uint32_t i)
+{
+	arr[i/32u] &= ~(1u<<(i%32u));
+}
+
+static inline void ToggleBit (uint32_t *arr, uint32_t i)
+{
+	arr[i/32u] ^= 1u<<(i%32u);
+}
+
+//============================================================================
+
 #if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
 #define host_bigendian 1
 #else
