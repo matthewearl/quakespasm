@@ -3358,15 +3358,7 @@ builtindef_t pr_builtindefs[] =
 	// 2021 re-release
 	{"finaleFinished",			PF_SSQC(PF_finalefinished),		79},	// float() finaleFinished = #79
 	{"localsound",				PF_SSQC(PF_localsound),			80},	// void localsound (entity client, string sample) = #80
-	{"draw_point",				PF_SSQC(PF_Fixme),				81},	// void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
-	{"draw_line",				PF_SSQC(PF_Fixme),				82},	// void draw_line (vector start, vector end, float colormap, float lifetime, float depthtest) = #82
-	{"draw_arrow",				PF_SSQC(PF_Fixme),				83},	// void draw_arrow (vector start, vector end, float colormap, float size, float lifetime, float depthtest) = #83
-	{"draw_ray",				PF_SSQC(PF_Fixme),				84},	// void draw_ray (vector start, vector direction, float length, float colormap, float size, float lifetime, float depthtest) = #84
-	{"draw_circle",				PF_SSQC(PF_Fixme),				85},	// void draw_circle (vector origin, float radius, float colormap, float lifetime, float depthtest) = #85
-	{"draw_bounds",				PF_SSQC(PF_Fixme),				86},	// void draw_bounds (vector min, vector max, float colormap, float lifetime, float depthtest) = #86
-	{"draw_worldtext",			PF_SSQC(PF_Fixme),				87},	// void draw_worldtext (string s, vector origin, float size, float lifetime, float depthtest) = #87
-	{"draw_sphere",				PF_SSQC(PF_Fixme),				88},	// void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
-	{"draw_cylinder",			PF_SSQC(PF_Fixme),				89},	// void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
+
 	// 2021 re-release update 3
 	{"ex_centerprint",			PF_SSQC(PF_centerprint)},				// void(entity client, string s, ...)
 	{"ex_bprint",				PF_SSQC(PF_bprint)},					// void(string s, ...)
