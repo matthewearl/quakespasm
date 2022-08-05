@@ -265,6 +265,7 @@ void PR_ClearProgs(qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal);
 void PR_EnableExtensions (void);
 void PR_AutoCvarChanged (cvar_t *var);					//updates the autocvar_ globals when their cvar is changed
+int PR_FindExtensionByName (const char *name);			//returns known extension index, or 0 for unrecognized extensions
 
 void PR_ReloadPics (qboolean purge);					//for gamedir or video changes
 

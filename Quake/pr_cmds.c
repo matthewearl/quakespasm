@@ -1747,6 +1747,9 @@ cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE};	//spike - enab
 static void PF_checkextension(void)
 {
 	const char *extname = G_STRING(OFS_PARM0);
+	int i = PR_FindExtensionByName (extname);
+	if (i)
+		SetBit (qcvm->checked_ext, i);
 
 	// Note: we expose FTE_QC_CHECKCOMMAND so that AD considers the engine
 	// FTE-like instead of DP-like, in order to avoid a bug in the DP codepath
