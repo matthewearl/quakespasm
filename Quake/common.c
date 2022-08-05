@@ -2354,6 +2354,13 @@ static void COM_InitBaseDir (void)
 	if (COM_SetBaseDir (path))
 		return;
 
+	// on Linux, game data might actually be in the user dir
+	if (host_parms->userdir && host_parms->userdir != host_parms->basedir && COM_SetBaseDir (host_parms->userdir))
+	{
+		host_parms->basedir = host_parms->userdir;
+		return;
+	}
+
 	if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
 		Steam_ResolvePath (path, sizeof (path), &steamquake))
 	{
