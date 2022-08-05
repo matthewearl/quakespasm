@@ -464,6 +464,17 @@ void Cmd_Unalias_f (void)
 	}
 }
 
+qboolean Cmd_AliasExists (const char *aliasname)
+{
+	cmdalias_t *a;
+	for (a=cmd_alias ; a ; a=a->next)
+	{
+		if (!q_strcasecmp (aliasname, a->name))
+			return true;
+	}
+	return false;
+}
+
 /*
 ===============
 Cmd_Unaliasall_f -- johnfitz

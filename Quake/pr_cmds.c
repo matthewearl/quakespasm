@@ -1747,7 +1747,14 @@ cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE};	//spike - enab
 static void PF_checkextension(void)
 {
 	const char *extname = G_STRING(OFS_PARM0);
-	G_FLOAT(OFS_RETURN) = false;
+
+	// Note: we expose FTE_QC_CHECKCOMMAND so that AD considers the engine
+	// FTE-like instead of DP-like, in order to avoid a bug in the DP codepath
+	// in older AD versions (e.g. 1.42, used in jam8)
+	if (!strcmp (extname, "FTE_QC_CHECKCOMMAND"))
+		G_FLOAT(OFS_RETURN) = true;
+	else
+		G_FLOAT(OFS_RETURN) = false;
 }
 
 static float PR_GetVMScale(void)
@@ -3228,6 +3235,18 @@ static void PF_clientstat(void)
 }
 
 //server/client stuff
+static void PF_checkcommand(void)
+{
+	const char *name = G_STRING(OFS_PARM0);
+	if (Cmd_Exists(name))
+		G_FLOAT(OFS_RETURN) = 1;
+	else if (Cmd_AliasExists(name))
+		G_FLOAT(OFS_RETURN) = 2;
+	else if (Cvar_FindVar(name))
+		G_FLOAT(OFS_RETURN) = 3;
+	else
+		G_FLOAT(OFS_RETURN) = 0;
+}
 static void PF_clientcommand(void)
 {
 	edict_t	*ed				= G_EDICT(OFS_PARM0);
@@ -3374,6 +3393,8 @@ builtindef_t pr_builtindefs[] =
 
 	{"ftoi",					PF_BOTH(PF_ftoi)},						// int(float)
 	{"itof",					PF_BOTH(PF_itof)},						// float(int)
+
+	{"checkcommand",			PF_BOTH(PF_checkcommand),		294},	// float(string name)
 
 	{"iscachedpic",				PF_CSQC(PF_cl_iscachedpic),		316},	// float(string name)
 	{"precache_pic",			PF_CSQC(PF_cl_precachepic),		317},	// string(string name, optional float flags)
