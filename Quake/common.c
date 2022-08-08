@@ -3121,3 +3121,115 @@ size_t LOC_Format (const char *format, const char* (*getarg_fn) (int idx, void* 
 
 	return written;
 }
+
+/*
+============================================================================
+								UNICODE
+============================================================================
+*/
+
+static const uint32_t qchar_to_unicode[256] =
+{/*     0       1       2       3       4       5       6       7       8       9       10      11      12      13      14      15
+      ----------------------------------------------------------------------------------------------------------------------------------
+  0 */  0x00B7, 0,      0,      0,      0,      0x00B7, 0,      0,      0,      0,      '\n',   0x25A0, ' ',    0x25B6, 0x00B7, 0x00B7, /*
+  1 */  0x301A, 0x301B, '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    0x00B7, '-',    '-',    '-',    /*
+  2 */  ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',   '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',    /*
+  3 */  '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',    /*
+  4 */  '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',    /*
+  5 */  'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',    /*
+  6 */  '`',    'a',    'b',    'c',    'd',    'e',    'f',    'g',    'h',    'i',    'j',    'k',    'l',    'm',    'n',    'o',    /*
+  7 */  'p',    'q',    'r',    's',    't',    'u',    'v',    'w',    'x',    'y',    'z',    '{',    '|',    '}',    '~',    0x2190, /*
+
+  8 */  '-',    '-',    '-',    '-',    0,      0x2022, 0,      0,      0,      0,      '\n',   0x25A0, ' ',    0x25B6, 0x2022, 0x2022, /*
+  9 */  0x301A, 0x301B, '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    0x2022, '-',    '-',    '-',    /*
+ 10 */  ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',   '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',    /*
+ 11 */  '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',    /*
+ 12 */  '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',    /*
+ 13 */  'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',    /*
+ 14 */  '`',    'a',    'b',    'c',    'd',    'e',    'f',    'g',    'h',    'i',    'j',    'k',    'l',    'm',    'n',    'o',    /*
+ 15 */  'p',    'q',    'r',    's',    't',    'u',    'v',    'w',    'x',    'y',    'z',    '{',    '|',    '}',    '~',    0x2190, /*
+      ----------------------------------------------------------------------------------------------------------------------------------
+*/};
+
+/*
+==================
+UTF8_WriteCodePoint
+
+Writes a single Unicode code point using UTF-8
+
+Returns the number of bytes written (up to 4),
+or 0 on error (overflow or invalid code point)
+==================
+*/
+size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint)
+{
+	if (!maxbytes)
+		return 0;
+
+	if (codepoint < 0x80)
+	{
+		dst[0] = (char)codepoint;
+		return 1;
+	}
+
+	if (codepoint < 0x800)
+	{
+		if (maxbytes < 2)
+			return 0;
+		dst[0] = 0xC0 | (codepoint >> 6);
+		dst[1] = 0x80 | (codepoint & 63);
+		return 2;
+	}
+
+	if (codepoint < 0x10000)
+	{
+		if (maxbytes < 3)
+			return 0;
+		dst[0] = 0xE0 | (codepoint >> 12);
+		dst[1] = 0x80 | ((codepoint >> 6) & 63);
+		dst[2] = 0x80 | (codepoint & 63);
+		return 3;
+	}
+
+	if (codepoint < 0x110000)
+	{
+		if (maxbytes < 4)
+			return 0;
+		dst[0] = 0xF0 | (codepoint >> 18);
+		dst[1] = 0x80 | ((codepoint >> 12) & 63);
+		dst[2] = 0x80 | ((codepoint >> 6) & 63);
+		dst[3] = 0x80 | (codepoint & 63);
+		return 4;
+	}
+
+	return 0;
+}
+
+/*
+==================
+UTF8_FromQuake
+
+Converts a string from Quake encoding to UTF-8
+==================
+*/
+void UTF8_FromQuake (char *dst, size_t maxchars, const char *src)
+{
+	size_t i, j, written;
+
+	if (!maxchars)
+		return;
+	--maxchars;
+
+	for (i = 0, j = 0; j < maxchars && src[i]; i++)
+	{
+		uint32_t codepoint = qchar_to_unicode[(unsigned char) src[i]];
+		if (!codepoint)
+			continue;
+		written = UTF8_WriteCodePoint (dst + j, maxchars - j, codepoint);
+		if (!written)
+			break;
+		j += written;
+	}
+
+	dst[j] = '\0';
+}

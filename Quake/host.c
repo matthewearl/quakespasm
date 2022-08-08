@@ -788,12 +788,15 @@ static void UpdateWindowTitle (void)
 
 	if (current.map[0])
 	{
+		char levelname[4 * sizeof (cl.levelname)];
 		char title[1024];
+
+		UTF8_FromQuake (levelname, sizeof (levelname), cl.levelname);
 		q_snprintf (title, sizeof (title),
-			cl.levelname[0] ?
+			levelname[0] ?
 				"%s (%s)  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING :
 				"%s%s  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING,
-			cl.levelname, current.map,
+			levelname, current.map,
 			current.stats.skill,
 			current.stats.monsters, current.stats.total_monsters,
 			current.stats.secrets, current.stats.total_secrets
