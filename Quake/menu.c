@@ -3991,6 +3991,12 @@ qboolean M_TextEntry (void)
 }
 
 
+qboolean M_KeyBinding (void)
+{
+	return key_dest == key_menu && m_state == m_keys && bind_grab;
+}
+
+
 void M_ConfigureNetSubsystem(void)
 {
 // enable/disable net systems to match desired config

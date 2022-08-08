@@ -91,5 +91,7 @@ void Sys_Sleep (unsigned long msecs);
 void Sys_SendKeyEvents (void);
 // Perform Key_Event () callbacks until the input que is empty
 
+void Sys_RemoveKeyFilter (void);
+
 #endif	/* _QUAKE_SYS_H */
 

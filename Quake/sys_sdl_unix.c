@@ -617,3 +617,6 @@ void Sys_SendKeyEvents (void)
 	IN_SendKeyEvents();
 }
 
+void Sys_RemoveKeyFilter (void)
+{
+}

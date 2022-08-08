@@ -58,6 +58,7 @@ void M_Keydown (int key);
 void M_Charinput (int key);
 void M_Mousemove (int x, int y);
 qboolean M_TextEntry (void);
+qboolean M_KeyBinding (void);
 void M_ToggleMenu_f (void);
 
 void M_Menu_Main_f (void);
