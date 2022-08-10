@@ -622,23 +622,35 @@ void GL_ClearBufferBindings ()
 
 /*
 ============================================================================
-							DYNAMIC BUFFERS
+								FRAME RESOURCES
 ============================================================================
 */
 
-#define DYNABUF_FRAMES 3
+#define FRAMES_IN_FLIGHT 3
 
-typedef struct dynabuf_t {
+typedef enum
+{
+	FRAMERES_HOST_BUFFER_BIT	= 1 << 0,
+	FRAMERES_DEVICE_BUFFER_BIT	= 1 << 1,
+
+	FRAMERES_ALL_BITS			= FRAMERES_HOST_BUFFER_BIT | FRAMERES_DEVICE_BUFFER_BIT
+} frameres_bits_t;
+
+typedef struct frameres_t
+{
 	GLsync			fence;
-	GLuint			handle;
-	GLubyte			*ptr;
+	GLuint			device_buffer;
+	GLuint			host_buffer;
+	GLubyte			*host_ptr;
 	GLuint			*garbage;
-} dynabuf_t;
+} frameres_t;
 
-static dynabuf_t	dynabufs[DYNABUF_FRAMES];
-static int			dynabuf_idx = 0;
-static size_t		dynabuf_offset = 0;
-static size_t		dynabuf_size = 8 * 1024 * 1024;
+static frameres_t	frameres[FRAMES_IN_FLIGHT];
+static int			frameres_idx = 0;
+static size_t		frameres_host_offset = 0;
+static size_t		frameres_device_offset = 0;
+static size_t		frameres_host_buffer_size = 8 * 1024 * 1024;
+static size_t		frameres_device_buffer_size = 4 * 1024 * 1024;
 
 /*
 ====================
@@ -647,158 +659,185 @@ GL_AddGarbageBuffer
 */
 void GL_AddGarbageBuffer (GLuint handle)
 {
-	VEC_PUSH (dynabufs[dynabuf_idx].garbage, handle);
+	VEC_PUSH (frameres[frameres_idx].garbage, handle);
 }
 
 /*
 ====================
-GL_AllocDynamicBuffers
+GL_AllocFrameResources
 ====================
 */
-static void GL_AllocDynamicBuffers (void)
+static void GL_AllocFrameResources (frameres_bits_t bits)
 {
 	int i;
-	for (i = 0; i < countof(dynabufs); i++)
+	for (i = 0; i < countof (frameres); i++)
 	{
 		char name[64];
-		GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-		dynabuf_t *buf = &dynabufs[i];
+		frameres_t *frame = &frameres[i];
 
-		if (buf->handle)
+		if (bits & FRAMERES_HOST_BUFFER_BIT)
 		{
-			if (buf->ptr)
+			GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+
+			if (frame->host_buffer)
 			{
-				GL_BindBuffer (GL_ARRAY_BUFFER, buf->handle);
-				GL_UnmapBufferFunc (GL_ARRAY_BUFFER);
+				if (frame->host_ptr)
+				{
+					GL_BindBuffer (GL_ARRAY_BUFFER, frame->host_buffer);
+					GL_UnmapBufferFunc (GL_ARRAY_BUFFER);
+				}
+				GL_AddGarbageBuffer (frame->host_buffer);
 			}
-			GL_AddGarbageBuffer (buf->handle);
+
+			GL_GenBuffersFunc (1, &frame->host_buffer);
+			GL_BindBuffer (GL_ARRAY_BUFFER, frame->host_buffer);
+			q_snprintf (name, sizeof (name), "dynamic host buffer %d", i);
+			GL_ObjectLabelFunc (GL_BUFFER, frame->host_buffer, -1, name);
+			if (gl_buffer_storage_able)
+			{
+				GL_BufferStorageFunc (GL_ARRAY_BUFFER, frameres_host_buffer_size, NULL, flags);
+				frame->host_ptr = GL_MapBufferRangeFunc (GL_ARRAY_BUFFER, 0, frameres_host_buffer_size, flags);
+				if (!frame->host_ptr)
+					Sys_Error ("GL_AllocFrameResources: MapBufferRange failed on %" SDL_PRIu64 " bytes", (uint64_t)frameres_host_buffer_size);
+			}
+			else
+			{
+				GL_BufferDataFunc (GL_ARRAY_BUFFER, frameres_host_buffer_size, NULL, GL_STREAM_DRAW);
+			}
 		}
 
-		GL_GenBuffersFunc (1, &buf->handle);
-		GL_BindBuffer (GL_ARRAY_BUFFER, buf->handle);
-		q_snprintf (name, sizeof(name), "dynamic buffer %d", i);
-		GL_ObjectLabelFunc (GL_BUFFER, buf->handle, -1, name);
-		if (gl_buffer_storage_able)
+		if (bits & FRAMERES_DEVICE_BUFFER_BIT)
 		{
-			GL_BufferStorageFunc (GL_ARRAY_BUFFER, dynabuf_size, NULL, flags);
-			buf->ptr = GL_MapBufferRangeFunc (GL_ARRAY_BUFFER, 0, dynabuf_size, flags);
-			if (!buf->ptr)
-				Sys_Error ("GL_AllocDynamicBuffers: MapBufferRange failed on %" SDL_PRIu64 " bytes", (uint64_t)dynabuf_size);
-		}
-		else
-		{
-			GL_BufferDataFunc (GL_ARRAY_BUFFER, dynabuf_size, NULL, GL_STREAM_DRAW);
+			if (frame->device_buffer)
+				GL_AddGarbageBuffer (frame->device_buffer);
+
+			GL_GenBuffersFunc (1, &frame->device_buffer);
+			GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, frame->device_buffer);
+			q_snprintf (name, sizeof (name), "dynamic device buffer %d", i);
+			GL_ObjectLabelFunc (GL_BUFFER, frame->device_buffer, -1, name);
+			GL_BufferDataFunc (GL_SHADER_STORAGE_BUFFER, frameres_device_buffer_size, NULL, GL_STREAM_DRAW);
 		}
 	}
 
-	dynabuf_offset = 0;
+	if (bits & FRAMERES_HOST_BUFFER_BIT)
+		frameres_host_offset = 0;
+	if (bits & FRAMERES_DEVICE_BUFFER_BIT)
+		frameres_device_offset = 0;
 }
 
 /*
 ====================
-GL_CreateDynamicBuffers
+GL_CreateFrameResources
 ====================
 */
-void GL_CreateDynamicBuffers (void)
+void GL_CreateFrameResources (void)
 {
-	GL_AllocDynamicBuffers ();
+	GL_AllocFrameResources (FRAMERES_ALL_BITS);
 }
 
 /*
 ====================
-GL_DeleteDynamicBuffers
+GL_DeleteFrameResources
 ====================
 */
-void GL_DeleteDynamicBuffers (void)
+void GL_DeleteFrameResources (void)
 {
 	size_t i, j, num_garbage_bufs;
 
 	glFinish ();
 
-	for (i = 0; i < countof (dynabufs); i++)
+	for (i = 0; i < countof (frameres); i++)
 	{
-		dynabuf_t *buf = &dynabufs[i];
+		frameres_t *frame = &frameres[i];
 
-		if (buf->fence)
+		if (frame->fence)
 		{
-			GL_DeleteSyncFunc (buf->fence);
-			buf->fence = NULL;
+			GL_DeleteSyncFunc (frame->fence);
+			frame->fence = NULL;
 		}
 
-		for (j = 0, num_garbage_bufs = VEC_SIZE (buf->garbage); j < num_garbage_bufs; j++)
-			GL_DeleteBuffer (buf->garbage[j]);
-		VEC_CLEAR (buf->garbage);
+		for (j = 0, num_garbage_bufs = VEC_SIZE (frame->garbage); j < num_garbage_bufs; j++)
+			GL_DeleteBuffer (frame->garbage[j]);
+		VEC_CLEAR (frame->garbage);
 
-		if (buf->ptr)
+		if (frame->host_ptr)
 		{
-			GL_BindBuffer (GL_ARRAY_BUFFER, buf->handle);
+			GL_BindBuffer (GL_ARRAY_BUFFER, frame->host_buffer);
 			GL_UnmapBufferFunc (GL_ARRAY_BUFFER);
-			buf->ptr = NULL;
+			frame->host_ptr = NULL;
 		}
 
-		if (buf->handle)
+		if (frame->host_buffer)
 		{
-			GL_DeleteBuffer (buf->handle);
-			buf->handle = 0;
+			GL_DeleteBuffer (frame->host_buffer);
+			frame->host_buffer = 0;
+		}
+
+		if (frame->device_buffer)
+		{
+			GL_DeleteBuffer (frame->device_buffer);
+			frame->device_buffer = 0;
 		}
 	}
 }
 
 /*
 ====================
-GL_DynamicBuffersBeginFrame
+GL_AcquireFrameResources
 ====================
 */
-void GL_DynamicBuffersBeginFrame (void)
+void GL_AcquireFrameResources (void)
 {
-	dynabuf_t *prev_buf = &dynabufs[(dynabuf_idx + DYNABUF_FRAMES - 1) % DYNABUF_FRAMES];
-	dynabuf_t *buf = &dynabufs[dynabuf_idx];
+	frameres_t *prev_frame = &frameres[(frameres_idx + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT];
+	frameres_t *frame = &frameres[frameres_idx];
 	size_t i, num_garbage_bufs;
 
-	if (prev_buf->fence)
-		GL_WaitSyncFunc (prev_buf->fence, 0, GL_TIMEOUT_IGNORED);
+	if (prev_frame->fence)
+		GL_WaitSyncFunc (prev_frame->fence, 0, GL_TIMEOUT_IGNORED);
 
-	if (buf->fence)
+	if (frame->fence)
 	{
 		GLuint64 timeout = 1ull * 1000 * 1000 * 1000; // 1 second
-		GLenum result = GL_ClientWaitSyncFunc (buf->fence, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
+		GLenum result = GL_ClientWaitSyncFunc (frame->fence, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
 		if (result == GL_TIMEOUT_EXPIRED)
 			glFinish ();
 		else if (result == GL_WAIT_FAILED)
-			Sys_Error ("GL_DynamicBuffersBeginFrame: wait failed (0x%04X)", glGetError ());
+			Sys_Error ("GL_AcquireFrameResources: wait failed (0x%04X)", glGetError ());
 		else if (result != GL_CONDITION_SATISFIED && result != GL_ALREADY_SIGNALED)
-			Sys_Error ("GL_DynamicBuffersBeginFrame: sync failed (0x%04X)", result);
-		GL_DeleteSyncFunc (buf->fence);
-		buf->fence = NULL;
+			Sys_Error ("GL_AcquireFrameResources: sync failed (0x%04X)", result);
+		GL_DeleteSyncFunc (frame->fence);
+		frame->fence = NULL;
 	}
 
-	num_garbage_bufs = VEC_SIZE (buf->garbage);
+	num_garbage_bufs = VEC_SIZE (frame->garbage);
 	for (i = 0; i < num_garbage_bufs; i++)
-		GL_DeleteBuffer (buf->garbage[i]);
-	VEC_CLEAR (buf->garbage);
+		GL_DeleteBuffer (frame->garbage[i]);
+	VEC_CLEAR (frame->garbage);
 }
 
 /*
 ====================
-GL_DynamicBuffersEndFrame
+GL_ReleaseFrameResources
 ====================
 */
-void GL_DynamicBuffersEndFrame (void)
+void GL_ReleaseFrameResources (void)
 {
-	dynabuf_t *buf = &dynabufs[dynabuf_idx];
+	frameres_t *frame = &frameres[frameres_idx];
 
-	SDL_assert (!buf->fence);
-	buf->fence = GL_FenceSyncFunc (GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	SDL_assert (!frame->fence);
+	frame->fence = GL_FenceSyncFunc (GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
-	if (!buf->fence)
+	if (!frame->fence)
 		Sys_Error ("glFenceSync failed (error code 0x%04X)", glGetError ());
 
-	dev_stats.gpu_upload = dynabuf_offset;
+	dev_stats.gpu_upload = frameres_host_offset;
 	dev_peakstats.gpu_upload = q_max (dev_peakstats.gpu_upload, dev_stats.gpu_upload);
 
-	if (++dynabuf_idx == countof(dynabufs))
-		dynabuf_idx = 0;
-	dynabuf_offset = 0;
+	if (++frameres_idx == countof (frameres))
+		frameres_idx = 0;
+
+	frameres_host_offset = 0;
+	frameres_device_offset = 0;
 }
 
 /*
@@ -809,29 +848,57 @@ GL_Upload
 void GL_Upload (GLenum target, const void *data, size_t numbytes, GLuint *outbuf, GLbyte **outofs)
 {
 	size_t align;
-	dynabuf_t *buf;
+	frameres_t *frame;
 
 	align = (target == GL_UNIFORM_BUFFER) ? ubo_align : ssbo_align;
-	dynabuf_offset = (dynabuf_offset + align) & ~align;
+	frameres_host_offset = (frameres_host_offset + align) & ~align;
 
-	if (dynabuf_offset + numbytes > dynabuf_size)
+	if (frameres_host_offset + numbytes > frameres_host_buffer_size)
 	{
-		dynabuf_size = dynabuf_offset + ((numbytes + align) & ~align);
-		dynabuf_size += dynabuf_size >> 1;
-		GL_AllocDynamicBuffers ();
+		frameres_host_buffer_size = frameres_host_offset + ((numbytes + align) & ~align);
+		frameres_host_buffer_size += frameres_host_buffer_size >> 1;
+		GL_AllocFrameResources (FRAMERES_HOST_BUFFER_BIT);
 	}
 
-	buf = &dynabufs[dynabuf_idx];
-	if (buf->ptr)
-		memcpy (buf->ptr + dynabuf_offset, data, numbytes);
+	frame = &frameres[frameres_idx];
+	if (frame->host_ptr)
+		memcpy (frame->host_ptr + frameres_host_offset, data, numbytes);
 	else
 	{
-		GL_BindBuffer (target, buf->handle);
-		GL_BufferSubDataFunc (target, dynabuf_offset, numbytes, data);
+		GL_BindBuffer (target, frame->host_buffer);
+		GL_BufferSubDataFunc (target, frameres_host_offset, numbytes, data);
 	}
 
-	*outbuf = buf->handle;
-	*outofs = (GLbyte*) dynabuf_offset;
+	*outbuf = frame->host_buffer;
+	*outofs = (GLbyte*) frameres_host_offset;
 
-	dynabuf_offset += numbytes;
+	frameres_host_offset += numbytes;
+}
+
+/*
+====================
+GL_ReserveDeviceMemory
+====================
+*/
+void GL_ReserveDeviceMemory (GLenum target, size_t numbytes, GLuint *outbuf, size_t *outofs)
+{
+	size_t align;
+	frameres_t *frame;
+
+	align = (target == GL_UNIFORM_BUFFER) ? ubo_align : ssbo_align;
+	frameres_device_offset = (frameres_device_offset + align) & ~align;
+
+	if (frameres_device_offset + numbytes > frameres_device_buffer_size)
+	{
+		frameres_device_buffer_size = frameres_device_offset + ((numbytes + align) & ~align);
+		frameres_device_buffer_size += frameres_device_buffer_size >> 1;
+		GL_AllocFrameResources (FRAMERES_DEVICE_BUFFER_BIT);
+	}
+
+	frame = &frameres[frameres_idx];
+
+	*outbuf = frame->device_buffer;
+	*outofs = frameres_device_offset;
+
+	frameres_device_offset += numbytes;
 }

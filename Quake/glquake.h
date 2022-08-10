@@ -543,7 +543,6 @@ extern glframebufs_t framebufs;
 void GL_CreateFrameBuffers (void);
 void GL_DeleteFrameBuffers (void);
 
-void GLWorld_CreateResources (void);
 void GLLight_CreateResources (void);
 void GLLight_DeleteResources (void);
 
@@ -569,11 +568,12 @@ GLuint GL_CreateBuffer (GLenum target, GLenum usage, const char *name, size_t si
 void GL_DeleteBuffer (GLuint buffer);
 void GL_ClearBufferBindings (void);
 
-void GL_CreateDynamicBuffers (void);
-void GL_DeleteDynamicBuffers (void);
+void GL_CreateFrameResources (void);
+void GL_DeleteFrameResources (void);
 void GL_Upload (GLenum target, const void *data, size_t numbytes, GLuint *outbuf, GLbyte **outofs);
-void GL_DynamicBuffersBeginFrame (void);
-void GL_DynamicBuffersEndFrame (void);
+void GL_ReserveDeviceMemory (GLenum target, size_t numbytes, GLuint *outbuf, size_t *outofs);
+void GL_AcquireFrameResources (void);
+void GL_ReleaseFrameResources (void);
 void GL_AddGarbageBuffer (GLuint handle);
 
 void GL_PostProcess (void);

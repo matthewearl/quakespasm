@@ -40,10 +40,6 @@ extern GLuint gl_bmodel_leaf_buffer;
 extern GLuint gl_bmodel_surf_buffer;
 extern GLuint gl_bmodel_marksurf_buffer;
 
-static GLuint gl_bmodel_cmdbuf;
-static size_t gl_bmodel_cmdbuf_size;
-static size_t gl_bmodel_cmdbuf_offset;
-
 typedef struct gpumark_frame_s {
 	vec4_t		frustum[4];
 	vec3_t		vieworg;
@@ -154,30 +150,6 @@ float GL_WaterAlphaForEntityTextureType (entity_t *ent, textype_t type)
 	return entalpha;
 }
 
-/*
-=============
-GLWorld_AllocIndirectBuffer
-=============
-*/
-static void GLWorld_AllocIndirectBuffer (void)
-{
-	if (gl_bmodel_cmdbuf)
-		GL_AddGarbageBuffer (gl_bmodel_cmdbuf);
-	gl_bmodel_cmdbuf = GL_CreateBuffer (GL_DRAW_INDIRECT_BUFFER, GL_DYNAMIC_DRAW, "bmodel batch cmds", gl_bmodel_cmdbuf_size, NULL);
-	gl_bmodel_cmdbuf_offset = 0;
-}
-
-/*
-=============
-GLWorld_CreateResources
-=============
-*/
-void GLWorld_CreateResources (void)
-{
-	gl_bmodel_cmdbuf_size = 256 * 1024;
-	GLWorld_AllocIndirectBuffer ();
-}
-
 typedef struct bmodel_gpu_instance_s {
 	float		world[12];	// world matrix (transposed mat4x3)
 	float		alpha;
@@ -216,7 +188,6 @@ static union {
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
-static int							bmodel_framecount;
 
 /*
 =============
@@ -267,33 +238,18 @@ R_FlushBModelCalls
 */
 static void R_FlushBModelCalls (void)
 {
-	GLuint	buf;
+	GLuint	cmdbuf, buf;
 	GLbyte	*ofs;
 	size_t	dstcmdofs;
 
 	if (!num_bmodel_calls)
 		return;
 
-	if (bmodel_framecount != r_framecount)
-	{
-		bmodel_framecount = r_framecount;
-		gl_bmodel_cmdbuf_offset = 0;
-	}
-
-	if (gl_bmodel_cmdbuf_offset + sizeof (bmodel_draw_indirect_t) * num_bmodel_calls > gl_bmodel_cmdbuf_size)
-	{
-		gl_bmodel_cmdbuf_size = gl_bmodel_cmdbuf_offset + sizeof (bmodel_draw_indirect_t) * num_bmodel_calls;
-		gl_bmodel_cmdbuf_size += gl_bmodel_cmdbuf_size >> 1;
-		GLWorld_AllocIndirectBuffer ();
-	}
-
-	dstcmdofs = gl_bmodel_cmdbuf_offset;
-	gl_bmodel_cmdbuf_offset +=
-		(sizeof (bmodel_draw_indirect_t) * num_bmodel_calls + ssbo_align) & ~ssbo_align;
+	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
-	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, gl_bmodel_cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_call_remap, sizeof (bmodel_call_remap[0]) * num_bmodel_calls, &buf, &ofs);
 	GL_BindBufferRange  (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_call_remap[0]) * num_bmodel_calls);
 	GL_DispatchComputeFunc ((num_bmodel_calls + 63) / 64, 1, 1);
@@ -302,7 +258,7 @@ static void R_FlushBModelCalls (void)
 	GL_UseProgram (bmodel_batch_program);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
 	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
-	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, gl_bmodel_cmdbuf);
+	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, cmdbuf);
 	GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, pos));
 	GL_VertexAttribPointerFunc (1, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, st));
 	GL_VertexAttribPointerFunc (2, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, lmofs));

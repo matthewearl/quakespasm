@@ -1230,12 +1230,11 @@ static void GL_Init (void)
 
 	GL_CreateShaders ();
 	GL_CreateFrameBuffers ();
-	GLWorld_CreateResources ();
 	GLLight_CreateResources ();
 	GLPalette_CreateResources ();
 
 	GL_ClearBufferBindings ();
-	GL_CreateDynamicBuffers ();
+	GL_CreateFrameResources ();
 }
 
 /*
@@ -1268,7 +1267,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*width = vid.width;
 	*height = vid.height;
 
-	GL_DynamicBuffersBeginFrame ();
+	GL_AcquireFrameResources ();
 
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, postprocess ? framebufs.composite.fbo : 0);
 }
@@ -1281,7 +1280,7 @@ GL_EndRendering
 void GL_EndRendering (void)
 {
 	GL_PostProcess ();
-	GL_DynamicBuffersEndFrame ();
+	GL_ReleaseFrameResources ();
 
 	if (!scr_skipupdate)
 	{
