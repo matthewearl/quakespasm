@@ -699,8 +699,9 @@ void Con_LogCenterPrint (const char *str)
 
 	if (con_logcenterprint.value)
 	{
+		qboolean trailing_newline = *str && str[strlen (str) - 1] == '\n';
 		Con_Printf ("%s", Con_Quakebar(40));
-		Con_CenterPrintf (40, "%s\n", str);
+		Con_CenterPrintf (40, trailing_newline ? "%s" : "%s\n", str);
 		Con_Printf ("%s", Con_Quakebar(40));
 		Con_ClearNotify ();
 	}
