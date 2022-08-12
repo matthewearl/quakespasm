@@ -626,15 +626,17 @@ void Sys_Error (const char *error, ...)
 void Sys_Printf (const char *fmt, ...)
 {
 	va_list		argptr;
-	char		text[1024];
-	wchar_t		wtext[1024];
+	char		qtext[1024];
+	char		u8text[4096];
+	wchar_t		wtext[2048];
 	int			len;
 
 	va_start (argptr,fmt);
-	q_vsnprintf (text, sizeof(text), fmt, argptr);
+	q_vsnprintf (qtext, sizeof (qtext), fmt, argptr);
 	va_end (argptr);
 
-	len = MultiByteToWideChar (CP_UTF8, 0, text, -1, wtext, countof (wtext)); 
+	UTF8_FromQuake (u8text, sizeof (u8text), qtext);
+	len = MultiByteToWideChar (CP_UTF8, 0, u8text, -1, wtext, countof (wtext));
 	if (!len)
 		return;
 
