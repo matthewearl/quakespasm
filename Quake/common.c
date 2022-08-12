@@ -3212,20 +3212,20 @@ UTF8_FromQuake
 Converts a string from Quake encoding to UTF-8
 ==================
 */
-void UTF8_FromQuake (char *dst, size_t maxchars, const char *src)
+void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 {
 	size_t i, j, written;
 
-	if (!maxchars)
+	if (!maxbytes)
 		return;
-	--maxchars;
+	--maxbytes;
 
-	for (i = 0, j = 0; j < maxchars && src[i]; i++)
+	for (i = 0, j = 0; j < maxbytes && src[i]; i++)
 	{
 		uint32_t codepoint = qchar_to_unicode[(unsigned char) src[i]];
 		if (!codepoint)
 			continue;
-		written = UTF8_WriteCodePoint (dst + j, maxchars - j, codepoint);
+		written = UTF8_WriteCodePoint (dst + j, maxbytes - j, codepoint);
 		if (!written)
 			break;
 		j += written;

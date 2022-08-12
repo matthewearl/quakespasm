@@ -316,7 +316,7 @@ size_t LOC_Format (const char *format, const char* (*getarg_fn)(int idx, void* u
 
 // Unicode
 size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint);
-void UTF8_FromQuake (char *dst, size_t maxchars, const char *src);
+void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src);
 
 //============================================================================
 
