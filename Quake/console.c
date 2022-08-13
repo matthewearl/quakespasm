@@ -161,7 +161,7 @@ static void Con_Dump_f (void)
 	char	buffer[1024];
 	char	name[MAX_OSPATH];
 
-	relname = "condump.txt";
+	relname = Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt";
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 	COM_CreatePath (name);
 	f = Sys_fopen (name, "w");
