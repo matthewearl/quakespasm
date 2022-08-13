@@ -37,9 +37,9 @@ cvar_t	scr_ofsy = {"scr_ofsy","0", CVAR_NONE};
 cvar_t	scr_ofsz = {"scr_ofsz","0", CVAR_NONE};
 
 cvar_t	cl_rollspeed = {"cl_rollspeed", "200", CVAR_NONE};
-cvar_t	cl_rollangle = {"cl_rollangle", "2.0", CVAR_NONE};
+cvar_t	cl_rollangle = {"cl_rollangle", "2.0", CVAR_ARCHIVE};
 
-cvar_t	cl_bob = {"cl_bob","0.02", CVAR_NONE};
+cvar_t	cl_bob = {"cl_bob","0.02", CVAR_ARCHIVE};
 cvar_t	cl_bobcycle = {"cl_bobcycle","0.6", CVAR_NONE};
 cvar_t	cl_bobup = {"cl_bobup","0.5", CVAR_NONE};
 
