@@ -1351,7 +1351,7 @@ void Sbar_Draw (void)
 			*qcvm->extglobals.player_localentnum = cl.viewentity;
 		pr_global_struct->time = cl.time;
 		Sbar_SortFrags ();
-		G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+		G_VECTORSET(OFS_PARM0, glwidth/s, glheight/s, 0);
 		G_FLOAT(OFS_PARM1) = sb_showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawHud);
 		if (cl.qcvm.extfuncs.CSQC_DrawScores)
@@ -1779,7 +1779,7 @@ void Sbar_IntermissionOverlay (void)
 		pr_global_struct->time = cl.time;
 		pr_global_struct->frametime = host_frametime;
 		Sbar_SortFrags ();
-		G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+		G_VECTORSET(OFS_PARM0, glwidth/s, glheight/s, 0);
 		G_FLOAT(OFS_PARM1) = sb_showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
 		PR_SwitchQCVM(NULL);

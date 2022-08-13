@@ -1029,7 +1029,7 @@ void GL_SetCanvas (canvastype newcanvas)
 	case CANVAS_CROSSHAIR: //0,0 is center of viewport
 		s = CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
 		Draw_SetTransform (scr_vrect.width/-2/s, scr_vrect.width/2/s, scr_vrect.height/2/s, scr_vrect.height/-2/s);
-		glViewport (scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1);
+		glViewport (glx + scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1);
 		break;
 	case CANVAS_BOTTOMLEFT: //used by devstats
 		s = (float)glwidth/vid.conwidth; //use console scale
