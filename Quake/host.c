@@ -266,6 +266,54 @@ void Host_Callback_Notify (cvar_t *var)
 }
 
 /*
+===============
+Host_WriteConfigurationToFile
+
+Writes key bindings and archived cvars to specified file
+===============
+*/
+void Host_WriteConfigurationToFile (const char *name)
+{
+	FILE	*f;
+
+// dedicated servers initialize the host but don't parse and set the
+// config.cfg cvars
+	if (host_initialized && !isDedicated && !host_parms->errstate)
+	{
+		f = Sys_fopen (va("%s/%s", com_gamedir, name), "w");
+		if (!f)
+		{
+			Con_Printf ("Couldn't write %s.\n", name);
+			return;
+		}
+
+		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
+
+		Key_WriteBindings (f);
+		Cvar_WriteVariables (f);
+
+		//johnfitz -- extra commands to preserve state
+		fprintf (f, "vid_restart\n");
+		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
+		//johnfitz
+
+		fclose (f);
+
+		Con_Printf ("Wrote %s.\n", name);
+	}
+}
+
+/*
+=======================
+Host_WriteConfig_f
+======================
+*/
+void Host_WriteConfig_f (void)
+{
+	Host_WriteConfigurationToFile (Cmd_Argc () >= 2 ? Cmd_Argv (1) : CONFIG_NAME);
+}
+
+/*
 =======================
 Host_InitLocal
 ======================
@@ -273,6 +321,7 @@ Host_InitLocal
 void Host_InitLocal (void)
 {
 	Cmd_AddCommand ("version", Host_Version_f);
+	Cmd_AddCommand ("writeconfig", Host_WriteConfig_f);
 
 	Host_InitCommands ();
 
@@ -327,31 +376,7 @@ Writes key bindings and archived cvars to engine config file
 */
 void Host_WriteConfiguration (void)
 {
-	FILE	*f;
-
-// dedicated servers initialize the host but don't parse and set the
-// config.cfg cvars
-	if (host_initialized && !isDedicated && !host_parms->errstate)
-	{
-		f = Sys_fopen (va("%s/" CONFIG_NAME, com_gamedir), "w");
-		if (!f)
-		{
-			Con_Printf ("Couldn't write " CONFIG_NAME ".\n");
-			return;
-		}
-
-		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
-
-		Key_WriteBindings (f);
-		Cvar_WriteVariables (f);
-
-		//johnfitz -- extra commands to preserve state
-		fprintf (f, "vid_restart\n");
-		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
-		//johnfitz
-
-		fclose (f);
-	}
+	Host_WriteConfigurationToFile (CONFIG_NAME);
 }
 
 
