@@ -717,6 +717,10 @@ void CL_ParseClientdata (void)
 	else
 		cl.idealpitch = 0;
 
+	// preserve initial angles (mostly for savegames)
+	if (cls.signon < SIGNONS)
+		V_StopPitchDrift ();
+
 	VectorCopy (cl.mvelocity[0], cl.mvelocity[1]);
 	for (i = 0; i < 3; i++)
 	{
