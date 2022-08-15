@@ -540,6 +540,8 @@ void Cmd_List_f (void)
 	count=0;
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
+		if (cmd->srctype == src_server)
+			continue;
 		if (partial && Q_strncmp (partial,cmd->name, len))
 		{
 			continue;
@@ -589,7 +591,7 @@ static void Cmd_ListAllContaining (const char *substr)
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (q_strcasestr(cmd->name, substr))
+		if (cmd->srctype != src_server && q_strcasestr(cmd->name, substr))
 		{
 			hits++;
 			Con_SafePrintf ("   %s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));

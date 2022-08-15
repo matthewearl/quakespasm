@@ -913,7 +913,7 @@ void BuildTabList (const char *partial)
 			AddToTabList (cvar->name, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (!q_strncasecmp (partial,cmd->name, len))
+		if (cmd->srctype != src_server && !q_strncasecmp (partial,cmd->name, len))
 			AddToTabList (cmd->name, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)
