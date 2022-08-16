@@ -132,6 +132,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_ROCKETS		8
 #define	STAT_CELLS		9
 #define	STAT_ACTIVEWEAPON	10
+#define	STAT_NONCLIENT		11	// first stat not included in svc_clientdata
 #define	STAT_TOTALSECRETS	11
 #define	STAT_TOTALMONSTERS	12
 #define	STAT_SECRETS		13	// bumped on client side by svc_foundsecret

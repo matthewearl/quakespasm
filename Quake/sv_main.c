@@ -1226,7 +1226,7 @@ void SV_WriteStats (client_t *client)
 		else
 			statsf[i] =	0;//statsi[i];
 
-		if (statsi[i] != client->oldstats_i[i] || statsf[i] != client->oldstats_f[i])
+		if (i >= STAT_NONCLIENT && (statsi[i] != client->oldstats_i[i] || statsf[i] != client->oldstats_f[i]))
 		{
 			client->oldstats_i[i] = statsi[i];
 			client->oldstats_f[i] = statsf[i];
