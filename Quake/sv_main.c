@@ -1149,6 +1149,16 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	if (bits & SU_WEAPONALPHA)
 		MSG_WriteByte (msg, ent->alpha); //for now, weaponalpha = client entity alpha
 	//johnfitz
+
+	// Hack: Alkaline 1.1 uses bit flags to store the active weapon,
+	// but we only send the stat as a byte, which can lead to truncation.
+	// If we detect this, re-send the stat separately (as a 32-bit int).
+	if ((byte)ent->v.weapon != (int)ent->v.weapon && msg->cursize + 6 <= msg->maxsize)
+	{
+		MSG_WriteByte (msg, svc_updatestat);
+		MSG_WriteByte (msg, STAT_ACTIVEWEAPON);
+		MSG_WriteLong (msg, (int)ent->v.weapon);
+	}
 }
 
 /*
