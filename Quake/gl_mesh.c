@@ -584,6 +584,9 @@ void GLMesh_DeleteVertexBuffers (void)
 	int j;
 	qmodel_t *m;
 	
+	if (isDedicated)
+		return;
+
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		if (!(m = cl.model_precache[j])) break;
