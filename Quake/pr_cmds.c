@@ -34,6 +34,13 @@ static char *PR_GetTempString (void)
 	return pr_string_temp[(STRINGTEMP_BUFFERS-1) & ++pr_string_tempindex];
 }
 
+int PR_MakeTempString (const char *val)
+{
+	char *tmp = PR_GetTempString();
+	q_strlcpy(tmp, val, STRINGTEMP_LENGTH);
+	return PR_SetEngineString(tmp);
+}
+
 #define	RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 
 #define	MSG_BROADCAST	0		// unreliable to all
@@ -1976,6 +1983,69 @@ static void PF_cl_getstat_string(void)
 	}
 }
 
+void PF_cl_playerkey_internal(int player, const char *key, qboolean retfloat)
+{
+	char buf[1024];
+	const char *ret = buf;
+	extern int	fragsort[MAX_SCOREBOARD];
+	extern int	scoreboardlines;
+	extern int	Sbar_ColorForMap (int m);
+	if (player < 0 && player >= -scoreboardlines)
+		player = fragsort[-1-player];
+	if (player < 0 || player >= MAX_SCOREBOARD)
+		ret = NULL;
+	else if (!strcmp(key, "viewentity"))
+		q_snprintf(buf, sizeof(buf), "%i", player+1);	//hack for DP compat. always returned even when the slot is empty (so long as its valid).
+	else if (!*cl.scores[player].name)
+		ret = NULL;
+	else if (!strcmp(key, "name"))
+		ret = cl.scores[player].name;
+	else if (!strcmp(key, "frags"))
+		q_snprintf(buf, sizeof(buf), "%i", cl.scores[player].frags);
+	else if (!strcmp(key, "ping"))
+		ret = NULL;	//unknown
+	else if (!strcmp(key, "pl"))
+		ret = NULL;	//unknown
+	else if (!strcmp(key, "entertime"))
+		q_snprintf(buf, sizeof(buf), "%g", cl.scores[player].entertime);
+	else if (!strcmp(key, "topcolor_rgb"))
+	{
+		byte *pal = (byte*)&d_8to24table[(cl.scores[player].colors & 0xf0) + 8];
+		q_snprintf(buf, sizeof(buf), "%g %g %g", pal[0]/255.0, pal[1]/255.0, pal[2]/255.0);
+	}
+	else if (!strcmp(key, "bottomcolor_rgb"))
+	{
+		byte *pal = (byte*)&d_8to24table[((cl.scores[player].colors & 0x0f) << 4) + 8];
+		q_snprintf(buf, sizeof(buf), "%g %g %g", pal[0]/255.0, pal[1]/255.0, pal[2]/255.0);
+	}
+	else if (!strcmp(key, "topcolor"))
+		q_snprintf(buf, sizeof(buf), "%i", (cl.scores[player].colors & 0xf0) >> 4);
+	else if (!strcmp(key, "bottomcolor"))
+		q_snprintf(buf, sizeof(buf), "%i", cl.scores[player].colors & 0x0f);
+	else if (!strcmp(key, "team"))	//quakeworld uses team infokeys to decide teams (instead of colours). but NQ never did, so that's fun. Lets allow mods to use either so that they can favour QW and let the engine hide differences .
+		q_snprintf(buf, sizeof(buf), "%i", (cl.scores[player].colors & 0x0f)+1);
+	else
+		ret = NULL;
+
+	if (retfloat)
+		G_FLOAT(OFS_RETURN) = ret?atof(ret):0;
+	else
+		G_INT(OFS_RETURN) = ret?PR_MakeTempString(ret):0;
+}
+static void PF_cl_playerkey_s(void)
+{
+	int playernum = G_FLOAT(OFS_PARM0);
+	const char *keyname = G_STRING(OFS_PARM1);
+	PF_cl_playerkey_internal(playernum, keyname, false);
+}
+static void PF_cl_playerkey_f(void)
+{
+	int playernum = G_FLOAT(OFS_PARM0);
+	const char *keyname = G_STRING(OFS_PARM1);
+	PF_cl_playerkey_internal(playernum, keyname, true);
+}
+
+
 static struct
 {
 	char name[MAX_QPATH];
@@ -2541,6 +2611,138 @@ static void PF_chr2str(void)
 	}
 	*out = 0;
 	G_INT(OFS_RETURN) = PR_SetEngineString(ret);
+}
+
+//part of PF_strconv
+static int chrconv_number(int i, int base, int conv)
+{
+	i -= base;
+	switch (conv)
+	{
+	default:
+	case 5:
+	case 6:
+	case 0:
+		break;
+	case 1:
+		base = '0';
+		break;
+	case 2:
+		base = '0'+128;
+		break;
+	case 3:
+		base = '0'-30;
+		break;
+	case 4:
+		base = '0'+128-30;
+		break;
+	}
+	return i + base;
+}
+//part of PF_strconv
+static int chrconv_punct(int i, int base, int conv)
+{
+	i -= base;
+	switch (conv)
+	{
+	default:
+	case 0:
+		break;
+	case 1:
+		base = 0;
+		break;
+	case 2:
+		base = 128;
+		break;
+	}
+	return i + base;
+}
+//part of PF_strconv
+static int chrchar_alpha(int i, int basec, int baset, int convc, int convt, int charnum)
+{
+	//convert case and colour seperatly...
+
+	i -= baset + basec;
+	switch (convt)
+	{
+	default:
+	case 0:
+		break;
+	case 1:
+		baset = 0;
+		break;
+	case 2:
+		baset = 128;
+		break;
+
+	case 5:
+	case 6:
+		baset = 128*((charnum&1) == (convt-5));
+		break;
+	}
+
+	switch (convc)
+	{
+	default:
+	case 0:
+		break;
+	case 1:
+		basec = 'a';
+		break;
+	case 2:
+		basec = 'A';
+		break;
+	}
+	return i + basec + baset;
+}
+//FTE_STRINGS
+//bulk convert a string. change case or colouring.
+static void PF_strconv (void)
+{
+	int ccase = G_FLOAT(OFS_PARM0);		//0 same, 1 lower, 2 upper
+	int redalpha = G_FLOAT(OFS_PARM1);	//0 same, 1 white, 2 red,  5 alternate, 6 alternate-alternate
+	int rednum = G_FLOAT(OFS_PARM2);	//0 same, 1 white, 2 red, 3 redspecial, 4 whitespecial, 5 alternate, 6 alternate-alternate
+	const unsigned char *string = (const unsigned char*)PF_VarString(3);
+	int len = strlen((const char*)string);
+	int i;
+	unsigned char *resbuf = (unsigned char*)PR_GetTempString();
+	unsigned char *result = resbuf;
+
+	//UTF-8-FIXME: cope with utf+^U etc
+
+	if (len >= STRINGTEMP_LENGTH)
+		len = STRINGTEMP_LENGTH-1;
+
+	for (i = 0; i < len; i++, string++, result++)	//should this be done backwards?
+	{
+		if (*string >= '0' && *string <= '9')	//normal numbers...
+			*result = chrconv_number(*string, '0', rednum);
+		else if (*string >= '0'+128 && *string <= '9'+128)
+			*result = chrconv_number(*string, '0'+128, rednum);
+		else if (*string >= '0'+128-30 && *string <= '9'+128-30)
+			*result = chrconv_number(*string, '0'+128-30, rednum);
+		else if (*string >= '0'-30 && *string <= '9'-30)
+			*result = chrconv_number(*string, '0'-30, rednum);
+
+		else if (*string >= 'a' && *string <= 'z')	//normal numbers...
+			*result = chrchar_alpha(*string, 'a', 0, ccase, redalpha, i);
+		else if (*string >= 'A' && *string <= 'Z')	//normal numbers...
+			*result = chrchar_alpha(*string, 'A', 0, ccase, redalpha, i);
+		else if (*string >= 'a'+128 && *string <= 'z'+128)	//normal numbers...
+			*result = chrchar_alpha(*string, 'a', 128, ccase, redalpha, i);
+		else if (*string >= 'A'+128 && *string <= 'Z'+128)	//normal numbers...
+			*result = chrchar_alpha(*string, 'A', 128, ccase, redalpha, i);
+
+		else if ((*string & 127) < 16 || !redalpha)	//special chars..
+			*result = *string;
+		else if (*string < 128)
+			*result = chrconv_punct(*string, 0, redalpha);
+		else
+			*result = chrconv_punct(*string, 128, redalpha);
+	}
+	*result = '\0';
+
+	G_INT(OFS_RETURN) = PR_SetEngineString((char*)resbuf);
 }
 
 static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int outbuflen)
@@ -3387,6 +3589,7 @@ builtindef_t pr_builtindefs[] =
 
 	{"str2chr",					PF_BOTH(PF_str2chr),			222,	FTE_STRINGS},	// float(string str, float index)
 	{"chr2str",					PF_BOTH(PF_chr2str),			223,	FTE_STRINGS},	// string(float chr, ...)
+	{"strconv",					PF_BOTH(PF_strconv),			224,	FTE_STRINGS},	// string(float ccase, float redalpha, float redchars, string str, ...)
 
 	{"clientstat",				PF_SSQC(PF_clientstat),			232},	// void(float num, float type, .__variant fld)
 
@@ -3413,6 +3616,9 @@ builtindef_t pr_builtindefs[] =
 	{"getstati",				PF_CSQC(PF_cl_getstat_int),		330},	// #define getstati_punf(stnum) (float)(__variant)getstati(stnum)\nint(float stnum)
 	{"getstatf",				PF_CSQC(PF_cl_getstat_float),	331},	// #define getstatbits getstatf\nfloat(float stnum, optional float firstbit, optional float bitcount)
 	{"getstats",				PF_CSQC(PF_cl_getstat_string),	332},	// string(float stnum)
+
+	{"getplayerkeyvalue",		PF_CSQC(PF_cl_playerkey_s),		348},	// string(float playernum, string keyname)
+	{"getplayerkeyfloat",		PF_CSQC(PF_cl_playerkey_f)},			// float(float playernum, string keyname, optional float assumevalue)
 
 	{"registercommand",			PF_CSQC(PF_cl_registercommand),	352},	// void(string cmdname)
 
