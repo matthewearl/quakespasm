@@ -215,7 +215,7 @@ SOFTWARE.*/\
 "}\n"\
 "\n"\
 "#define DITHER_NOISE(uv) tri(ignoise01(uv))\n"\
-"#define SCREEN_SPACE_NOISE() DITHER_NOISE(gl_FragCoord.xy)\n"\
+"#define SCREEN_SPACE_NOISE() DITHER_NOISE(floor(gl_FragCoord.xy)+0.5)\n"\
 "#define PAL_NOISESCALE (12./255.)\n"\
 
 ////////////////////////////////////////////////////////////////
