@@ -61,8 +61,6 @@ unsigned int d_8to24table_fbright_fence[256];	//fullbright palette, for fence te
 unsigned int d_8to24table_nobright[256];		//nobright palette, 224-255 are black (for additive blending)
 unsigned int d_8to24table_nobright_fence[256];	//nobright palette, for fence textures
 unsigned int d_8to24table_conchars[256];		//conchars palette, 0 and 255 are transparent
-unsigned int d_8to24table_shirt[256];
-unsigned int d_8to24table_pants[256];
 
 uint32_t is_fullbright[256/32];
 
