@@ -409,9 +409,10 @@ Mod_CheckFullbrights -- johnfitz
 */
 qboolean Mod_CheckFullbrights (byte *pixels, int count)
 {
+	extern uint32_t is_fullbright[];
 	int i;
 	for (i = 0; i < count; i++)
-		if (*pixels++ > 223)
+		if (GetBit (is_fullbright, *pixels++))
 			return true;
 	return false;
 }

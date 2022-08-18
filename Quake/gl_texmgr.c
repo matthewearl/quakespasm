@@ -54,15 +54,17 @@ static int numgltextures;
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
-unsigned int d_8to24table[256];
-unsigned int d_8to24table_fbright[256];
-unsigned int d_8to24table_alphabright[256];
-unsigned int d_8to24table_fbright_fence[256];
-unsigned int d_8to24table_nobright[256];
-unsigned int d_8to24table_nobright_fence[256];
-unsigned int d_8to24table_conchars[256];
+unsigned int d_8to24table[256];					//standard palette, 255 is transparent
+unsigned int d_8to24table_fbright[256];			//fullbright palette, 0-223 are black (for additive blending)
+unsigned int d_8to24table_alphabright[256];		//palette with lighting mask in alpha channel (0=fullbright, 1=lit)
+unsigned int d_8to24table_fbright_fence[256];	//fullbright palette, for fence textures
+unsigned int d_8to24table_nobright[256];		//nobright palette, 224-255 are black (for additive blending)
+unsigned int d_8to24table_nobright_fence[256];	//nobright palette, for fence textures
+unsigned int d_8to24table_conchars[256];		//conchars palette, 0 and 255 are transparent
 unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
+
+uint32_t is_fullbright[256/32];
 
 static void GL_DeleteTexture (gltexture_t *texture);
 
@@ -636,6 +638,14 @@ void TexMgr_DeleteTextureObjects (void)
 ================================================================================
 */
 
+static void SetColor (int *dst, byte r, byte g, byte b, byte a)
+{
+	((byte*)dst)[0] = r;
+	((byte*)dst)[1] = g;
+	((byte*)dst)[2] = b;
+	((byte*)dst)[3] = a;
+}
+
 /*
 =================
 TexMgr_LoadPalette -- johnfitz -- was VID_SetPalette, moved here, renamed, rewritten
@@ -643,8 +653,8 @@ TexMgr_LoadPalette -- johnfitz -- was VID_SetPalette, moved here, renamed, rewri
 */
 void TexMgr_LoadPalette (void)
 {
-	byte *pal, *src, *dst;
-	int i, mark;
+	byte *pal, *src, *colormap;
+	int i, j, mark, numfb;
 	FILE *f;
 
 	COM_FOpenFile ("gfx/palette.lmp", &f, NULL);
@@ -657,62 +667,55 @@ void TexMgr_LoadPalette (void)
 		Sys_Error ("TexMgr_LoadPalette: read error");
 	fclose(f);
 
-	//standard palette, 255 is transparent
-	dst = (byte *)d_8to24table;
-	src = pal;
-	for (i = 0; i < 256; i++)
-	{
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = 255;
-	}
-	((byte *) &d_8to24table[255]) [3] = 0;
+	COM_FOpenFile ("gfx/colormap.lmp", &f, NULL);
+	if (!f)
+		Sys_Error ("Couldn't load gfx/colormap.lmp");
+	colormap = (byte *) Hunk_Alloc (256 * 64);
+	if (fread (colormap, 256 * 64, 1, f) != 1)
+		Sys_Error ("TexMgr_LoadPalette: colormap read error");
+	fclose(f);
 
-	//palette with lighting mask in alpha channel (0=fullbright, 1=lit)
-	dst = (byte *)d_8to24table_alphabright;
+	//find fullbright colors
+	memset (is_fullbright, 0, sizeof (is_fullbright));
+	numfb = 0;
 	src = pal;
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++, src += 3)
 	{
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = (i < 224) ? 255 : 0;
-	}
+		if (!src[0] && !src[1] && !src[2])
+			continue; // black can't be fullbright
 
-	//fullbright palette, 0-223 are black (for additive blending)
-	src = pal + 224*3;
-	dst = (byte *) &d_8to24table_fbright[224];
-	for (i = 224; i < 256; i++)
-	{
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = 255;
-	}
-	for (i = 0; i < 224; i++)
-	{
-		dst = (byte *) &d_8to24table_fbright[i];
-		dst[3] = 255;
-		dst[2] = dst[1] = dst[0] = 0;
-	}
+		for (j = 1; j < 64; j++)
+			if (colormap[i + j * 256] != colormap[i])
+				break;
 
-	//nobright palette, 224-255 are black (for additive blending)
-	dst = (byte *)d_8to24table_nobright;
+		if (j == 64) 
+		{
+			SetBit (is_fullbright, i);
+			numfb++;
+		}
+	}
+	if (developer.value)
+		Con_SafePrintf ("Colormap has %d fullbright colors\n", numfb);
+
+	//fill color tables
 	src = pal;
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++, src += 3)
 	{
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = 255;
+		SetColor (&d_8to24table[i], src[0], src[1], src[2], 255);
+		if (GetBit (is_fullbright, i))
+		{
+			SetColor (&d_8to24table_alphabright[i],	src[0], src[1], src[2], 0);
+			SetColor (&d_8to24table_fbright[i],		src[0], src[1], src[2], 255);
+			SetColor (&d_8to24table_nobright[i],	0, 0, 0, 255);
+		}
+		else
+		{
+			SetColor (&d_8to24table_alphabright[i],	src[0], src[1], src[2], 255);
+			SetColor (&d_8to24table_fbright[i],		0, 0, 0, 0);
+			SetColor (&d_8to24table_nobright[i],	src[0], src[1], src[2], 255);
+		}
 	}
-	for (i = 224; i < 256; i++)
-	{
-		dst = (byte *) &d_8to24table_nobright[i];
-		dst[3] = 255;
-		dst[2] = dst[1] = dst[0] = 0;
-	}
+	((byte *) &d_8to24table[255]) [3] = 0; //standard palette, 255 is transparent
 
 	//fullbright palette, for fence textures
 	memcpy(d_8to24table_fbright_fence, d_8to24table_fbright, 256*4);
