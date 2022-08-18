@@ -2247,7 +2247,7 @@ static void COM_Game_f (void)
 		M_CheckMods ();
 		Cvar_SetQuick (&max_edicts, max_edicts.default_string);
 
-		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
+		Con_Printf("\n%s\n\"game\" changed to \"%s\"\n", Con_Quakebar (40), COM_GetGameNames(true));
 
 		VID_Lock ();
 		Cbuf_AddText ("exec quake.rc\n");
