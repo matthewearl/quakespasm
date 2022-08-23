@@ -202,7 +202,7 @@ void SCR_DrawCenterString (void) //actually do the drawing
 		y = 200*0.35;	//johnfitz -- 320x200 coordinate system
 	else
 		y = 48;
-	if (crosshair.value)
+	if (crosshair.value && scr_viewsize.value < 130)
 		y -= 8;
 
 	do
@@ -312,8 +312,8 @@ static void SCR_CalcRefdef (void)
 // bound viewsize
 	if (scr_viewsize.value < 30)
 		Cvar_SetQuick (&scr_viewsize, "30");
-	if (scr_viewsize.value > 120)
-		Cvar_SetQuick (&scr_viewsize, "120");
+	if (scr_viewsize.value > 130)
+		Cvar_SetQuick (&scr_viewsize, "130");
 
 // bound fov
 	if (scr_fov.value < 10)
@@ -515,7 +515,7 @@ void SCR_DrawFPS (void)
 		oldframecount = r_framecount;
 	}
 
-	if (scr_showfps.value && lastfps)
+	if (scr_showfps.value && scr_viewsize.value < 130 && lastfps)
 	{
 		char	st[16];
 		int	x, y;
@@ -552,7 +552,7 @@ void SCR_DrawClock (void)
 {
 	char	str[12];
 
-	if (scr_clock.value == 1)
+	if (scr_clock.value == 1 && scr_viewsize.value < 130)
 	{
 		int minutes, seconds;
 
@@ -740,7 +740,7 @@ SCR_DrawCrosshair -- johnfitz
 */
 void SCR_DrawCrosshair (void)
 {
-	if (!crosshair.value)
+	if (!crosshair.value || scr_viewsize.value >= 130)
 		return;
 
 	GL_SetCanvas (CANVAS_CROSSHAIR);

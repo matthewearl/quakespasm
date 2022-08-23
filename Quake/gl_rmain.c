@@ -951,7 +951,7 @@ R_DrawViewModel -- johnfitz -- gutted
 void R_DrawViewModel (void)
 {
 	entity_t *e = &cl.viewent;
-	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value || scr_viewsize.value >= 130)
 		return;
 
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
@@ -1226,6 +1226,7 @@ void R_ShowTris (void)
 	// viewmodel
 	e = &cl.viewent;
 	if (r_drawviewmodel.value
+		&& scr_viewsize.value < 130
 		&& !chase_active.value
 		&& cl.stats[STAT_HEALTH] > 0
 		&& !(cl.items & IT_INVISIBILITY)
