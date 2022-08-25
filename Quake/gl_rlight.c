@@ -203,9 +203,7 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-mplane_t		*lightplane;
-vec3_t			lightspot;
-vec3_t			lightcolor; //johnfitz -- lit support via lordhavoc
+vec3_t lightcolor; //johnfitz -- lit support via lordhavoc
 
 static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
 {
@@ -279,8 +277,6 @@ loc0:
 		int ds, dt;
 		msurface_t *surf;
 	// check for impact on this node
-		VectorCopy (mid, lightspot);
-		lightplane = node->plane;
 
 		surf = cl.worldmodel->surfaces + node->firstsurface;
 		for (i = 0;i < node->numsurfaces;i++, surf++)
