@@ -192,7 +192,8 @@ typedef struct areanode_s
 	link_t	solid_edicts;
 } areanode_t;
 
-#define	AREA_DEPTH	7
+// Note: changing this can affect droptofloor
+#define	AREA_DEPTH	4
 #define	AREA_NODES	(2<<AREA_DEPTH)
 
 static	areanode_t	sv_areanodes[AREA_NODES];
