@@ -469,7 +469,7 @@ void GL_BuildBModelMarkBuffers (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
 
-int R_LightPoint (vec3_t p, lightcache_t *cache);
+int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache);
 
 #define WORLDSHADER_SOLID		0
 #define WORLDSHADER_ALPHATEST	1

@@ -355,9 +355,9 @@ loc0:
 R_LightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
-int R_LightPoint (vec3_t p, lightcache_t *cache)
+int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache)
 {
-	vec3_t		end;
+	vec3_t		start, end;
 	float		maxdist = 8192.f; //johnfitz -- was 2048
 
 	if (!cl.worldmodel->lightdata)
@@ -366,9 +366,12 @@ int R_LightPoint (vec3_t p, lightcache_t *cache)
 		return 255;
 	}
 
-	end[0] = p[0];
-	end[1] = p[1];
-	end[2] = p[2] - maxdist;
+	start[0] = p[0];
+	start[1] = p[1];
+	start[2] = p[2] + ofs;
+	end[0] = start[0];
+	end[1] = start[1];
+	end[2] = start[2] - maxdist;
 
 	lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
 
@@ -380,7 +383,7 @@ int R_LightPoint (vec3_t p, lightcache_t *cache)
 	{
 		cache->surfidx = 0;
 		VectorCopy (p, cache->pos);
-		RecursiveLightPoint (cache, cl.worldmodel->nodes, p, p, end, &maxdist);
+		RecursiveLightPoint (cache, cl.worldmodel->nodes, start, start, end, &maxdist);
 	}
 
 	if (cache->surfidx > 0)
