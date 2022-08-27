@@ -258,6 +258,8 @@ extern	globalvars_t	*pr_global_struct;
 
 extern qcvm_t *qcvm;
 void PR_SwitchQCVM(qcvm_t *nvm);
+void PR_PushQCVM(qcvm_t *newvm, qcvm_t **oldvm);
+void PR_PopQCVM(qcvm_t *oldvm);
 
 void PR_Init (void);
 

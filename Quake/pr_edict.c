@@ -687,15 +687,16 @@ For debugging, prints all the entities in the current server
 void ED_PrintEdicts (void)
 {
 	int		i;
+	qcvm_t	*oldqcvm;
 
 	if (!sv.active)
 		return;
 
-	PR_SwitchQCVM(&sv.qcvm);
+	PR_PushQCVM(&sv.qcvm, &oldqcvm);
 	Con_Printf ("%i entities\n", qcvm->num_edicts);
 	for (i = 0; i < qcvm->num_edicts; i++)
 		ED_PrintNum (i);
-	PR_SwitchQCVM(NULL);
+	PR_PopQCVM(oldqcvm);
 }
 
 /*
@@ -708,19 +709,20 @@ For debugging, prints a single edicy
 static void ED_PrintEdict_f (void)
 {
 	int		i;
+	qcvm_t	*oldqcvm;
 
 	if (!sv.active)
 		return;
 
 	i = Q_atoi (Cmd_Argv(1));
-	PR_SwitchQCVM(&sv.qcvm);
+	PR_PushQCVM(&sv.qcvm, &oldqcvm);
 	if (i < 0 || i >= qcvm->num_edicts)
 	{
 		Con_Printf("Bad edict number\n");
 		return;
 	}
 	ED_PrintNum (i);
-	PR_SwitchQCVM(NULL);
+	PR_PopQCVM(oldqcvm);
 }
 
 /*
@@ -733,12 +735,13 @@ For debugging
 static void ED_Count (void)
 {
 	edict_t	*ent;
-	int	i, active, models, solid, step;
+	int		i, active, models, solid, step;
+	qcvm_t	*oldqcvm;
 
 	if (!sv.active)
 		return;
 
-	PR_SwitchQCVM(&sv.qcvm);
+	PR_PushQCVM(&sv.qcvm, &oldqcvm);
 	active = models = solid = step = 0;
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
@@ -759,7 +762,7 @@ static void ED_Count (void)
 	Con_Printf ("view      :%3i\n", models);
 	Con_Printf ("touch     :%3i\n", solid);
 	Con_Printf ("step      :%3i\n", step);
-	PR_SwitchQCVM(NULL);
+	PR_PopQCVM(oldqcvm);
 }
 
 
@@ -1246,6 +1249,19 @@ void PR_SwitchQCVM(qcvm_t *nvm)
 		pr_global_struct = (globalvars_t*)qcvm->globals;
 	else
 		pr_global_struct = NULL;
+}
+
+void PR_PushQCVM(qcvm_t *newvm, qcvm_t **oldvm)
+{
+	*oldvm = qcvm;
+	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM(newvm);
+}
+
+void PR_PopQCVM(qcvm_t *oldvm)
+{
+	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM(oldvm);
 }
 
 void PR_ClearProgs(qcvm_t *vm)
