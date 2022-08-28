@@ -322,7 +322,7 @@ void Key_Console (int key)
 			SDL_assert (numchars > 0);
 			workline += key_linepos - numchars;
 			len = strlen (workline);
-			SDL_assert (len >= numchars);
+			SDL_assert ((int)len >= numchars);
 			memmove (workline, workline + numchars, len + 1 - numchars);
 			key_linepos -= numchars;
 		}
@@ -336,7 +336,7 @@ void Key_Console (int key)
 			int numchars = keydown[K_CTRL] ? Key_FindWordBoundary (1) - key_linepos : 1;
 			SDL_assert (numchars > 0);
 			len = strlen (workline);
-			SDL_assert (len >= numchars);
+			SDL_assert ((int)len >= numchars);
 			memmove (workline, workline + numchars, len + 1 - numchars);
 		}
 		return;
