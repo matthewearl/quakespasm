@@ -846,7 +846,6 @@ static void SCR_ScreenShot_Usage (void)
 	Con_Printf ("usage: screenshot <format> <quality>\n");
 	Con_Printf ("   format must be \"png\" or \"tga\" or \"jpg\"\n");
 	Con_Printf ("   quality must be 1-100\n");
-	return;
 }
 
 /*
