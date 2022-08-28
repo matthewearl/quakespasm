@@ -372,9 +372,7 @@ static void TexMgr_Imagedump_f (void)
 	byte *buffer;
 	char *c;
 
-	//create directory
 	q_snprintf(dirname, sizeof(dirname), "%s/imagedump", com_gamedir);
-	Sys_mkdir (dirname);
 
 	glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
 

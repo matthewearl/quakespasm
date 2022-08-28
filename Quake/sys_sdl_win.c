@@ -108,6 +108,26 @@ FILE *Sys_fopen (const char *path, const char *mode)
 	wmode[i] = 0;
 
 	UTF8ToWideString (path, wpath, countof (wpath));
+
+	if (strchr (mode, 'w'))
+	{
+		// create directory structure
+		for (i = 1; wpath[i]; i++)
+		{
+			wchar_t wc = wpath[i];
+			if (wc != L'\\' && wc != L'/')
+				continue;
+			wpath[i] = L'\0';
+			if (!CreateDirectoryW (wpath, NULL))
+			{
+				DWORD err = GetLastError ();
+				if (err != ERROR_ALREADY_EXISTS)
+					return NULL;
+			}
+			wpath[i] = wc;
+		}
+	}
+
 	f = _wfopen (wpath, wmode);
 
 	return f;

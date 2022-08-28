@@ -70,6 +70,29 @@ static int findhandle (void)
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
+	if (strchr (mode, 'w'))
+	{
+		char dir[MAX_OSPATH];
+		int i, rc;
+		q_strlcpy (dir, path, sizeof (dir));
+		for (i = 1; dir[i]; i++)
+		{
+			if (dir[i] != '/')
+				continue;
+			dir[i] = '\0';
+			rc = mkdir (dir, 0777);
+			if (rc != 0 && errno == EEXIST)
+			{
+				struct stat st;
+				if (stat (dir, &st) == 0 && S_ISDIR (st.st_mode))
+					rc = 0;
+			}
+			if (rc != 0)
+				return NULL;
+			dir[i] = '/';
+		}
+	}
+
 	return fopen (path, mode);
 }
 
@@ -119,7 +142,7 @@ int Sys_FileOpenWrite (const char *path)
 	int		i;
 
 	i = findhandle ();
-	f = fopen(path, "wb");
+	f = Sys_fopen(path, "wb");
 
 	if (!f)
 		Sys_Error ("Error opening %s: %s", path, strerror(errno));

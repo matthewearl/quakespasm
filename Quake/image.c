@@ -152,7 +152,6 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 	FILE	*file;
 	qboolean ret;
 
-	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
 	file = Sys_fopen (pathname, "wb");
 	if (!file)
@@ -566,7 +565,6 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 	bytes_per_pixel = bpp / 8;
 
-	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
 
 	if (!upsidedown)
@@ -598,7 +596,6 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error("bpp not 24 or 32");
 
-	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
 
 	flipped = (!upsidedown)? CopyFlipped (data, width, height, bpp) : data;
