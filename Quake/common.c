@@ -2234,8 +2234,6 @@ static void COM_Game_f (void)
 		Sky_ClearAll();
 		if (!isDedicated)
 		{
-			extern int screenshot_index;
-			screenshot_index = 0;
 			TexMgr_NewGame ();
 			Draw_NewGame ();
 			R_NewGame ();

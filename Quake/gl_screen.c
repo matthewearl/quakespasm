@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "quakedef.h"
+#include <time.h>
 
 /*
 
@@ -90,6 +91,7 @@ cvar_t		scr_clock = {"scr_clock", "0", CVAR_ARCHIVE};
 cvar_t		scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
 cvar_t		scr_hudstyle = {"hudstyle", "2", CVAR_ARCHIVE};
+cvar_t		cl_screenshotname = {"cl_screenshotname", "screenshots/%map%_%date%_%time%", CVAR_ARCHIVE};
 
 cvar_t		scr_viewsize = {"viewsize","100", CVAR_ARCHIVE};
 cvar_t		scr_fov = {"fov","90",CVAR_ARCHIVE};	// 10 - 170
@@ -446,6 +448,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&scr_hudstyle);
+	Cvar_RegisterVariable (&cl_screenshotname);
 	//johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -841,6 +844,139 @@ SCREEN SHOTS
 ==============================================================================
 */
 
+enum
+{
+	SVAR_SEC	= 1 << 0,
+	SVAR_MIN	= 1 << 1,
+	SVAR_HOUR	= 1 << 2,
+	SVAR_DAY	= 1 << 3,
+	SVAR_MONTH	= 1 << 4,
+	SVAR_YEAR	= 1 << 5,
+
+	SVAR_DATE	= SVAR_YEAR | SVAR_MONTH | SVAR_DAY,
+	SVAR_TIME	= SVAR_HOUR | SVAR_MIN | SVAR_SEC,
+	SVAR_TS		= SVAR_DATE | SVAR_TIME, 
+};
+
+/*
+==================
+SCR_ExpandVariables
+
+Returns true if format contains complete timestamp
+==================
+*/
+static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars)
+{
+	time_t		now;
+	struct tm	*lt;
+	char		var[256];
+	size_t		i, j, k, mask;
+
+	if (!maxchars)
+		return false;
+	--maxchars;
+
+	time (&now);
+	lt = localtime (&now);
+
+	for (i = j = mask = 0; j < maxchars && fmt[i]; /**/)
+	{
+		if (fmt[i] != '%')
+		{
+			dst[j++] = fmt[i];
+			i++;
+			continue;
+		}
+
+		i++;
+		if (fmt[i] == '%')
+		{
+			dst[j++] = '%';
+			i++;
+			continue;
+		}
+
+		// find closing %
+		for (k = 0; fmt[i + k]; k++)
+			if (fmt[i + k] == '%')
+				break;
+
+		#define IS_VAR(s)	(k == strlen (s) && q_strncasecmp (fmt + i, s, k) == 0)
+
+		if (IS_VAR ("map"))
+		{
+			if (cls.state == ca_connected && cls.signon == SIGNONS)
+				q_strlcpy (var, cl.mapname, sizeof (var));
+			else if (key_dest == key_menu)
+				q_strlcpy (var, "menu", sizeof (var));
+			else
+				q_strlcpy (var, "console", sizeof (var));
+		}
+		else if (IS_VAR ("date"))
+		{
+			q_snprintf (var, sizeof (var), "%04d-%02d-%02d", lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday);
+			mask |= SVAR_DATE;
+		}
+		else if (IS_VAR ("time"))
+		{
+			q_snprintf (var, sizeof (var), "%02d-%02d-%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
+			mask |= SVAR_TIME;
+		}
+		else if (IS_VAR ("year"))
+		{
+			q_snprintf (var, sizeof (var), "%04d", lt->tm_year + 1900);
+			mask |= SVAR_YEAR;
+		}
+		else if (IS_VAR ("month"))
+		{
+			q_snprintf (var, sizeof (var), "%02d", lt->tm_mon + 1);
+			mask |= SVAR_MONTH;
+		}
+		else if (IS_VAR ("day"))
+		{
+			q_snprintf (var, sizeof (var), "%02d", lt->tm_mday);
+			mask |= SVAR_DAY;
+		}
+		else if (IS_VAR ("hour"))
+		{
+			q_snprintf (var, sizeof (var), "%02d", lt->tm_hour);
+			mask |= SVAR_HOUR;
+		}
+		else if (IS_VAR ("min"))
+		{
+			q_snprintf (var, sizeof (var), "%02d", lt->tm_min);
+			mask |= SVAR_MIN;
+		}
+		else if (IS_VAR ("sec"))
+		{
+			q_snprintf (var, sizeof (var), "%02d", lt->tm_sec);
+			mask |= SVAR_SEC;
+		}
+		else // unknown variable, write name and percentage signs
+		{
+			q_snprintf (var, sizeof (var), "%%%.*s%%", (int)k, fmt + i);
+		}
+
+		#undef IS_VAR
+
+		// advance format cursor
+		i += k;
+		if (fmt[i]) // skip closing %
+			i++;
+
+		// append variable value
+		k = strlen (var);
+		if (k > maxchars - j)
+			k = maxchars - j;
+		memcpy (dst + j, var, k);
+		j += k;
+	}
+
+	dst[j++] = '\0';
+
+	return (mask & SVAR_TS) == SVAR_TS;
+}
+
 static void SCR_ScreenShot_Usage (void)
 {
 	Con_Printf ("usage: screenshot <format> <quality>\n");
@@ -853,16 +989,15 @@ static void SCR_ScreenShot_Usage (void)
 SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
 ==================
 */
-int screenshot_index = 0;
-
 void SCR_ScreenShot_f (void)
 {
 	byte	*buffer;
 	char	ext[4];
-	char	imagename[80];
+	char	basename[MAX_OSPATH];
+	char	imagename[MAX_OSPATH];
 	char	checkname[MAX_OSPATH];
-	int		quality;
-	qboolean	ok;
+	int		i, quality;
+	qboolean	ok, has_timestamp;
 
 	Q_strncpy (ext, "png", sizeof(ext));
 
@@ -890,22 +1025,41 @@ void SCR_ScreenShot_f (void)
 		SCR_ScreenShot_Usage ();
 		return;
 	}
-	
+
 // find a file name to save it to
-	for (; screenshot_index<10000; screenshot_index++)
+	has_timestamp = SCR_ExpandVariables (cl_screenshotname.string, basename, sizeof (basename));
+	if (!basename[0])
+		q_strlcpy (basename, SCREENSHOT_PREFIX, sizeof (basename));
+
+	if (!has_timestamp)
+		goto append_index;
+
+	q_snprintf (imagename, sizeof (imagename), "%s.%s", basename, ext);
+	q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
+	if (Sys_FileTime (checkname) != -1) // base name already used, try appending an index
 	{
-		q_snprintf (imagename, sizeof(imagename), SCREENSHOT_PREFIX "%04i.%s", screenshot_index, ext);
-		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, imagename);
-		if (Sys_FileTime(checkname) == -1)
-			break;	// file doesn't exist
+	append_index:
+		// append underscore if basename ends with a digit
+		i = (int) strlen (basename);
+		if (i && i + 1 < (int) countof (basename) && (unsigned int)(basename[i - 1] - '0') < 10u)
+		{
+			basename[i] = '_';
+			basename[i + 1] = '\0';
+		}
+
+		for (i = has_timestamp; i < 10000; i++)
+		{
+			q_snprintf (imagename, sizeof (imagename), "%s%04i.%s", basename, i, ext);
+			q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
+			if (Sys_FileTime (checkname) == -1)
+				break;	// file doesn't exist
+		}
+		if (i == 10000)
+		{
+			Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
+			return;
+		}
 	}
-	if (screenshot_index == 10000)
-	{
-		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
-		screenshot_index = 0; // check entire sequence again next time, in case the user has deleted some files
-		return;
-	}
-	screenshot_index++;
 
 //get data
 	if (!(buffer = (byte *) malloc(glwidth*glheight*3)))
