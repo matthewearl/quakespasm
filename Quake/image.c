@@ -146,14 +146,16 @@ TODO: support BGRA and BGR formats (since opengl can return them, and we don't h
 */
 qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
-	int		handle, i, size, temp, bytes;
+	int		i, size, temp, bytes;
 	char	pathname[MAX_OSPATH];
 	byte	header[TARGAHEADERSIZE];
+	FILE	*file;
+	qboolean ret;
 
 	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
-	handle = Sys_FileOpenWrite (pathname);
-	if (handle == -1)
+	file = Sys_fopen (pathname, "wb");
+	if (!file)
 		return false;
 
 	Q_memset (header, 0, TARGAHEADERSIZE);
@@ -176,11 +178,14 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 		data[i+2] = temp;
 	}
 
-	Sys_FileWrite (handle, header, TARGAHEADERSIZE);
-	Sys_FileWrite (handle, data, size);
-	Sys_FileClose (handle);
+	ret =
+		fwrite (header, TARGAHEADERSIZE, 1, file) == 1 &&
+		fwrite (data, 1, size, file) == size
+	;
 
-	return true;
+	fclose (file);
+
+	return ret;
 }
 
 /*
