@@ -234,6 +234,43 @@ static void PasteToConsole (void)
 	Z_Free(cbd);
 }
 
+static qboolean Key_IsWordSeparator (char c)
+{
+	switch (c)
+	{
+	case ' ':
+	case '\t':
+	case ';':
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int Key_FindWordBoundary (int dir)
+{
+	char	*workline = key_lines[edit_line];
+	int		len = (int) strlen (workline);
+	int		pos = key_linepos;
+
+	if (dir < 0)
+	{
+		while (pos > 1 && Key_IsWordSeparator (workline[pos - 1]))
+			pos--;
+		while (pos > 1 && !Key_IsWordSeparator (workline[pos - 1]))
+			pos--;
+	}
+	else
+	{
+		while (pos < len && !Key_IsWordSeparator (workline[pos]))
+			pos++;
+		while (pos < len && Key_IsWordSeparator (workline[pos]))
+			pos++;
+	}
+
+	return pos;
+}
+
 /*
 ====================
 Key_Console -- johnfitz -- heavy revision
@@ -281,14 +318,13 @@ void Key_Console (int key)
 		key_tabpartial[0] = 0;
 		if (key_linepos > 1)
 		{
-			workline += key_linepos - 1;
-			if (workline[1])
-			{
-				len = strlen(workline);
-				memmove (workline, workline + 1, len);
-			}
-			else	*workline = 0;
-			key_linepos--;
+			int numchars = keydown[K_CTRL] ? key_linepos - Key_FindWordBoundary (-1) : 1;
+			SDL_assert (numchars > 0);
+			workline += key_linepos - numchars;
+			len = strlen (workline);
+			SDL_assert (len >= numchars);
+			memmove (workline, workline + numchars, len + 1 - numchars);
+			key_linepos -= numchars;
 		}
 		return;
 
@@ -297,12 +333,11 @@ void Key_Console (int key)
 		workline += key_linepos;
 		if (*workline)
 		{
-			if (workline[1])
-			{
-				len = strlen(workline);
-				memmove (workline, workline + 1, len);
-			}
-			else	*workline = 0;
+			int numchars = keydown[K_CTRL] ? Key_FindWordBoundary (1) - key_linepos : 1;
+			SDL_assert (numchars > 0);
+			len = strlen (workline);
+			SDL_assert (len >= numchars);
+			memmove (workline, workline + numchars, len + 1 - numchars);
 		}
 		return;
 
@@ -352,7 +387,10 @@ void Key_Console (int key)
 	case K_LEFTARROW:
 		if (key_linepos > 1)
 		{
-			key_linepos--;
+			if (keydown[K_CTRL])
+				key_linepos = Key_FindWordBoundary (-1);
+			else
+				key_linepos--;
 			key_blinktime = realtime;
 		}
 		return;
@@ -371,7 +409,10 @@ void Key_Console (int key)
 		}
 		else
 		{
-			key_linepos++;
+			if (keydown[K_CTRL])
+				key_linepos = Key_FindWordBoundary (1);
+			else
+				key_linepos++;
 			key_blinktime = realtime;
 		}
 		return;
