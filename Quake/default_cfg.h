@@ -57,6 +57,8 @@ static char default_cfg[] =
 "bind F10 \"quit\"\n"
 "bind F12 \"screenshot\"\n"
 
+"bind PRINTSCREEN \"screenshot\"\n"
+
 "bind \\ +mlook\n"
 
 "bind PAUSE \"pause\"\n"
