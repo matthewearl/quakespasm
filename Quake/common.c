@@ -2331,7 +2331,7 @@ static void COM_InitBaseDir (void)
 		const char *dir = (i < com_argc - 1) ? com_argv[i + 1] : NULL;
 		if (!dir)
 			Sys_Error (
-				"Must specify a valid Quake directory after -basedir\n"
+				"Please specify a valid Quake directory after -basedir\n"
 				"(one that has an " GAMENAME " subdirectory containing pak0.pak)\n"
 			);
 		if (!COM_SetBaseDir (dir))
