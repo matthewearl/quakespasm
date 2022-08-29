@@ -2323,7 +2323,7 @@ static void COM_InitBaseDir (void)
 {
 	steamgame_t steamquake;
 	char path[countof (com_basedir)];
-	int i;
+	int i, steam;
 
 	i = COM_CheckParm ("-basedir");
 	if (i)
@@ -2344,6 +2344,10 @@ static void COM_InitBaseDir (void)
 		return;
 	}
 
+	steam = COM_CheckParm ("-steam");
+	if (steam)
+		goto try_steam;
+
 	if (COM_SetBaseDir (host_parms->basedir))
 		return;
 
@@ -2359,6 +2363,7 @@ static void COM_InitBaseDir (void)
 		return;
 	}
 
+try_steam:
 	if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
 		Steam_ResolvePath (path, sizeof (path), &steamquake))
 	{
@@ -2388,6 +2393,8 @@ static void COM_InitBaseDir (void)
 			return;
 		}
 	}
+	if (steam)
+		Sys_Error ("Couldn't find Steam Quake");
 
 	Sys_Error (
 		"Couldn't determine where Quake is installed.\n"
