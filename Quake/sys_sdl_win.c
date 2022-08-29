@@ -500,7 +500,7 @@ LRESULT CALLBACK KeyFilter (int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		PKBDLLHOOKSTRUCT p = (PKBDLLHOOKSTRUCT) lParam;
 		int scancode = p->scanCode | (p->flags & 1 ? 0xE000 : 0);
-		int key = GetFilteredKeyIndex (p->scanCode);
+		int key = GetFilteredKeyIndex (scancode);
 		if (key != -1)
 		{
 			// Note: if we intercept a key down message,
