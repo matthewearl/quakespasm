@@ -945,25 +945,39 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 
 /*
 =============
+R_IsViewModelVisible
+=============
+*/
+static qboolean R_IsViewModelVisible (void)
+{
+	entity_t *e = &cl.viewent;
+	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value || scr_viewsize.value >= 130)
+		return false;
+
+	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
+		return false;
+
+	if (!e->model)
+		return false;
+
+	//johnfitz -- this fixes a crash
+	if (e->model->type != mod_alias)
+		return false;
+
+	return true;
+}
+
+/*
+=============
 R_DrawViewModel -- johnfitz -- gutted
 =============
 */
 void R_DrawViewModel (void)
 {
 	entity_t *e = &cl.viewent;
-	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value || scr_viewsize.value >= 130)
-		return;
 
-	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
+	if (!R_IsViewModelVisible ())
 		return;
-
-	if (!e->model)
-		return;
-
-	//johnfitz -- this fixes a crash
-	if (e->model->type != mod_alias)
-		return;
-	//johnfitz
 
 	GL_BeginGroup ("View model");
 
@@ -1203,7 +1217,6 @@ void R_ShowTris (void)
 {
 	int		*ofs;
 	entity_t **entlist = cl_sorted_visedicts;
-	entity_t *e;
 
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1)
 		return;
@@ -1224,15 +1237,10 @@ void R_ShowTris (void)
 	R_DrawSpriteModels_ShowTris (entlist + ofs[2*mod_sprite], ofs[2*mod_sprite+2] - ofs[2*mod_sprite]);
 
 	// viewmodel
-	e = &cl.viewent;
-	if (r_drawviewmodel.value
-		&& scr_viewsize.value < 130
-		&& !chase_active.value
-		&& cl.stats[STAT_HEALTH] > 0
-		&& !(cl.items & IT_INVISIBILITY)
-		&& e->model
-		&& e->model->type == mod_alias)
+	if (R_IsViewModelVisible ())
 	{
+		entity_t *e = &cl.viewent;
+
 		if (r_showtris.value != 1.f)
 			GL_DepthRange (ZRANGE_VIEWMODEL);
 
