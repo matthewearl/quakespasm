@@ -1027,6 +1027,7 @@ void Key_Event (int key, qboolean down)
 {
 	char	*kb;
 	char	cmd[1024];
+	qboolean wasdown;
 
 	if (key < 0 || key >= MAX_KEYS)
 		return;
@@ -1058,6 +1059,7 @@ void Key_Event (int key, qboolean down)
 	else if (!keydown[key])
 		return; // ignore stray key up events
 
+	wasdown = keydown[key];
 	keydown[key] = down;
 
 	if (key_inputgrab.active)
@@ -1095,6 +1097,14 @@ void Key_Event (int key, qboolean down)
 			Sys_Error ("Bad key_dest");
 		}
 
+		return;
+	}
+
+// if Print Screen isn't bound, take a screenshot
+	if (key == K_PRINTSCREEN && !keybindings[key])
+	{
+		if (down && !wasdown)
+			Cbuf_AddText ("screenshot\n");
 		return;
 	}
 
