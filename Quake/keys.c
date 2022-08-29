@@ -954,6 +954,7 @@ void Key_Init (void)
 // initialize menubound[]
 //
 	menubound[K_ESCAPE] = true;
+	menubound[K_PRINTSCREEN] = true;
 	for (i = 0; i < 12; i++)
 		menubound[K_F1+i] = true;
 
