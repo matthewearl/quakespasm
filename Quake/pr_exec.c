@@ -689,29 +689,6 @@ void PR_ExecuteProgram (func_t fnum)
     }	/* end of while(1) loop */
 }
 
-dfunction_t *PR_BuiltinFunction (void)
-{
-	dfunction_t *func;
-	dstatement_t *st;
-
-	if (qcvm->xstatement < 0 || qcvm->xstatement >= qcvm->progs->numstatements)
-		return NULL;
-	st = &qcvm->statements[qcvm->xstatement];
-
-	if ((unsigned)(st->op - OP_CALL0) > 8)
-		return NULL;
-	if (!OPA->function)
-		return NULL;
-	if (OPA->function < 0 || OPA->function >= qcvm->progs->numfunctions)
-		return NULL;
-
-	func = &qcvm->functions[OPA->function];
-	if (func->first_statement >= 0 || func->first_statement <= -MAX_BUILTINS)
-		return NULL;
-
-	return func;
-}
-
 #undef OPA
 #undef OPB
 #undef OPC
