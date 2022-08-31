@@ -1083,7 +1083,7 @@ NOISE_FUNCTIONS
 static const char sprites_vertex_shader[] =
 FRAMEDATA_BUFFER
 "\n"
-"layout(location=0) in vec4 in_pos;\n"
+"layout(location=0) in vec3 in_pos;\n"
 "layout(location=1) in vec2 in_uv;\n"
 "\n"
 "layout(location=0) out vec2 out_uv;\n"
@@ -1091,7 +1091,7 @@ FRAMEDATA_BUFFER
 "\n"
 "void main()\n"
 "{\n"
-"	gl_Position = ViewProj * in_pos;\n"
+"	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
 "	out_fogdist = gl_Position.w;\n"
 "	out_uv = in_uv;\n"
 "}\n";
@@ -1203,14 +1203,14 @@ NOISE_FUNCTIONS
 static const char debug3d_vertex_shader[] =
 FRAMEDATA_BUFFER
 "\n"
-"layout(location=0) in vec4 in_pos;\n"
+"layout(location=0) in vec3 in_pos;\n"
 "layout(location=1) in vec4 in_color;\n"
 "\n"
 "layout(location=0) out vec4 out_color;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	gl_Position = ViewProj * in_pos;\n"
+"	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
 "	out_color = in_color;\n"
 "}\n";
 
