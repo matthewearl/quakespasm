@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t	pausable;
 extern cvar_t	nomonsters;
 
+cvar_t			sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE}; // 0 = no, 1 = ask, 2 = always
+
 int	current_skill;
 
 void Mod_Print (void);
@@ -890,6 +892,39 @@ static void Host_Randmap_f (void)
 
 /*
 ==================
+Host_AutoLoad
+==================
+*/
+static qboolean Host_AutoLoad (void)
+{
+	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1)
+		return false;
+
+	if (sv_autoload.value < 2.f &&
+		!SCR_ModalMessage ("Load last save? (y/n)", 0.f))
+	{
+		sv.lastsave[0] = '\0';
+		return false;
+	}
+
+	sv.autoloading = true;
+	SCR_BeginLoadingPlaque ();
+	Con_Printf ("Autoloading...\n");
+	Cbuf_AddText (va ("load %s\n", sv.lastsave));
+	Cbuf_Execute ();
+
+	if (sv.autoloading)
+	{
+		sv.autoloading = false;
+		Con_Printf ("Autoload failed!\n");
+		return false;
+	}
+
+	return true;
+}
+
+/*
+==================
 Host_Changelevel_f
 
 Goes to a new map, taking all clients along
@@ -916,12 +951,15 @@ static void Host_Changelevel_f (void)
 		Host_Error ("cannot find map %s", level);
 	//johnfitz
 
+	q_strlcpy (level, Cmd_Argv(1), sizeof(level));
+	if (!strcmp (sv.name, level) && Host_AutoLoad ())
+		return;
+
 	if (cls.state != ca_dedicated)
 		IN_Activate();	// -- S.A.
 	key_dest = key_game;	// remove console or menu
 	PR_SwitchQCVM(&sv.qcvm);
 	SV_SaveSpawnparms ();
-	q_strlcpy (level, Cmd_Argv(1), sizeof(level));
 	SV_SpawnServer (level);
 	PR_SwitchQCVM(NULL);
 	// also issue an error if spawn failed -- O.S.
@@ -945,6 +983,10 @@ static void Host_Restart_f (void)
 
 	if (cmd_source != src_command)
 		return;
+
+	if (Host_AutoLoad ())
+		return;
+
 	q_strlcpy (mapname, sv.name, sizeof(mapname));	// mapname gets cleared in spawnserver
 	PR_SwitchQCVM(&sv.qcvm);
 	SV_SpawnServer (mapname);
@@ -1042,6 +1084,12 @@ static void Host_SavegameComment (char *text)
 	if (p1 != NULL) *p1 = '\n';
 	if (p2 != NULL) *p2 = '\r';
 	text[SAVEGAME_COMMENT_LENGTH] = '\0';
+}
+
+static void Host_InvalidateSave (const char *relname)
+{
+	if (!strcmp (sv.lastsave, relname))
+		sv.lastsave[0] = '\0';
 }
 
 /*
@@ -1149,6 +1197,8 @@ static void Host_Savegame_f (void)
 	PR_SwitchQCVM(NULL);
 
 	SaveList_Rebuild ();
+
+	q_strlcpy (sv.lastsave, relname, sizeof (sv.lastsave));
 }
 
 /*
@@ -1212,6 +1262,7 @@ static void Host_Loadgame_f (void)
 	if (start == NULL)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
+		Host_InvalidateSave (relname);
 		return;
 	}
 
@@ -1221,7 +1272,11 @@ static void Host_Loadgame_f (void)
 	{
 		free (start);
 		start = NULL;
-		Host_Error ("Savegame is version %i, not %i", version, SAVEGAME_VERSION);
+		if (sv.autoloading)
+			Con_Printf ("ERROR: Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
+		else
+			Host_Error ("Savegame is version %i, not %i", version, SAVEGAME_VERSION);
+		Host_InvalidateSave (relname);
 		return;
 	}
 	data = COM_ParseStringNewline (data);
@@ -1303,6 +1358,8 @@ static void Host_Loadgame_f (void)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
 
 	PR_SwitchQCVM(NULL);
+
+	q_strlcpy (sv.lastsave, relname, sizeof (sv.lastsave));
 
 	if (cls.state != ca_dedicated)
 	{

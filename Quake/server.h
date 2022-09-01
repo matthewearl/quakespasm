@@ -83,6 +83,9 @@ typedef struct
 		eval_t *ptr;
 	} customstats[MAX_CL_STATS*2];	//strings or numeric...
 	size_t		numcustomstats;
+
+	char		lastsave[MAX_OSPATH];
+	qboolean	autoloading;
 } server_t;
 
 
