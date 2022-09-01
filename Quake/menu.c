@@ -994,10 +994,6 @@ void M_Load_Key (int k)
 		IN_Activate();
 		key_dest = key_game;
 
-	// Host_Loadgame_f can't bring up the loading plaque because too much
-	// stack space has been used, so do it now
-		SCR_BeginLoadingPlaque ();
-
 	// issue the load command
 		Cbuf_AddText (va ("load s%i\n", load_cursor) );
 		return;

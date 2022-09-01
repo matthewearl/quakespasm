@@ -908,7 +908,6 @@ static qboolean Host_AutoLoad (void)
 	}
 
 	sv.autoloading = true;
-	SCR_BeginLoadingPlaque ();
 	Con_Printf ("Autoloading...\n");
 	Cbuf_AddText (va ("load %s\n", sv.lastsave));
 	Cbuf_Execute ();
@@ -1248,9 +1247,7 @@ static void Host_Loadgame_f (void)
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 	Con_Printf ("Loading game from %s...\n", relname);
 
-// we can't call SCR_BeginLoadingPlaque, because too much stack space has
-// been used.  The menu calls it before stuffing loadgame command
-//	SCR_BeginLoadingPlaque ();
+	SCR_BeginLoadingPlaque ();
 
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 	
