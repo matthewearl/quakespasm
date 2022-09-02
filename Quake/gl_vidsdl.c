@@ -1205,11 +1205,15 @@ static void GL_Init (void)
 	GL_BindVertexArrayFunc (globalvao);
 
 	glGetIntegerv (GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_align);
-	ssbo_align = q_max (ssbo_align, 16);
-	--ssbo_align;
-
 	glGetIntegerv (GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &ubo_align);
-	ubo_align = q_max (ubo_align, 16);
+	if (COM_CheckParm ("-tracecompat"))
+	{
+		// overalign SSBO/UBO offsets so that API traces captured on GPUs
+		// with lower requirements can be played back on more restrictive ones
+		ubo_align = q_max (ubo_align, 256);
+		ssbo_align = q_max (ssbo_align, 256);
+	}
+	--ssbo_align;
 	--ubo_align;
 
 #ifdef __APPLE__
