@@ -61,7 +61,7 @@ typedef struct {
 #define MAX_ALIAS_INSTANCES 256
 
 typedef struct aliasinstance_s {
-	float		mvp[16];
+	float		worldmatrix[16];
 	vec3_t		lightcolor;
 	float		alpha;
 	float		shadeangle;
@@ -76,6 +76,9 @@ struct ibuf_s {
 	gltexture_t	*textures[2];
 
 	struct {
+		float	matviewproj[16];
+		vec3_t	eyepos;
+		float	_pad;
 		vec4_t	fog;
 	} global;
 	aliasinstance_t inst[MAX_ALIAS_INSTANCES];
@@ -336,6 +339,8 @@ void R_FlushAliasInstances (void)
 		state |= GLS_BLEND_ALPHA | GLS_NO_ZWRITE;
 	GL_SetState (state);
 
+	memcpy (ibuf.global.matviewproj, r_matviewproj, sizeof (r_matviewproj));
+	memcpy (ibuf.global.eyepos, r_refdef.vieworg, sizeof (r_refdef.vieworg));
 	memcpy (ibuf.global.fog, r_framedata.fogdata, 3 * sizeof (float));
 	// use fog density sign bit as overbright flag
 	ibuf.global.fog[3] =
@@ -501,8 +506,7 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 
 	instance = &ibuf.inst[ibuf.count++];
 
-	memcpy (instance->mvp, r_matviewproj, 16 * sizeof(float));
-	MatrixMultiply(instance->mvp, model_matrix);
+	memcpy (instance->worldmatrix, model_matrix, 16 * sizeof(float));
 
 	quantizedangle = ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
 	radiansangle = quantizedangle * (-2.0f * M_PI / SHADEDOT_QUANT);

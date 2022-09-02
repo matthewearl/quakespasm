@@ -281,10 +281,9 @@ NOISE_FUNCTIONS
 "	uint	NumLights;\n"\
 "};\n"\
 "\n"\
-"vec3 ApplyFog(vec3 clr, float dist)\n"\
+"vec3 ApplyFog(vec3 clr, vec3 p)\n"\
 "{\n"\
-"	dist *= Fog.w;\n"\
-"	float fog = exp2(-dist * dist);\n"\
+"	float fog = exp2(-Fog.w * dot(p, p));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"\
 "	return mix(Fog.rgb, clr, fog);\n"\
 "}\n"\
@@ -650,7 +649,7 @@ NOISE_FUNCTIONS
 "#endif\n"
 "	result.rgb += fullbright;\n"
 "	result = clamp(result, 0.0, 1.0);\n"
-"	result.rgb = ApplyFog(result.rgb, in_depth);\n"
+"	result.rgb = ApplyFog(result.rgb, in_pos - EyePos);\n"
 "\n"
 "	result.a = in_alpha; // FIXME: This will make almost transparent things cut holes though heavy fog\n"
 "	out_fragcolor = result;\n"
@@ -682,7 +681,7 @@ WORLD_VERTEX_BUFFER
 "\n"
 "layout(location=0) flat out float out_alpha;"
 "layout(location=1) out vec2 out_uv;\n"
-"layout(location=2) out float out_fogdist;\n"
+"layout(location=2) out vec3 out_pos;\n"
 "#if BINDLESS\n"
 "	layout(location=3) flat out uvec2 out_sampler;\n"
 "#endif\n"
@@ -692,9 +691,10 @@ WORLD_VERTEX_BUFFER
 "	Call call = call_data[DRAW_ID];\n"
 "	int instance_id = GET_INSTANCE_ID(call);\n"
 "	Instance instance = instance_data[instance_id];\n"
-"	gl_Position = ViewProj * vec4(Transform(in_pos, instance), 1.0);\n"
+"	vec3 pos = Transform(in_pos, instance);\n"
+"	gl_Position = ViewProj * vec4(pos, 1.0);\n"
 "	out_uv = in_uv.xy;\n"
-"	out_fogdist = gl_Position.w;\n"
+"	out_pos = pos - EyePos;\n"
 "	out_alpha = instance.alpha < 0.0 ? call.wateralpha : instance.alpha;\n"
 "#if BINDLESS\n"
 "	out_sampler = call.txhandle;\n"
@@ -715,7 +715,7 @@ NOISE_FUNCTIONS
 "\n"
 "layout(location=0) flat in float in_alpha;\n"
 "layout(location=1) in vec2 in_uv;\n"
-"layout(location=2) in float in_fogdist;\n"
+"layout(location=2) in vec3 in_pos;\n"
 "#if BINDLESS\n"
 "	layout(location=3) flat in uvec2 in_sampler;\n"
 "#endif\n"
@@ -729,7 +729,7 @@ NOISE_FUNCTIONS
 "	sampler2D Tex = sampler2D(in_sampler);\n"
 "#endif\n"
 "	vec4 result = texture(Tex, uv);\n"
-"	result.rgb = ApplyFog(result.rgb, in_fogdist);\n"
+"	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	result.a *= in_alpha;\n"
 "	out_fragcolor = result;\n"
 "#if DITHER\n"
@@ -937,7 +937,7 @@ NOISE_FUNCTIONS
 #define ALIAS_INSTANCE_BUFFER \
 "struct InstanceData\n"\
 "{\n"\
-"	mat4	MVP;\n"\
+"	mat4	WorldMatrix;\n"\
 "	vec4	LightColor; // xyz=LightColor w=Alpha\n"\
 "	float	ShadeAngle;\n"\
 "	float	Blend;\n"\
@@ -947,6 +947,8 @@ NOISE_FUNCTIONS
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
 "{\n"\
+"	mat4	ViewProj;\n"\
+"	vec3	EyePos;\n"\
 "	vec4	Fog;\n"\
 "	InstanceData instances[];\n"\
 "};\n"\
@@ -994,7 +996,7 @@ ALIAS_INSTANCE_BUFFER
 "	layout(location=0) out vec2 out_texcoord;\n"
 "#endif\n"
 "layout(location=1) out vec4 out_color;\n"
-"layout(location=2) out float out_fogdist;\n"
+"layout(location=2) out vec3 out_pos;\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1002,9 +1004,9 @@ ALIAS_INSTANCE_BUFFER
 "	out_texcoord = TexCoords[gl_VertexID];\n"
 "	Pose pose1 = GetPose(inst.Pose1);\n"
 "	Pose pose2 = GetPose(inst.Pose2);\n"
-"	vec3 lerpedVert = mix(pose1.pos, pose2.pos, inst.Blend);\n"
-"	gl_Position = inst.MVP * vec4(lerpedVert, 1.0);\n"
-"	out_fogdist = gl_Position.w;\n"
+"	vec3 lerpedVert = (inst.WorldMatrix * vec4(mix(pose1.pos, pose2.pos, inst.Blend), 1.0)).xyz;\n"
+"	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
+"	out_pos = lerpedVert - EyePos;\n"
 "	vec3 shadevector;\n"
 "	shadevector[0] = cos(inst.ShadeAngle);\n"
 "	shadevector[1] = sin(inst.ShadeAngle);\n"
@@ -1032,7 +1034,7 @@ NOISE_FUNCTIONS
 "	layout(location=0) in vec2 in_texcoord;\n"
 "#endif\n"
 "layout(location=1) in vec4 in_color;\n"
-"layout(location=2) in float in_fogdist;\n"
+"layout(location=2) in vec3 in_pos;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
@@ -1059,7 +1061,7 @@ NOISE_FUNCTIONS
 "	result.rgb += texture(FullbrightTex, uv).rgb;\n"
 "#endif\n"
 "	result.rgb = clamp(result.rgb, 0.0, 1.0);\n"
-"	float fog = exp2(-(Fog.w * in_fogdist) * (Fog.w * in_fogdist));\n"
+"	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"
 "	result.rgb = mix(Fog.rgb, result.rgb, fog);\n"
 "	out_fragcolor = result;\n"
@@ -1087,12 +1089,12 @@ FRAMEDATA_BUFFER
 "layout(location=1) in vec2 in_uv;\n"
 "\n"
 "layout(location=0) out vec2 out_uv;\n"
-"layout(location=1) out float out_fogdist;\n"
+"layout(location=1) out vec3 out_pos;\n"
 "\n"
 "void main()\n"
 "{\n"
 "	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
-"	out_fogdist = gl_Position.w;\n"
+"	out_pos = in_pos - EyePos;\n"
 "	out_uv = in_uv;\n"
 "}\n";
 
@@ -1105,7 +1107,7 @@ NOISE_FUNCTIONS
 "layout(binding=0) uniform sampler2D Tex;\n"
 "\n"
 "layout(location=0) in vec2 in_uv;\n"
-"layout(location=1) in float in_fogdist;\n"
+"layout(location=1) in vec3 in_pos;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
@@ -1114,7 +1116,7 @@ NOISE_FUNCTIONS
 "	vec4 result = texture(Tex, in_uv);\n"
 "	if (result.a < 0.666)\n"
 "		discard;\n"
-"	result.rgb = ApplyFog(result.rgb, in_fogdist);\n"
+"	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	out_fragcolor = result;\n"
 "#if DITHER\n"
 "	if (Fog.w > 0.)\n"
@@ -1140,7 +1142,7 @@ FRAMEDATA_BUFFER
 "\n"
 "layout(location=0) out vec2 out_uv;\n"
 "layout(location=1) out vec4 out_color;\n"
-"layout(location=2) out float out_fogdist;\n"
+"layout(location=2) out vec3 out_pos;\n"
 "\n"
 "layout(location=0) uniform vec2 ProjScale;\n"
 "\n"
@@ -1159,7 +1161,7 @@ FRAMEDATA_BUFFER
 "	// perform the billboarding\n"
 "	gl_Position.xy += ProjScale * uintBitsToFloat(floatBitsToUint(vec2(depthscale)) ^ flipsign);\n"
 "\n"
-"	out_fogdist = gl_Position.w;\n"
+"	out_pos = in_pos - EyePos; // FIXME: use corner position\n"
 "	out_uv = corner * 0.25 + 0.25; // remap corner to uv range\n"
 "	out_color = in_color;\n"
 "}\n";
@@ -1174,7 +1176,7 @@ NOISE_FUNCTIONS
 "\n"
 "layout(location=0) in vec2 in_uv;\n"
 "layout(location=1) in vec4 in_color;\n"
-"layout(location=2) in float in_fogdist;\n"
+"layout(location=2) in vec3 in_pos;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
@@ -1182,7 +1184,7 @@ NOISE_FUNCTIONS
 "{\n"
 "	vec4 result = texture(Tex, in_uv);\n"
 "	result *= in_color;\n"
-"	result.rgb = ApplyFog(result.rgb, in_fogdist);\n"
+"	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	out_fragcolor = result;\n"
 "#if DITHER\n"
 "	if (Fog.w > 0.)\n"

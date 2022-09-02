@@ -307,10 +307,11 @@ called at the beginning of each frame
 void Fog_SetupFrame (void)
 {
 	const float ExpAdjustment = 1.20112241f; // sqrt(log2(e))
-	float density = Fog_GetDensity();
+	const float DensityScale = ExpAdjustment / 64.0f;
+	float density = Fog_GetDensity() * DensityScale;
 	memcpy(r_framedata.fogdata, Fog_GetColor(), 3 * sizeof(float));
 	memcpy(r_framedata.skyfogdata, r_framedata.fogdata, 3 * sizeof(float));
-	r_framedata.fogdata[3] = density * (ExpAdjustment / 64.0f);
+	r_framedata.fogdata[3] = density * density;
 	r_framedata.skyfogdata[3] = density > 0.f ? CLAMP (0.f, skyfog, 1.f) : 0.f;
 }
 
