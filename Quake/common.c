@@ -2248,6 +2248,7 @@ static void COM_Game_f (void)
 		Con_Printf("\n%s\n\"game\" changed to \"%s\"\n", Con_Quakebar (40), COM_GetGameNames(true));
 
 		VID_Lock ();
+		Cbuf_AddText ("unaliasall\n");
 		Cbuf_AddText ("exec quake.rc\n");
 		Cbuf_AddText ("vid_unlock\n");
 	}
