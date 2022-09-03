@@ -30,6 +30,7 @@ void SCR_LoadPics (void);
 
 void SCR_UpdateScreen (void);
 
+void SCR_UpdateZoom (void);
 void SCR_CenterPrint (const char *str);
 
 void SCR_BeginLoadingPlaque (void);

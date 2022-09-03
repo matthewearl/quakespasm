@@ -483,6 +483,8 @@ void CL_RelinkEntities (void)
 		cl.velocity[i] = cl.mvelocity[1][i] +
 			frac * (cl.mvelocity[0][i] - cl.mvelocity[1][i]);
 
+	SCR_UpdateZoom ();
+
 	if (cls.demoplayback)
 	{
 	// interpolate the angles

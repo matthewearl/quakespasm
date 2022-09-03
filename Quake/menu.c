@@ -2102,6 +2102,8 @@ static const char* const bindnames[][2] =
 	{"centerview",		"Center view"},
 	{"+mlook",			"Mouse look"},
 	{"+klook",			"Keyboard look"},
+	{"zoom_in",			"Toggle zoom"},
+	{"+zoom",			"Quick zoom"},
 	{"+attack",			"Attack"},
 	{"impulse 10",		"Next weapon"},
 	{"impulse 12",		"Previous weapon"},

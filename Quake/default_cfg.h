@@ -43,8 +43,8 @@ static char default_cfg[] =
 "bind MWHEELDOWN \"impulse 10\"\n"
 "bind MWHEELUP \"impulse 12\"\n"
 
-"alias zoom_in \"sensitivity 2;fov 90;wait;fov 70;wait;fov 50;wait;fov 30;wait;fov 10;wait;fov 5;bind F11 zoom_out\"\n"
-"alias zoom_out \"sensitivity 4;fov 5;wait;fov 10;wait;fov 30;wait;fov 50;wait;fov 70;wait;fov 90;bind F11 zoom_in; sensitivity 3\"\n"
+"alias zoom_in \"togglezoom\"\n"
+"alias zoom_out \"togglezoom\"\n"
 "bind F11 zoom_in\n"
 
 "bind F1 \"help\"\n"

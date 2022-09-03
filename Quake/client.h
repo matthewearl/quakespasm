@@ -236,6 +236,9 @@ typedef struct
 	char		stuffcmdbuf[1024];	//comment-extensions are a thing with certain servers, make sure we can handle them properly without further hacks/breakages. there's also some server->client only console commands that we might as well try to handle a bit better, like reconnect
 
 	qcvm_t		qcvm;	//for csqc.
+
+	float		zoom;
+	float		zoomdir;
 } client_state_t;
 
 
