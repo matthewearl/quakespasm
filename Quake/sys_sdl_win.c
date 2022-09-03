@@ -463,7 +463,7 @@ static HHOOK key_hook = NULL;
 
 #define SC_CAPSLOCK			0x3A
 #define SC_SCROLLLOCK		0x46
-#define SC_NUMLOCKCLEAR		0x45
+#define SC_NUMLOCKCLEAR		0xE045
 #define SC_PRINTSCREEN		0xE037
 
 enum
