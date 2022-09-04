@@ -187,13 +187,13 @@ void ExtraMaps_Init (void)
 			{ //don't list standard id maps
 				for (i = 0, pak = search->pack; i < pak->numfiles; i++)
 				{
-					if (!strcmp(COM_FileGetExtension(pak->files[i].name), "bsp"))
+					if (pak->files[i].filelen > 32*1024 &&				// don't list files under 32k (ammo boxes etc)
+						!strncmp (pak->files[i].name, "maps/", 5) &&	// don't list files outside of maps/
+						!strchr (pak->files[i].name + 5, '/') &&		// don't list files in subdirectories
+						!strcmp (COM_FileGetExtension (pak->files[i].name), "bsp"))
 					{
-						if (pak->files[i].filelen > 32*1024)
-						{ // don't list files under 32k (ammo boxes etc)
-							COM_StripExtension(pak->files[i].name + 5, mapname, sizeof(mapname));
-							ExtraMaps_Add (mapname);
-						}
+						COM_StripExtension(pak->files[i].name + 5, mapname, sizeof(mapname));
+						ExtraMaps_Add (mapname);
 					}
 				}
 			}
