@@ -3402,7 +3402,7 @@ void M_ServerList_Mousemove (int cx, int cy)
 /* Mods menu */
 
 #define MAX_MODS		4096
-#define MAX_VIS_MODS	18
+#define MAX_VIS_MODS	19
 
 typedef struct
 {
