@@ -2409,6 +2409,139 @@ visdone:
 }
 
 /*
+=================
+Mod_LoadMapDescription
+
+Parses the entity lump in the given map to find its worldspawn message
+Writes at most maxchars bytes to dest, including the NUL terminator
+Returns true if map is playable, false otherwise
+=================
+*/
+qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
+{
+	static char		buf[16 * 1024];
+	char			path[MAX_QPATH];
+	const char		*data;
+	FILE			*f;
+	lump_t			*entlump;
+	dheader_t		header;
+	int				i, filesize;
+	qboolean		ret = false;
+
+	if (!maxchars)
+		return false;
+	*desc = '\0';
+
+	if ((size_t) q_snprintf (path, sizeof (path), "maps/%s.bsp", map) >= sizeof (path))
+		return false;
+
+	filesize = COM_FOpenFile (path, &f, NULL);
+	if (filesize <= sizeof (header))
+		return false;
+
+	if (fread (&header, sizeof (header), 1, f) != 1)
+	{
+		fclose (f);
+		return false;
+	}
+
+	header.version = LittleLong (header.version);
+
+	switch (header.version)
+	{
+	case BSPVERSION:
+	case BSP2VERSION_2PSB:
+	case BSP2VERSION_BSP2:
+	case BSPVERSION_QUAKE64:
+		break;
+	default:
+		fclose (f);
+		return false;
+	}
+
+	for (i = 1; i < (int) (sizeof (header) / sizeof (int)); i++)
+		((int *)&header)[i] = LittleLong ( ((int *)&header)[i]);
+
+	entlump = &header.lumps[LUMP_ENTITIES];
+	if (entlump->filelen < 0 || entlump->filelen >= filesize ||
+		entlump->fileofs < 0 || entlump->fileofs + entlump->filelen > filesize)
+	{
+		fclose (f);
+		return false;
+	}
+
+	// if the entity lump is large enough we assume the map is playable
+	// and only try to parse the first entity (worldspawn) for the map title
+	if (entlump->filelen >= sizeof (buf))
+	{
+		ret = true;
+		entlump->filelen = sizeof (buf) - 1;
+	}
+
+	fseek (f, entlump->fileofs - sizeof (header), SEEK_CUR);
+	i = fread (buf, 1, entlump->filelen, f);
+	fclose (f);
+
+	if (i <= 0)
+		return false;
+	buf[i] = '\0';
+
+	for (i = 0, data = buf; data; i++)
+	{
+		data = COM_Parse (data);
+		if (!data || com_token[0] != '{')
+			return ret;
+
+		while (1)
+		{
+			qboolean is_message;
+			qboolean is_classname;
+
+			// parse key
+			data = COM_Parse (data);
+			if (!data)
+				return ret;
+			if (com_token[0] == '}')
+				break;
+
+			is_message = i == 0 && !strcmp (com_token, "message");
+			is_classname = i != 0 && !strcmp (com_token, "classname");
+
+			// parse value
+			data = COM_Parse (data);
+			if (!data)
+				return ret;
+
+			if (is_message)
+			{
+				q_strlcpy (desc, com_token, maxchars);
+				if (ret)
+					return true;
+			}
+			else if (is_classname)
+			{
+				#define CLASSNAME_STARTS_WITH(str)	(!strncmp (com_token, str, strlen (str)))
+				#define CLASSNAME_IS(str)			(!strcmp (com_token, str))
+
+				if (CLASSNAME_STARTS_WITH ("info_player_") ||
+					CLASSNAME_STARTS_WITH ("ammo_") ||
+					CLASSNAME_STARTS_WITH ("weapon_") ||
+					CLASSNAME_STARTS_WITH ("monster_") ||
+					CLASSNAME_IS ("trigger_changelevel"))
+				{
+					return true;
+				}
+
+				#undef CLASSNAME_IS
+				#undef CLASSNAME_STARTS_WITH
+			}
+		}
+	}
+
+	return ret;
+}
+
+/*
 ==============================================================================
 
 ALIAS MODELS

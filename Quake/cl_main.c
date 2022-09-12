@@ -55,6 +55,7 @@ cvar_t	cl_startdemos = {"cl_startdemos", "1", CVAR_ARCHIVE};
 cvar_t	cl_confirmquit = {"cl_confirmquit", "0", CVAR_ARCHIVE};
 
 cvar_t	cl_mousemenu = {"cl_mousemenu", "1", CVAR_ARCHIVE};
+cvar_t	cl_menusearchtimeout = {"cl_menusearchtimeout", "1", CVAR_ARCHIVE};
 
 client_static_t	cls;
 client_state_t	cl;
@@ -969,6 +970,7 @@ void CL_Init (void)
 	Cvar_RegisterVariable (&cl_confirmquit);
 
 	Cvar_RegisterVariable (&cl_mousemenu);
+	Cvar_RegisterVariable (&cl_menusearchtimeout);
 
 	Cmd_AddCommand ("entities", CL_PrintEntities_f);
 	Cmd_AddCommand ("disconnect", CL_Disconnect_f);

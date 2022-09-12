@@ -57,10 +57,10 @@ void Host_Quit_f (void)
 
 /*
 ==================
-FileList_Add
+FileList_AddWithData
 ==================
 */
-static void FileList_Add (const char *name, filelist_item_t **list)
+static void FileList_AddWithData (const char *name, const void *data, size_t datasize, filelist_item_t **list)
 {
 	filelist_item_t	*item,*cursor,*prev;
 
@@ -71,8 +71,10 @@ static void FileList_Add (const char *name, filelist_item_t **list)
 			return;
 	}
 
-	item = (filelist_item_t *) Z_Malloc(sizeof(filelist_item_t));
+	item = (filelist_item_t *) Z_Malloc(sizeof(filelist_item_t) + datasize);
 	q_strlcpy (item->name, name, sizeof(item->name));
+	if (datasize)
+		memcpy (item + 1, data, datasize);
 
 	// insert each entry in alphabetical order
 	if (*list == NULL ||
@@ -95,6 +97,16 @@ static void FileList_Add (const char *name, filelist_item_t **list)
 	}
 }
 
+/*
+==================
+FileList_Add
+==================
+*/
+static void FileList_Add (const char *name, filelist_item_t **list)
+{
+	FileList_AddWithData (name, NULL, 0, list);
+}
+
 static void FileList_Clear (filelist_item_t **list)
 {
 	filelist_item_t *blah;
@@ -107,6 +119,26 @@ static void FileList_Clear (filelist_item_t **list)
 	}
 }
 
+static const char *RightPad (const char *str, size_t minlen, char c)
+{
+	static char buf[1024];
+	size_t len = strlen (str);
+
+	minlen = q_min (minlen, sizeof (buf) - 1);
+	if (len >= minlen)
+		return str;
+
+	memcpy (buf, str, len);
+	for (; len < minlen; len++)
+		buf[len] = c;
+	buf[len] = '\0';
+
+	return buf;
+}
+
+filelist_item_t	*extralevels;
+size_t maxlevelnamelen;
+
 /*
 ==================
 FileList_Print
@@ -116,15 +148,26 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 {
 	int i;
 	filelist_item_t	*item;
-	char buf[256];
+	const char *desc;
+	char buf[256], buf2[256];
+	char padchar = '.' | 0x80;
+	size_t ofsdesc = list == extralevels ? maxlevelnamelen + 2 : 0;
 
 	if (substr && *substr)
 	{
 		for (item = list, i = 0; item; item = item->next)
 		{
-			if (q_strcasestr (item->name, substr))
+			if (list == extralevels && ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
+				continue;
+			desc = ofsdesc ? (const char*)(item + 1) : "";
+			if (q_strcasestr (item->name, substr) || q_strcasestr (desc, substr))
 			{
-				Con_SafePrintf ("   %s\n", Cmd_TintSubstring (item->name, substr, buf, sizeof (buf)));
+				const char *tinted_name = Cmd_TintSubstring (item->name, substr, buf, sizeof (buf));
+				const char *tinted_desc = Cmd_TintSubstring (desc, substr, buf2, sizeof (buf2));
+				if (*desc)
+					Con_SafePrintf ("   %s%c%s\n", RightPad (tinted_name, ofsdesc, padchar), padchar, tinted_desc);
+				else
+					Con_SafePrintf ("   %s\n", tinted_name);
 				i++;
 			}
 		}
@@ -137,7 +180,15 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 	else
 	{
 		for (item = list, i = 0; item; item = item->next, i++)
-			Con_SafePrintf ("   %s\n", item->name);
+		{
+			if (list == extralevels && ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
+				continue;
+			desc = ofsdesc ? (const char*)(item + 1) : "";
+			if (*desc)
+				Con_SafePrintf ("   %s%c%s\n", RightPad (item->name, ofsdesc, padchar), padchar, desc);
+			else
+				Con_SafePrintf ("   %s\n", item->name);
+		}
 
 		if (i)
 			Con_SafePrintf ("%i %s(s)\n", i, type);
@@ -146,11 +197,87 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 	}
 }
 
-filelist_item_t	*extralevels;
-
-static void ExtraMaps_Add (const char *name)
+static maptype_t ExtraMaps_Categorize (const char *name, unsigned int path_id)
 {
-	FileList_Add(name, &extralevels);
+	size_t len = strlen (name);
+	qboolean is_start, is_end, is_dm;
+
+	if (path_id == 0)
+	{
+		switch (name[0])
+		{
+		case 'd':
+			if (name[1] == 'm')
+				return MAPTYPE_ID_DM;
+			break;
+		case 's':
+			if (!strcmp (name + 1, "tart"))
+				return MAPTYPE_ID_START;
+			break;
+		case 'e':
+			if (name[1] >= '1' && name[1] <= '4')
+				return MAPTYPE_ID_EP1_LEVEL + (name[1] - '1');
+			if (!strcmp (name + 1, "nd"))
+				return MAPTYPE_ID_END;
+			break;
+		default:
+			break;
+		}
+		return MAPTYPE_ID_LEVEL;
+	}
+
+	is_start = (len >= 5 && (!memcmp (name + len - 5, "start", 5) ||
+		!memcmp (name, "start", 5) || !memcmp (name + len - 5, "intro", 5)));
+	is_end = (len >= 3 && !memcmp (name + len - 3, "end", 3));
+	while (len > 0 && (unsigned int)(name[len - 1] - '0') <= 9)
+		len--;
+	is_dm = (len >= 2 && !memcmp (name + len - 2, "dm", 2));
+
+	if (path_id != com_searchpaths->path_id)
+	{
+		if (is_start)
+			return MAPTYPE_CUSTOM_START;
+		if (is_end)
+			return MAPTYPE_CUSTOM_END;
+		if (is_dm)
+			return MAPTYPE_CUSTOM_DM;
+		return MAPTYPE_CUSTOM_LEVEL;
+	}
+
+	if (is_start)
+		return MAPTYPE_MOD_START;
+	if (is_end)
+		return MAPTYPE_MOD_END;
+	if (is_dm)
+		return MAPTYPE_MOD_DM;
+	return MAPTYPE_MOD_LEVEL;
+}
+
+const levelinfo_t *ExtraMaps_GetInfo (const filelist_item_t *item)
+{
+	return (const levelinfo_t *) (item + 1);
+}
+
+maptype_t ExtraMaps_GetType (const filelist_item_t *item)
+{
+	return ExtraMaps_GetInfo (item)->type;
+}
+
+const char *ExtraMaps_GetMessage (const filelist_item_t *item)
+{
+	return ExtraMaps_GetInfo (item)->message;
+}
+
+static void ExtraMaps_Add (const char *name, unsigned int path_id)
+{
+	levelinfo_t info;
+	memset (&info, 0, sizeof (info));
+	if (Mod_LoadMapDescription (info.message, sizeof (info.message), name))
+	{
+		info.type = ExtraMaps_Categorize (name, path_id);
+		FileList_AddWithData (name, &info, sizeof (info), &extralevels);
+		maxlevelnamelen = q_max (maxlevelnamelen, strlen (name));
+	}
 }
 
 void ExtraMaps_Init (void)
@@ -178,23 +305,21 @@ void ExtraMaps_Init (void)
 				if (find->attribs & FA_DIRECTORY)
 					continue;
 				COM_StripExtension (find->name, mapname, sizeof (mapname));
-				ExtraMaps_Add (mapname);
+				ExtraMaps_Add (mapname, search->path_id);
 			}
 		}
 		else //pakfile
 		{
-			if (!strstr(search->pack->filename, ignorepakdir))
-			{ //don't list standard id maps
-				for (i = 0, pak = search->pack; i < pak->numfiles; i++)
+			qboolean isbase = (strstr(search->pack->filename, ignorepakdir) != NULL);
+			for (i = 0, pak = search->pack; i < pak->numfiles; i++)
+			{
+				if (pak->files[i].filelen > 32*1024 &&				// don't list files under 32k (ammo boxes etc)
+					!strncmp (pak->files[i].name, "maps/", 5) &&	// don't list files outside of maps/
+					!strchr (pak->files[i].name + 5, '/') &&		// don't list files in subdirectories
+					!strcmp (COM_FileGetExtension (pak->files[i].name), "bsp"))
 				{
-					if (pak->files[i].filelen > 32*1024 &&				// don't list files under 32k (ammo boxes etc)
-						!strncmp (pak->files[i].name, "maps/", 5) &&	// don't list files outside of maps/
-						!strchr (pak->files[i].name + 5, '/') &&		// don't list files in subdirectories
-						!strcmp (COM_FileGetExtension (pak->files[i].name), "bsp"))
-					{
-						COM_StripExtension(pak->files[i].name + 5, mapname, sizeof(mapname));
-						ExtraMaps_Add (mapname);
-					}
+					COM_StripExtension (pak->files[i].name + 5, mapname, sizeof (mapname));
+					ExtraMaps_Add (mapname, isbase ? 0 : search->path_id);
 				}
 			}
 		}
@@ -203,6 +328,7 @@ void ExtraMaps_Init (void)
 
 static void ExtraMaps_Clear (void)
 {
+	maxlevelnamelen = 0;
 	FileList_Clear(&extralevels);
 }
 

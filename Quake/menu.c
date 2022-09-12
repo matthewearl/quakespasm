@@ -30,6 +30,7 @@ void (*vid_menukeyfn)(int key);
 void (*vid_menumousefn)(int cx, int cy);
 
 extern cvar_t cl_mousemenu;
+extern cvar_t cl_menusearchtimeout;
 extern qboolean quake64;
 
 enum m_state_e m_state;
@@ -40,6 +41,7 @@ void M_Menu_Main_f (void);
 	void M_Menu_SinglePlayer_f (void);
 		void M_Menu_Load_f (void);
 		void M_Menu_Save_f (void);
+		void M_Menu_Maps_f (void);
 		void M_Menu_Skill_f (void);
 	void M_Menu_MultiPlayer_f (void);
 		void M_Menu_Setup_f (void);
@@ -59,6 +61,7 @@ void M_Main_Draw (void);
 	void M_SinglePlayer_Draw (void);
 		void M_Load_Draw (void);
 		void M_Save_Draw (void);
+		void M_Maps_Draw (void);
 		void M_Skill_Draw (void);
 	void M_MultiPlayer_Draw (void);
 		void M_Setup_Draw (void);
@@ -78,6 +81,7 @@ void M_Main_Key (int key);
 	void M_SinglePlayer_Key (int key);
 		void M_Load_Key (int key);
 		void M_Save_Key (int key);
+		void M_Maps_Key (int key);
 		void M_Skill_Key (int key);
 	void M_MultiPlayer_Key (int key);
 		void M_Setup_Key (int key);
@@ -97,6 +101,7 @@ void M_Main_Mousemove (int cx, int cy);
 	void M_SinglePlayer_Mousemove (int cx, int cy);
 		void M_Load_Mousemove (int cx, int cy);
 		void M_Save_Mousemove (int cx, int cy);
+		void M_Maps_Mousemove (int cx, int cy);
 		void M_Skill_Mousemove (int cx, int cy);
 	void M_MultiPlayer_Mousemove (int cx, int cy);
 		void M_Setup_Mousemove (int cx, int cy);
@@ -112,8 +117,6 @@ void M_Main_Mousemove (int cx, int cy);
 	//void M_Help_Mousemove (int cx, int cy);
 	//void M_Quit_Mousemove (int cx, int cy);
 
-qboolean M_Menu_Skill_IsSupported (void);
-
 qboolean	m_entersound;		// play after drawing a frame, so caching
 								// won't disrupt the sound
 qboolean	m_recursiveDraw;
@@ -128,6 +131,15 @@ char		m_return_reason [32];
 #define	TCPIPConfig		(m_net_cursor == 1)
 
 void M_ConfigureNetSubsystem(void);
+void M_SetSkillMenuMap (const char *name);
+
+char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize);
+
+#define SEARCH_FADE_TIMEOUT				0.5
+#define SEARCH_TYPE_TIMEOUT				1.5
+#define SEARCH_ERASE_TIMEOUT			1.5
+#define SEARCH_NAV_TIMEOUT				2.0
+#define SEARCH_ERROR_STATUS_TIMEOUT		0.25
 
 /*
 ================
@@ -169,6 +181,38 @@ void M_PrintWhiteEx (int cx, int cy, int dim, const char *str)
 void M_PrintWhite (int cx, int cy, const char *str)
 {
 	M_PrintWhiteEx (cx, cy, 8, str);
+}
+
+// TODO: smooth scrolling
+void M_PrintScroll (int x, int y, int maxwidth, const char *str, double time, qboolean color)
+{
+	int maxchars = maxwidth / 8;
+	int len = strlen (str);
+	int i, ofs;
+	char mask = color ? 128 : 0;
+
+	if (len <= maxchars)
+	{
+		if (color)
+			M_Print (x, y, str);
+		else
+			M_PrintWhite (x, y, str);
+		return;
+	}
+
+	ofs = (int) floor (time * 4.0);
+	ofs %= len + 5;
+	if (ofs < 0)
+		ofs += len + 5;
+
+	for (i = 0; i < maxchars; i++)
+	{
+		char c = (ofs < len) ? str[ofs] : " /// "[ofs - len];
+		M_DrawCharacter (x, y, c ^ mask);
+		x += 8;
+		if (++ofs >= len + 5)
+			ofs = 0;
+	}
 }
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
@@ -329,10 +373,21 @@ void M_UpdateCursorWithTable (int mousey, const int *table, int numitems, int *c
 
 typedef struct
 {
-	int			cursor;
-	int			numitems;
-	int			viewsize;
-	int			scroll;
+	int				len;
+	int				maxlen;
+	qboolean		(*match) (int index, const char *str);
+	double			timeout;
+	double			errtimeout;
+	char			text[32];
+} listsearch_t;
+
+typedef struct
+{
+	int				cursor;
+	int				numitems;
+	int				viewsize;
+	int				scroll;
+	listsearch_t	search;
 } menulist_t;
 
 void M_List_CheckIntegrity (const menulist_t *list)
@@ -343,6 +398,23 @@ void M_List_CheckIntegrity (const menulist_t *list)
 	SDL_assert (list->scroll >= 0);
 	SDL_assert (list->scroll < list->numitems);
 	SDL_assert (list->viewsize > 0);
+}
+
+void M_List_ClearSearch (menulist_t *list)
+{
+	list->search.timeout = 0.0;
+	list->search.errtimeout = 0.0;
+	list->search.len = 0;
+	list->search.text[0] = '\0';
+}
+
+void M_List_KeepSearchVisible (menulist_t *list, double duration)
+{
+	if (!list->search.len)
+		return;
+	if (duration <= 0.0)
+		duration = SEARCH_TYPE_TIMEOUT;
+	list->search.timeout = q_max (list->search.timeout, duration);
 }
 
 void M_List_AutoScroll (menulist_t *list)
@@ -398,6 +470,25 @@ void M_List_DrawScrollbar (const menulist_t *list, int cx, int cy)
 	M_DrawTextBox (cx - 4, cy + y - 4, 0, h - 1);
 }
 
+void M_List_DrawSearch (const menulist_t *list, int cx, int cy, int maxlen)
+{
+	int i, ofs;
+	float alpha;
+
+	if (!list->search.len)
+		return;
+
+	ofs = q_max (0, list->search.len + 1 - maxlen);
+	M_DrawTextBox (cx - 8, cy - 8, maxlen, 1);
+	for (i = ofs; i < list->search.len; i++)
+		M_DrawCharacter (cx + (i-ofs)*8, cy, list->search.text[i]);
+
+	alpha = CLAMP (0.f, list->search.timeout / SEARCH_FADE_TIMEOUT, 1.f);
+	GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
+	M_DrawCharacter (cx + (i-ofs)*8, cy, list->search.errtimeout ? 11^128 : 11);
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+}
+
 qboolean M_List_UseScrollbar (menulist_t *list, int yrel)
 {
 	int scrolly, scrollh, range;
@@ -429,52 +520,153 @@ qboolean M_List_IsItemVisible (const menulist_t *list, int i)
 	return (unsigned)(i - first) < (unsigned)count;
 }
 
+qboolean M_List_SelectNextMatch (menulist_t *list, int start, int dir)
+{
+	int i, j;
+
+	if (list->numitems <= 0 || !list->search.match)
+		return false;
+
+	for (i = 0, j = start; i < list->numitems; i++, j+=dir)
+	{
+		if (j < 0)
+			j = list->numitems - 1;
+		else if (j >= list->numitems)
+			j = 0;
+		if (list->search.match (j, list->search.text))
+		{
+			list->cursor = j;
+			M_List_AutoScroll (list);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void M_List_Update (menulist_t *list)
+{
+	list->search.errtimeout = q_max (0.0, list->search.errtimeout - host_frametime);
+	if (list->search.timeout && cl_menusearchtimeout.value > 0.f)
+	{
+		list->search.timeout -= host_frametime / cl_menusearchtimeout.value;
+		if (list->search.timeout <= 0.0)
+			M_List_ClearSearch (list);
+	}
+}
+
 qboolean M_List_Key (menulist_t *list, int key)
 {
 	switch (key)
 	{
+	case K_BACKSPACE:
+		if (list->search.len)
+		{
+			if (keydown[K_CTRL])
+				M_List_ClearSearch (list);
+			else
+			{
+				list->search.len--;
+				list->search.text[list->search.len] = '\0';
+				list->search.timeout = SEARCH_ERASE_TIMEOUT;
+			}
+			return true;
+		}
+		return false;
+
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		if (list->search.len)
+		{
+			M_List_ClearSearch (list);
+			return true;
+		}
+		return false;
+
 	case K_HOME:
 	case K_KP_HOME:
 		S_LocalSound ("misc/menu1.wav");
-		list->cursor = 0;
-		M_List_AutoScroll (list);
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, 0, 1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
+		else
+		{
+			list->cursor = 0;
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	case K_END:
 	case K_KP_END:
 		S_LocalSound ("misc/menu1.wav");
-		list->cursor = list->numitems - 1;
-		M_List_AutoScroll (list);
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, list->numitems - 1, -1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
+		else
+		{
+			list->cursor = list->numitems - 1;
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	case K_PGDN:
 	case K_KP_PGDN:
 		S_LocalSound ("misc/menu1.wav");
-		if (list->cursor - list->scroll < list->viewsize - 1)
-			list->cursor = list->scroll + list->viewsize - 1;
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, list->cursor + 1, 1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
 		else
-			list->cursor += list->viewsize - 1;
-		list->cursor = q_min (list->cursor, list->numitems - 1);
-		M_List_AutoScroll (list);
+		{
+			if (list->cursor - list->scroll < list->viewsize - 1)
+				list->cursor = list->scroll + list->viewsize - 1;
+			else
+				list->cursor += list->viewsize - 1;
+			list->cursor = q_min (list->cursor, list->numitems - 1);
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	case K_PGUP:
 	case K_KP_PGUP:
 		S_LocalSound ("misc/menu1.wav");
-		if (list->cursor > list->scroll)
-			list->cursor = list->scroll;
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, list->cursor - 1, -1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
 		else
-			list->cursor -= list->viewsize - 1;
-		list->cursor = q_max (list->cursor, 0);
-		M_List_AutoScroll (list);
+		{
+			if (list->cursor > list->scroll)
+				list->cursor = list->scroll;
+			else
+				list->cursor -= list->viewsize - 1;
+			list->cursor = q_max (list->cursor, 0);
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	case K_UPARROW:
 	case K_KP_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (--list->cursor < 0)
-			list->cursor = list->numitems - 1;
-		M_List_AutoScroll (list);
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, list->cursor - 1, -1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
+		else
+		{
+			if (--list->cursor < 0)
+				list->cursor = list->numitems - 1;
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	case K_MWHEELUP:
@@ -496,9 +688,17 @@ qboolean M_List_Key (menulist_t *list, int key)
 	case K_DOWNARROW:
 	case K_KP_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (++list->cursor >= list->numitems)
-			list->cursor = 0;
-		M_List_AutoScroll (list);
+		if (list->search.len)
+		{
+			M_List_SelectNextMatch (list, list->cursor + 1, 1);
+			list->search.timeout = SEARCH_NAV_TIMEOUT;
+		}
+		else
+		{
+			if (++list->cursor >= list->numitems)
+				list->cursor = 0;
+			M_List_AutoScroll (list);
+		}
 		return true;
 
 	default:
@@ -535,6 +735,46 @@ qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int
 	}
 
 	return true;
+}
+
+void M_List_Char (menulist_t *list, int key)
+{
+	int maxlen, start;
+
+	if (list->numitems <= 0 || !list->search.match)
+		return;
+
+	maxlen = (int) countof (list->search.text) - 1;
+	if (list->search.maxlen)
+		maxlen = q_min (maxlen, list->search.maxlen);
+
+	if (list->search.len >= maxlen)
+	{
+		list->search.timeout = SEARCH_ERASE_TIMEOUT;
+		list->search.errtimeout = SEARCH_ERROR_STATUS_TIMEOUT;
+		S_LocalSound ("misc/menu2.wav");
+		return;
+	}
+
+	list->search.text[list->search.len++] = (char) key;
+	list->search.text[list->search.len] = '\0';
+	list->search.timeout = SEARCH_TYPE_TIMEOUT;
+
+	if (list->cursor < 0)
+		list->cursor = 0;
+
+	start = list->cursor;
+	if (list->search.len == 1)
+		start++;
+
+	if (!M_List_SelectNextMatch (list, start, 1))
+	{
+		list->search.len--;
+		list->search.text[list->search.len] = '\0';
+		list->search.timeout = SEARCH_ERASE_TIMEOUT;
+		list->search.errtimeout = SEARCH_ERROR_STATUS_TIMEOUT;
+		S_LocalSound ("misc/menu2.wav");
+	}
 }
 
 void M_List_Mousemove (menulist_t *list, int yrel)
@@ -755,7 +995,9 @@ void M_CheckMods (void)
 		return;
 
 	length = COM_OpenFile ("gfx/mainmenu.lmp", &h, &id_main);
-	if (length == 26888)
+	if (id_mods >= id_main)
+		m_main_mods = 1;
+	else if (length == 26888)
 	{
 		int mark = Hunk_LowMark ();
 		byte* data = (byte*) Hunk_Alloc (length);
@@ -768,22 +1010,27 @@ void M_CheckMods (void)
 		Hunk_FreeToLowMark (mark);
 	}
 
-	if (id_mods >= id_main)
-		m_main_mods = 1;
-
 	COM_CloseFile (h);
 }
 
 //=============================================================================
 /* SINGLE PLAYER MENU */
 
+qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
-#define	SINGLEPLAYER_ITEMS	3
-
+#define	SINGLEPLAYER_ITEMS	(3 + m_singleplayer_showlevels)
 
 void M_Menu_SinglePlayer_f (void)
 {
+	unsigned int id_levels, id_main;
 	IN_DeactivateForMenu();
+	m_singleplayer_showlevels =
+		COM_FileExists ("gfx/sp_maps.lmp", &id_levels) &&
+		COM_FileExists ("gfx/sp_menu.lmp", &id_main) &&
+		id_levels >= id_main
+	;
+	if (m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
+		m_singleplayer_cursor = 0;
 	key_dest = key_menu;
 	m_state = m_singleplayer;
 	m_entersound = true;
@@ -799,6 +1046,8 @@ void M_SinglePlayer_Draw (void)
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp") );
+	if (m_singleplayer_showlevels)
+		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
 
 	f = (int)(realtime * 10)%6;
 
@@ -841,8 +1090,9 @@ void M_SinglePlayer_Key (int key)
 			if (sv.active)
 				if (!SCR_ModalMessage("Are you sure you want to\nstart a new game?\n", 0.0f))
 					break;
-			if (quake64 && M_Menu_Skill_IsSupported ())
+			if (quake64)
 			{
+				M_SetSkillMenuMap ("start");
 				M_Menu_Skill_f ();
 				break;
 			}
@@ -862,6 +1112,10 @@ void M_SinglePlayer_Key (int key)
 
 		case 2:
 			M_Menu_Save_f ();
+			break;
+
+		case 3:
+			M_Menu_Maps_f ();
 			break;
 		}
 	}
@@ -1067,23 +1321,414 @@ void M_Save_Mousemove (int cx, int cy)
 }
 
 //=============================================================================
+/* Maps menu */
+
+#define MAP_NAME_LEN	14
+#define MAX_VIS_MAPS	19
+
+typedef struct
+{
+	const char		*name;
+	const char		*message;
+	int				mapidx;
+	qboolean		active;
+} mapitem_t;
+
+static struct
+{
+	menulist_t		list;
+	int				x, y, cols;
+	int				mapcount;			// not all items represent actual maps!
+	qboolean		scrollbar_grab;
+	int				prev_cursor;
+	double			scroll_time;
+	double			scroll_wait_time;
+	mapitem_t		*items;
+} mapsmenu;
+
+
+static qboolean M_Maps_IsActive (const char *map)
+{
+	return sv.active && !strcmp (sv.name, map);
+}
+
+static void M_Maps_AddDecoration (const char *text)
+{
+	mapitem_t item;
+	memset (&item, 0, sizeof (item));
+	item.name = "";
+	item.message = text;
+	item.mapidx = -1;
+	VEC_PUSH (mapsmenu.items, item);
+	mapsmenu.list.numitems++;
+}
+
+static void M_Maps_AddSeparator (maptype_t before, maptype_t after)
+{
+	#define QBAR "\35\36\37"
+
+	if (after >= MAPTYPE_ID_START)
+	{
+		if (before < MAPTYPE_ID_START)
+		{
+			M_Maps_AddDecoration ("");
+			M_Maps_AddDecoration (QBAR " Original Quake levels " QBAR);
+		}
+		M_Maps_AddDecoration ("");
+	}
+	else if (after >= MAPTYPE_CUSTOM_START)
+	{
+		M_Maps_AddDecoration ("");
+		M_Maps_AddDecoration (QBAR " Custom Quake levels " QBAR);
+		M_Maps_AddDecoration ("");
+	}
+
+	#undef QBAR
+}
+
+static filelist_item_t **M_Maps_Sort (void)
+{
+	int counts[MAPTYPE_COUNT];
+	int i, sum;
+	filelist_item_t *item, **sorted_items;
+
+	if (!extralevels)
+		return NULL;
+
+	memset (counts, 0, sizeof (counts));
+	for (item = extralevels; item; item = item->next)
+		counts[ExtraMaps_GetType (item)]++;
+
+	for (i = sum = 0; i < MAPTYPE_COUNT; i++)
+	{
+		int tmp = counts[i];
+		counts[i] = sum;
+		sum += tmp;
+	}
+	sum++; // NULL terminator
+
+	sorted_items = (filelist_item_t **) malloc (sum * sizeof (*sorted_items));
+	if (!sorted_items)
+	{
+		Con_Warning ("M_Maps_Sort: out of memory on %d items\n", sum);
+		return NULL;
+	}
+
+	for (item = extralevels; item; item = item->next)
+		sorted_items[counts[ExtraMaps_GetType (item)]++] = item;
+	sorted_items[sum - 1] = NULL;
+
+	return sorted_items;
+}
+
+static qboolean M_Maps_Match (int index, const char *search)
+{
+	if (!mapsmenu.items[index].name[0])
+		return false;
+	return
+		q_strcasestr (mapsmenu.items[index].name, search) ||
+		q_strcasestr (mapsmenu.items[index].message, search)
+	;
+}
+
+static void M_Maps_Init (void)
+{
+	filelist_item_t **sorted_items;
+
+	mapsmenu.x = 8;
+	mapsmenu.y = 32;
+	mapsmenu.cols = 38;
+	mapsmenu.scrollbar_grab = false;
+	memset (&mapsmenu.list.search, 0, sizeof (mapsmenu.list.search));
+	mapsmenu.list.search.match = M_Maps_Match;
+	mapsmenu.list.viewsize = MAX_VIS_MAPS;
+	mapsmenu.list.cursor = -1;
+	mapsmenu.list.scroll = 0;
+	mapsmenu.list.numitems = 0;
+	mapsmenu.mapcount = 0;
+	VEC_CLEAR (mapsmenu.items);
+
+	sorted_items = M_Maps_Sort ();
+	if (sorted_items)
+	{
+		int i, type, prev_type;
+
+		for (i = 0, prev_type = -1; sorted_items[i]; i++)
+		{
+			mapitem_t map;
+			filelist_item_t *item = sorted_items[i];
+
+			type = ExtraMaps_GetType (item);
+			if (prev_type != -1 && prev_type != type)
+				M_Maps_AddSeparator (prev_type, type);
+			prev_type = type;
+
+			map.name = item->name;
+			map.active = M_Maps_IsActive (item->name);
+			map.message = (const char *) (item + 1);
+			map.mapidx = mapsmenu.mapcount++;
+			if (map.active)
+				mapsmenu.list.cursor = VEC_SIZE (mapsmenu.items);
+			VEC_PUSH (mapsmenu.items, map);
+			mapsmenu.list.numitems++;
+		}
+
+		free (sorted_items);
+	}
+
+	if (mapsmenu.list.cursor == -1)
+		mapsmenu.list.cursor = 0;
+
+	M_List_CenterCursor (&mapsmenu.list);
+
+	mapsmenu.prev_cursor = mapsmenu.list.cursor;
+}
+
+void M_Menu_Maps_f (void)
+{
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = m_maps;
+	m_entersound = true;
+	M_Maps_Init ();
+}
+
+void M_Maps_Draw (void)
+{
+	const char *str;
+	int x, y, i, j, cols;
+	int firstvis, numvis;
+	int firstvismap, numvismaps;
+	int namecols = MAP_NAME_LEN;
+	int desccols = mapsmenu.cols - 1 - namecols;
+
+	if (!keydown[K_MOUSE1])
+		mapsmenu.scrollbar_grab = false;
+
+	M_List_Update (&mapsmenu.list);
+
+	if (mapsmenu.prev_cursor != mapsmenu.list.cursor)
+	{
+		mapsmenu.prev_cursor = mapsmenu.list.cursor;
+		mapsmenu.scroll_time = 0.0;
+		mapsmenu.scroll_wait_time = 1.0;
+	}
+	else
+	{
+		if (mapsmenu.scroll_wait_time <= 0.0)
+			mapsmenu.scroll_time += host_frametime;
+		else
+			mapsmenu.scroll_wait_time = q_max (0.0, mapsmenu.scroll_wait_time - host_frametime);
+	}
+
+	x = mapsmenu.x;
+	y = mapsmenu.y;
+	cols = mapsmenu.cols;
+
+	Draw_StringEx (x, y - 28, 12, "Levels");
+	M_DrawQuakeBar (x - 8, y - 16, namecols + 1);
+	M_DrawQuakeBar (x + namecols * 8, y - 16, cols + 1 - namecols);
+
+	firstvismap = -1;
+	numvismaps = 0;
+	M_List_GetVisibleRange (&mapsmenu.list, &firstvis, &numvis);
+	for (i = 0; i < numvis; i++)
+	{
+		int idx = i + firstvis;
+		const mapitem_t *item = &mapsmenu.items[idx];
+		int mask = item->active ? 128 : 0;
+		qboolean selected = (idx == mapsmenu.list.cursor);
+
+		if (!item->name[0])
+		{
+			M_PrintWhite (x + (cols - strlen (item->message))/2*8, y + i*8, item->message);
+		}
+		else
+		{
+			char buf[256];
+			if (mapsmenu.list.search.len > 0)
+				Cmd_TintSubstring (item->name, mapsmenu.list.search.text, buf, sizeof (buf));
+			else
+				q_strlcpy (buf, item->name, sizeof (buf));
+
+			if (firstvismap == -1)
+				firstvismap = item->mapidx;
+			numvismaps++;
+
+			for (j = 0; j < namecols - 2 && buf[j]; j++)
+				M_DrawCharacter (x + j*8, y + i*8, buf[j] ^ mask);
+
+			if (item->message[0])
+			{
+				if (mapsmenu.list.search.len > 0)
+					Cmd_TintSubstring (item->message, mapsmenu.list.search.text, buf, sizeof (buf));
+				else
+					q_strlcpy (buf, item->message, sizeof (buf));
+
+				GL_SetCanvasColor (1, 1, 1, 0.375f);
+				for (/**/; j < namecols; j++)
+					M_DrawCharacter (x + j*8, y + i*8, '.' | mask);
+				GL_SetCanvasColor (1, 1, 1, 1);
+
+				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
+					selected ? mapsmenu.scroll_time : 0.0, true);
+			}
+		}
+
+		if (selected)
+			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
+	}
+
+	if (M_List_GetOverflow (&mapsmenu.list) > 0)
+	{
+		M_List_DrawScrollbar (&mapsmenu.list, x + cols*8 - 8, y);
+
+		str = va("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
+		M_Print (x + (cols - strlen (str))*8, y - 24, str);
+
+		if (mapsmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (mapsmenu.list.scroll + mapsmenu.list.viewsize < mapsmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + mapsmenu.list.viewsize*8, cols);
+	}
+
+	M_List_DrawSearch (&mapsmenu.list, x, y + mapsmenu.list.viewsize*8 + 4, namecols);
+}
+
+void M_Maps_Char (int key)
+{
+	M_List_Char (&mapsmenu.list, key);
+}
+
+qboolean M_Maps_TextEntry (void)
+{
+	return !mapsmenu.scrollbar_grab;
+}
+
+void M_Maps_Key (int key)
+{
+	int x, y;
+
+	if (mapsmenu.scrollbar_grab)
+	{
+		switch (key)
+		{
+		case K_ESCAPE:
+		case K_BBUTTON:
+		case K_MOUSE4:
+		case K_MOUSE2:
+			mapsmenu.scrollbar_grab = false;
+			break;
+		}
+		return;
+	}
+
+	if (M_List_Key (&mapsmenu.list, key))
+		return;
+
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		M_List_ClearSearch (&mapsmenu.list);
+		M_Menu_SinglePlayer_f ();
+		break;
+
+	case K_RIGHTARROW:
+		mapsmenu.scroll_time += 0.25;
+		mapsmenu.scroll_wait_time = 1.5;
+		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
+		S_LocalSound ("misc/menu3.wav");
+		break;
+	case K_LEFTARROW:
+		mapsmenu.scroll_time -= 0.25;
+		mapsmenu.scroll_wait_time = 1.5;
+		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
+		S_LocalSound ("misc/menu3.wav");
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	enter:
+		M_List_ClearSearch (&mapsmenu.list);
+		if (mapsmenu.items[mapsmenu.list.cursor].name[0])
+		{
+			M_SetSkillMenuMap (mapsmenu.items[mapsmenu.list.cursor].name);
+			M_Menu_Skill_f ();
+		}
+		else
+			S_LocalSound ("misc/menu3.wav");
+		break;
+
+	case K_MOUSE1:
+		x = m_mousex - mapsmenu.x - (mapsmenu.cols - 1) * 8;
+		y = m_mousey - mapsmenu.y;
+		if (x < -8 || !M_List_UseScrollbar (&mapsmenu.list, y))
+			goto enter;
+		mapsmenu.scrollbar_grab = true;
+		M_Maps_Mousemove (m_mousex, m_mousey);
+		break;
+
+	default:
+		break;
+	}
+}
+
+
+void M_Maps_Mousemove (int cx, int cy)
+{
+	cy -= mapsmenu.y;
+
+	if (mapsmenu.scrollbar_grab)
+	{
+		if (!keydown[K_MOUSE1])
+		{
+			mapsmenu.scrollbar_grab = false;
+			return;
+		}
+		M_List_UseScrollbar (&mapsmenu.list, cy);
+		// Note: no return, we also update the cursor
+	}
+
+	M_List_Mousemove (&mapsmenu.list, cy);
+}
+
+//=============================================================================
 /* SKILL MENU */
 
-int m_skill_cursor;
+int			m_skill_cursor;
+qboolean	m_skill_usegfx;
+char		m_skill_mapname[MAX_QPATH];
+enum m_state_e m_skill_prevmenu;
+
+void M_SetSkillMenuMap (const char *name)
+{
+	q_strlcpy (m_skill_mapname, name, sizeof (m_skill_mapname));
+}
+
+qboolean M_Skill_CheckGfx (void)
+{
+	unsigned int path_id, base_id;
+	return
+		COM_FileExists ("gfx/skillmenu.lmp", &path_id) &&
+		COM_FileExists ("gfx/sp_menu.lmp", &base_id) &&
+		path_id >= base_id
+	;
+}
 
 void M_Menu_Skill_f (void)
 {
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
+	m_skill_prevmenu = m_state;
 	m_state = m_skill;
 	m_entersound = true;
+	m_skill_usegfx = M_Skill_CheckGfx ();
 	m_skill_cursor = (int)skill.value;
 	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
-}
-
-qboolean M_Menu_Skill_IsSupported (void)
-{
-	return COM_FileExists ("gfx/skillmenu.lmp", NULL);
 }
 
 void M_Skill_Draw (void)
@@ -1094,11 +1739,27 @@ void M_Skill_Draw (void)
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/skillmenu.lmp") );
 
-	f = (int)(realtime * 10)%6;
+	if (m_skill_usegfx)
+	{
+		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/skillmenu.lmp") );
+		f = (int)(realtime * 10)%6;
+		M_DrawTransPic (54, 32 + m_skill_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	}
+	else
+	{
+		static const char *const skills[] =
+		{
+			"EASY",
+			"NORMAL",
+			"HARD",
+			"NIGHTMARE",
+		};
 
-	M_DrawTransPic (54, 32 + m_skill_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+		for (f = 0; f < 4; f++)
+			M_Print (88, 44+4 + f*16, skills[f]);
+		M_DrawCharacter (72, 44+4 + m_skill_cursor*16, 12+((int)(realtime*4)&1));
+	}
 }
 
 void M_Skill_Key (int key)
@@ -1109,7 +1770,8 @@ void M_Skill_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		M_Menu_SinglePlayer_f ();
+		m_state = m_skill_prevmenu;
+		m_entersound = true;
 		break;
 
 	case K_DOWNARROW:
@@ -1136,14 +1798,17 @@ void M_Skill_Key (int key)
 		Cbuf_AddText ("maxplayers 1\n");
 		Cbuf_AddText ("deathmatch 0\n"); //johnfitz
 		Cbuf_AddText ("coop 0\n"); //johnfitz
-		Cbuf_AddText ("map start\n");
+		Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
 		break;
 	}
 }
 
 void M_Skill_Mousemove (int cx, int cy)
 {
-	M_UpdateCursor (cy, 32, 20, 4, &m_skill_cursor);
+	if (m_skill_usegfx)
+		M_UpdateCursor (cy, 32, 20, 4, &m_skill_cursor);
+	else
+		M_UpdateCursor (cy, 44, 16, 4, &m_skill_cursor);
 }
 
 //=============================================================================
@@ -3579,10 +4244,8 @@ void M_Mods_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		if (modsmenu.prev == m_options)
-			M_Menu_Options_f ();
-		else
-			M_Menu_Main_f ();
+		m_state = modsmenu.prev;
+		m_entersound = true;
 		break;
 
 	case K_ENTER:
@@ -3654,6 +4317,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 	Cmd_AddCommand ("menu_mods", M_Menu_Mods_f);
+	Cmd_AddCommand ("menu_maps", M_Menu_Maps_f);
 }
 
 
@@ -3698,6 +4362,10 @@ void M_Draw (void)
 
 	case m_save:
 		M_Save_Draw ();
+		break;
+
+	case m_maps:
+		M_Maps_Draw ();
 		break;
 
 	case m_skill:
@@ -3799,6 +4467,10 @@ void M_Keydown (int key)
 		M_Save_Key (key);
 		return;
 
+	case m_maps:
+		M_Maps_Key (key);
+		return;
+
 	case m_skill:
 		M_Skill_Key (key);
 		return;
@@ -3890,6 +4562,10 @@ void M_Mousemove (int x, int y)
 		M_Save_Mousemove (x, y);
 		return;
 
+	case m_maps:
+		M_Maps_Mousemove (x, y);
+		return;
+
 	case m_skill:
 		M_Skill_Mousemove (x, y);
 		return;
@@ -3962,6 +4638,9 @@ void M_Charinput (int key)
 	case m_lanconfig:
 		M_LanConfig_Char (key);
 		return;
+	case m_maps:
+		M_Maps_Char (key);
+		return;
 	case m_mods:
 		M_Mods_Char (key);
 		return;
@@ -3981,6 +4660,8 @@ qboolean M_TextEntry (void)
 		return M_Quit_TextEntry ();
 	case m_lanconfig:
 		return M_LanConfig_TextEntry ();
+	case m_maps:
+		return M_Maps_TextEntry ();
 	case m_mods:
 		return M_Mods_TextEntry ();
 	default:

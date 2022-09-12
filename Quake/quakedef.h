@@ -309,6 +309,40 @@ typedef struct filelist_item_s
 	struct filelist_item_s	*next;
 } filelist_item_t;
 
+typedef enum
+{
+	MAPTYPE_MOD_START,
+	MAPTYPE_MOD_LEVEL,
+	MAPTYPE_MOD_END,
+	MAPTYPE_MOD_DM,
+
+	MAPTYPE_CUSTOM_START,
+	MAPTYPE_CUSTOM_LEVEL,
+	MAPTYPE_CUSTOM_END,
+	MAPTYPE_CUSTOM_DM,
+
+	MAPTYPE_ID_START,
+	MAPTYPE_ID_EP1_LEVEL,
+	MAPTYPE_ID_EP2_LEVEL,
+	MAPTYPE_ID_EP3_LEVEL,
+	MAPTYPE_ID_EP4_LEVEL,
+	MAPTYPE_ID_END,
+	MAPTYPE_ID_DM,
+	MAPTYPE_ID_LEVEL,
+
+	MAPTYPE_COUNT,
+} maptype_t;
+
+typedef struct levelinfo_s
+{
+	char			message[96];
+	maptype_t		type;
+} levelinfo_t;
+
+const levelinfo_t	*ExtraMaps_GetInfo (const filelist_item_t *item);
+maptype_t			ExtraMaps_GetType (const filelist_item_t *item);
+const char			*ExtraMaps_GetMessage (const filelist_item_t *item);
+
 extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
 extern filelist_item_t	*demolist;
