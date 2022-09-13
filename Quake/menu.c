@@ -375,7 +375,7 @@ typedef struct
 {
 	int				len;
 	int				maxlen;
-	qboolean		(*match) (int index, const char *str);
+	qboolean		(*match) (int index);
 	double			timeout;
 	double			errtimeout;
 	char			text[32];
@@ -533,7 +533,7 @@ qboolean M_List_SelectNextMatch (menulist_t *list, int start, int dir)
 			j = list->numitems - 1;
 		else if (j >= list->numitems)
 			j = 0;
-		if (list->search.match (j, list->search.text))
+		if (list->search.match (j))
 		{
 			list->cursor = j;
 			M_List_AutoScroll (list);
@@ -704,37 +704,6 @@ qboolean M_List_Key (menulist_t *list, int key)
 	default:
 		return false;
 	}
-}
-
-qboolean M_List_CycleMatch (menulist_t *list, int key, qboolean (*match_fn) (int idx, char c))
-{
-	int i, j, dir;
-
-	if (!(key >= 'a' && key <= 'z') &&
-		!(key >= 'A' && key <= 'Z') &&
-		!(key >= '0' && key <= '9'))
-		return false;
-
-	if (list->numitems <= 0)
-		return false;
-
-	S_LocalSound ("misc/menu1.wav");
-
-	key = q_tolower (key);
-	dir = keydown[K_SHIFT] ? -1 : 1;
-
-	for (i = 1, j = list->cursor + dir; i < list->numitems; i++, j += dir)
-	{
-		j = (j + list->numitems) % list->numitems; // avoid negative mod
-		if (match_fn (j, (char)key))
-		{
-			list->cursor = j;
-			M_List_AutoScroll (list);
-			break;
-		}
-	}
-
-	return true;
 }
 
 void M_List_Char (menulist_t *list, int key)
@@ -1421,13 +1390,13 @@ static filelist_item_t **M_Maps_Sort (void)
 	return sorted_items;
 }
 
-static qboolean M_Maps_Match (int index, const char *search)
+static qboolean M_Maps_Match (int index)
 {
 	if (!mapsmenu.items[index].name[0])
 		return false;
 	return
-		q_strcasestr (mapsmenu.items[index].name, search) ||
-		q_strcasestr (mapsmenu.items[index].message, search)
+		q_strcasestr (mapsmenu.items[index].name, mapsmenu.list.search.text) ||
+		q_strcasestr (mapsmenu.items[index].message, mapsmenu.list.search.text)
 	;
 }
 
@@ -4127,6 +4096,11 @@ static void M_Mods_Add (const char *name)
 	modsmenu.list.numitems++;
 }
 
+static qboolean M_Mods_Match (int index)
+{
+	return !q_strncasecmp (modsmenu.items[index].name, modsmenu.list.search.text, modsmenu.list.search.len);
+}
+
 static void M_Mods_Init (void)
 {
 	filelist_item_t *item;
@@ -4135,6 +4109,8 @@ static void M_Mods_Init (void)
 	modsmenu.y = 32;
 	modsmenu.cols = 28;
 	modsmenu.scrollbar_grab = false;
+	memset (&modsmenu.list.search, 0, sizeof (modsmenu.list.search));
+	modsmenu.list.search.match = M_Mods_Match;
 	modsmenu.list.viewsize = MAX_VIS_MODS;
 	modsmenu.list.cursor = -1;
 	modsmenu.list.scroll = 0;
@@ -4168,6 +4144,8 @@ void M_Mods_Draw (void)
 	if (!keydown[K_MOUSE1])
 		modsmenu.scrollbar_grab = false;
 
+	M_List_Update (&modsmenu.list);
+
 	x = modsmenu.x;
 	y = modsmenu.y;
 	cols = modsmenu.cols;
@@ -4180,9 +4158,18 @@ void M_Mods_Draw (void)
 	for (i = 0; i < numvis; i++)
 	{
 		int idx = i + firstvis;
-		int mask = modsmenu.items[idx].active ? 0 : 128;
-		for (j = 0; j < cols - 1 && modsmenu.items[idx].name[j]; j++)
-			M_DrawCharacter (x + j*8, y + i*8, modsmenu.items[idx].name[j] | mask);
+		const moditem_t *item = &modsmenu.items[idx];
+		int mask = item->active ? 0 : 128;
+		qboolean match = modsmenu.list.search.len > 0 &&
+			!q_strncasecmp (item->name, modsmenu.list.search.text, modsmenu.list.search.len);
+
+		for (j = 0; j < cols - 1 && item->name[j]; j++)
+		{
+			char c = item->name[j] ^ mask;
+			if (match && j < modsmenu.list.search.len)
+				c ^= 128;
+			M_DrawCharacter (x + j*8, y + i*8, c);
+		}
 
 		if (idx == modsmenu.list.cursor)
 			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
@@ -4200,16 +4187,13 @@ void M_Mods_Draw (void)
 		if (modsmenu.list.scroll + modsmenu.list.viewsize < modsmenu.list.numitems)
 			M_DrawEllipsisBar (x, y + modsmenu.list.viewsize*8, cols);
 	}
-}
 
-qboolean M_Mods_Match (int index, char initial)
-{
-	return q_tolower (modsmenu.items[index].name[0]) == initial;
+	M_List_DrawSearch (&modsmenu.list, x, y + modsmenu.list.viewsize*8 + 4, 14);
 }
 
 void M_Mods_Char (int key)
 {
-	M_List_CycleMatch (&modsmenu.list, key, M_Mods_Match);
+	M_List_Char (&modsmenu.list, key);
 }
 
 qboolean M_Mods_TextEntry (void)
@@ -4244,6 +4228,7 @@ void M_Mods_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
+		M_List_ClearSearch (&modsmenu.list);
 		m_state = modsmenu.prev;
 		m_entersound = true;
 		break;
@@ -4252,6 +4237,7 @@ void M_Mods_Key (int key)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	enter:
+		M_List_ClearSearch (&modsmenu.list);
 		Cbuf_AddText (va ("game %s\n", modsmenu.items[modsmenu.list.cursor].name));
 		M_Menu_Main_f ();
 		break;
