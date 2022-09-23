@@ -341,10 +341,14 @@ void TexMgr_SoftEmuMetric_f (cvar_t *var)
 {
 	if (var->value < 0.f)
 	{
-		if (softemu == SOFTEMU_BANDED)
-			softemu_metric = SOFTEMU_METRIC_NAIVE;
-		else
-			softemu_metric = SOFTEMU_METRIC_OKLAB;
+		qboolean oklab =
+			softemu != SOFTEMU_BANDED ||
+			cls.state != ca_connected ||
+			cls.signon != SIGNONS ||
+			!cl.worldmodel ||
+			cl.worldmodel->litfile
+		;
+		softemu_metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
 	}
 	else
 	{
@@ -1981,6 +1985,8 @@ void GLPalette_UpdateLookupTable (void)
 	int i;
 
 	SDL_assert (host_initialized);
+	r_softemu_metric.callback (&r_softemu_metric);
+
 	SDL_assert ((unsigned)softemu_metric < SOFTEMU_METRIC_COUNT);
 
 	if (cached_softemu_metric == softemu_metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))

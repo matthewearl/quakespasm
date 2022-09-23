@@ -488,6 +488,7 @@ typedef struct qmodel_s
 	byte		*lightdata;
 	char		*entities;
 
+	qboolean	litfile;
 	qboolean	viswarn; // for Mod_DecompressVis()
 
 	int			bspversion;
