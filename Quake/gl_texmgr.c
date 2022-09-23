@@ -306,7 +306,6 @@ static void TexMgr_SoftEmu_f (cvar_t *var)
 	softemu = CLAMP (0, softemu, SOFTEMU_NUMMODES - 1);
 
 	gl_texturemode.callback (&gl_texturemode);
-	r_softemu_metric.callback (&r_softemu_metric);
 }
 
 /*
@@ -330,31 +329,6 @@ static void TexMgr_LodBias_f (cvar_t *var)
 	if (gl_bindless_able)
 		TexMgr_CreateSamplers ();
 	TexMgr_ApplyTextureMode ();
-}
-
-/*
-===============
-TexMgr_SoftEmuMetric_f
-===============
-*/
-void TexMgr_SoftEmuMetric_f (cvar_t *var)
-{
-	if (var->value < 0.f)
-	{
-		qboolean oklab =
-			softemu != SOFTEMU_BANDED ||
-			cls.state != ca_connected ||
-			cls.signon != SIGNONS ||
-			!cl.worldmodel ||
-			cl.worldmodel->litfile
-		;
-		softemu_metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
-	}
-	else
-	{
-		softemu_metric = (int)var->value;
-		softemu_metric = CLAMP (0, softemu_metric, SOFTEMU_METRIC_COUNT - 1);
-	}
 }
 
 /*
@@ -1984,13 +1958,29 @@ void GLPalette_UpdateLookupTable (void)
 {
 	int i;
 
-	SDL_assert (host_initialized);
-	r_softemu_metric.callback (&r_softemu_metric);
+	if (r_softemu_metric.value < 0.f)
+	{
+		qboolean oklab =
+			softemu != SOFTEMU_BANDED ||
+			cls.state != ca_connected ||
+			cls.signon != SIGNONS ||
+			!cl.worldmodel ||
+			cl.worldmodel->litfile
+		;
+		softemu_metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
+	}
+	else
+	{
+		softemu_metric = (int)r_softemu_metric.value;
+		softemu_metric = CLAMP (0, softemu_metric, SOFTEMU_METRIC_COUNT - 1);
+	}
 
+	SDL_assert (host_initialized);
 	SDL_assert ((unsigned)softemu_metric < SOFTEMU_METRIC_COUNT);
 
 	if (cached_softemu_metric == softemu_metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
 		return;
+
 	cached_softemu_metric = softemu_metric;
 	memcpy (cached_palette, d_8to24table, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();

@@ -168,7 +168,6 @@ cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
 
 void TexMgr_Anisotropy_f (cvar_t *var);
 void TexMgr_CompressTextures_f (cvar_t *var);
-void TexMgr_SoftEmuMetric_f (cvar_t *var);
 
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t gl_texturemode;
@@ -1470,7 +1469,6 @@ void	VID_Init (void)
 	Cvar_SetCallback (&gl_compress_textures, TexMgr_CompressTextures_f);
 
 	Cvar_RegisterVariable (&r_softemu_metric);
-	Cvar_SetCallback (&r_softemu_metric, TexMgr_SoftEmuMetric_f);
 
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz
