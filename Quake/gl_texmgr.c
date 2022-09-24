@@ -1975,7 +1975,6 @@ void GLPalette_UpdateLookupTable (void)
 		metric = CLAMP (0, metric, SOFTEMU_METRIC_COUNT - 1);
 	}
 
-	SDL_assert (host_initialized);
 	SDL_assert ((unsigned)metric < SOFTEMU_METRIC_COUNT);
 
 	if (cached_softemu_metric == metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
