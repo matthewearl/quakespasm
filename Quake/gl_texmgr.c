@@ -47,9 +47,8 @@ cvar_t			gl_texture_anisotropy = {"gl_texture_anisotropy", "8", CVAR_ARCHIVE};
 cvar_t			gl_compress_textures = {"gl_compress_textures", "0", CVAR_ARCHIVE};
 GLint			gl_max_texture_size;
 
-static float		lodbias;
-softemu_t			softemu;
-softemu_metric_t	softemu_metric = SOFTEMU_METRIC_OKLAB;
+static float	lodbias;
+softemu_t		softemu;
 
 #define	MAX_GLTEXTURES	4096
 static int numgltextures;
@@ -1956,6 +1955,7 @@ GLPalette_UpdateLookupTable
 */
 void GLPalette_UpdateLookupTable (void)
 {
+	softemu_metric_t metric;
 	int i;
 
 	if (r_softemu_metric.value < 0.f)
@@ -1967,25 +1967,25 @@ void GLPalette_UpdateLookupTable (void)
 			!cl.worldmodel ||
 			cl.worldmodel->litfile
 		;
-		softemu_metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
+		metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
 	}
 	else
 	{
-		softemu_metric = (int)r_softemu_metric.value;
-		softemu_metric = CLAMP (0, softemu_metric, SOFTEMU_METRIC_COUNT - 1);
+		metric = (int)r_softemu_metric.value;
+		metric = CLAMP (0, metric, SOFTEMU_METRIC_COUNT - 1);
 	}
 
 	SDL_assert (host_initialized);
-	SDL_assert ((unsigned)softemu_metric < SOFTEMU_METRIC_COUNT);
+	SDL_assert ((unsigned)metric < SOFTEMU_METRIC_COUNT);
 
-	if (cached_softemu_metric == softemu_metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
+	if (cached_softemu_metric == metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
 		return;
 
-	cached_softemu_metric = softemu_metric;
+	cached_softemu_metric = metric;
 	memcpy (cached_palette, d_8to24table, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();
 
-	GL_UseProgramFunc (glprogs.palette_init[softemu_metric]);
+	GL_UseProgramFunc (glprogs.palette_init[metric]);
 	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, 0, 256 * sizeof (GLuint), d_8to24table);
