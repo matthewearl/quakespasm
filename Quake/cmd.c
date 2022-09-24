@@ -558,21 +558,6 @@ void Cmd_List_f (void)
 	Con_SafePrintf ("\n");
 }
 
-char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize)
-{
-	int l;
-	char *m;
-	q_strlcpy(out, in, outsize);
-	while ((m = q_strcasestr(out, substr)))
-	{
-		l = strlen(substr);
-		while (l-->0)
-			if (*m >= ' ' && *m < 127)
-				*m++ |= 0x80;
-	}
-	return out;
-}
-
 /*
 ============
 Cmd_ListAllContaining
@@ -594,7 +579,7 @@ static void Cmd_ListAllContaining (const char *substr)
 		if (cmd->srctype != src_server && q_strcasestr(cmd->name, substr))
 		{
 			hits++;
-			Con_SafePrintf ("   %s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
+			Con_SafePrintf ("   %s\n", COM_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
 		}
 	}
 	
@@ -603,7 +588,7 @@ static void Cmd_ListAllContaining (const char *substr)
 		if (q_strcasestr(var->name, substr))
 		{
 			hits++;
-			Con_SafePrintf ("   %s (current value: \"%s\")\n", Cmd_TintSubstring(var->name, substr, tmpbuf, sizeof(tmpbuf)), var->string);
+			Con_SafePrintf ("   %s (current value: \"%s\")\n", COM_TintSubstring(var->name, substr, tmpbuf, sizeof(tmpbuf)), var->string);
 		}
 	}
 

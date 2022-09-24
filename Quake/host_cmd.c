@@ -31,7 +31,6 @@ cvar_t			sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE}; // 0 = no, 1 = ask, 2
 int	current_skill;
 
 void Mod_Print (void);
-char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize);
 
 /*
 ==================
@@ -162,8 +161,8 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 			desc = ofsdesc ? (const char*)(item + 1) : "";
 			if (q_strcasestr (item->name, substr) || q_strcasestr (desc, substr))
 			{
-				const char *tinted_name = Cmd_TintSubstring (item->name, substr, buf, sizeof (buf));
-				const char *tinted_desc = Cmd_TintSubstring (desc, substr, buf2, sizeof (buf2));
+				const char *tinted_name = COM_TintSubstring (item->name, substr, buf, sizeof (buf));
+				const char *tinted_desc = COM_TintSubstring (desc, substr, buf2, sizeof (buf2));
 				if (*desc)
 					Con_SafePrintf ("   %s%c%s\n", RightPad (tinted_name, ofsdesc, padchar), padchar, tinted_desc);
 				else

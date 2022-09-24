@@ -133,8 +133,6 @@ char		m_return_reason [32];
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
 
-char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize);
-
 #define SEARCH_FADE_TIMEOUT				0.5
 #define SEARCH_TYPE_TIMEOUT				1.5
 #define SEARCH_ERASE_TIMEOUT			1.5
@@ -1516,7 +1514,7 @@ void M_Maps_Draw (void)
 		{
 			char buf[256];
 			if (mapsmenu.list.search.len > 0)
-				Cmd_TintSubstring (item->name, mapsmenu.list.search.text, buf, sizeof (buf));
+				COM_TintSubstring (item->name, mapsmenu.list.search.text, buf, sizeof (buf));
 			else
 				q_strlcpy (buf, item->name, sizeof (buf));
 
@@ -1530,7 +1528,7 @@ void M_Maps_Draw (void)
 			if (item->message[0])
 			{
 				if (mapsmenu.list.search.len > 0)
-					Cmd_TintSubstring (item->message, mapsmenu.list.search.text, buf, sizeof (buf));
+					COM_TintSubstring (item->message, mapsmenu.list.search.text, buf, sizeof (buf));
 				else
 					q_strlcpy (buf, item->message, sizeof (buf));
 

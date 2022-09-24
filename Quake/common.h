@@ -303,6 +303,8 @@ void COM_CreatePath (char *path);
 char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer
 
+char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize);
+
 unsigned COM_HashString (const char *str);
 unsigned COM_HashBlock (const void *data, size_t size);
 
