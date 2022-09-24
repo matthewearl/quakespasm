@@ -1183,11 +1183,14 @@ void SCR_BeginLoadingPlaque (void)
 		return;
 
 // redraw with no console and the loading plaque
-	Con_ClearNotify ();
-	scr_centertime_off = 0;
-	scr_con_current = 0;
+	if (key_dest != key_console)
+	{
+		Con_ClearNotify ();
+		scr_con_current = 0;
+		scr_drawloading = true;
+	}
 
-	scr_drawloading = true;
+	scr_centertime_off = 0;
 	Sbar_Changed ();
 	SCR_UpdateScreen ();
 	scr_drawloading = false;
