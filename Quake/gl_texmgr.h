@@ -98,6 +98,15 @@ typedef enum {
 } softemu_t;
 extern softemu_t softemu;
 
+typedef enum {
+	SOFTEMU_METRIC_NAIVE,
+	SOFTEMU_METRIC_RIEMERSMA,
+	SOFTEMU_METRIC_OKLAB,
+
+	SOFTEMU_METRIC_COUNT,
+	SOFTEMU_METRIC_INVALID = SOFTEMU_METRIC_COUNT,
+} softemu_metric_t;
+
 // TEXTURE MANAGER
 
 float TexMgr_FrameUsage (void);

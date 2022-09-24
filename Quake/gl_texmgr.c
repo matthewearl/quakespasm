@@ -38,6 +38,7 @@ static const struct {
 };
 
 static cvar_t	r_softemu = {"r_softemu", "0", CVAR_ARCHIVE};
+cvar_t			r_softemu_metric = {"r_softemu_metric", "-1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 cvar_t			gl_lodbias = {"gl_lodbias", "auto", CVAR_ARCHIVE };
@@ -303,7 +304,7 @@ static void TexMgr_SoftEmu_f (cvar_t *var)
 	softemu = (int)r_softemu.value;
 	softemu = CLAMP (0, softemu, SOFTEMU_NUMMODES - 1);
 
-	TexMgr_TextureMode_f (&gl_texturemode);
+	gl_texturemode.callback (&gl_texturemode);
 }
 
 /*
@@ -726,8 +727,6 @@ void TexMgr_LoadPalette (void)
 	((byte *) &d_8to24table_conchars[0]) [3] = 0;
 
 	Hunk_FreeToLowMark (mark);
-
-	GLPalette_UpdateLookupTable ();
 }
 
 /*
@@ -1885,6 +1884,7 @@ GLuint gl_palette_lut;
 GLuint gl_palette_buffer[2]; // original + postprocessed
 
 static unsigned int cached_palette[256];
+static softemu_metric_t cached_softemu_metric = SOFTEMU_METRIC_INVALID;
 static float cached_gamma;
 static float cached_contrast;
 static vec4_t cached_blendcolor;
@@ -1944,6 +1944,7 @@ void GLPalette_CreateResources (void)
 			);
 
 	memset (cached_palette, 0, sizeof (cached_palette));
+	cached_softemu_metric = SOFTEMU_METRIC_INVALID;
 	GLPalette_InvalidateRemapped ();
 }
 
@@ -1954,14 +1955,37 @@ GLPalette_UpdateLookupTable
 */
 void GLPalette_UpdateLookupTable (void)
 {
+	softemu_metric_t metric;
 	int i;
 
-	if (!memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
+	if (r_softemu_metric.value < 0.f)
+	{
+		qboolean oklab =
+			softemu != SOFTEMU_BANDED ||
+			cls.state != ca_connected ||
+			cls.signon != SIGNONS ||
+			!cl.worldmodel ||
+			cl.worldmodel->litfile
+		;
+		metric = oklab ? SOFTEMU_METRIC_OKLAB : SOFTEMU_METRIC_NAIVE;
+	}
+	else
+	{
+		metric = (int)r_softemu_metric.value;
+		metric = CLAMP (0, metric, SOFTEMU_METRIC_COUNT - 1);
+	}
+
+	SDL_assert (host_initialized);
+	SDL_assert ((unsigned)metric < SOFTEMU_METRIC_COUNT);
+
+	if (cached_softemu_metric == metric && !memcmp (cached_palette, d_8to24table, sizeof (cached_palette)))
 		return;
+
+	cached_softemu_metric = metric;
 	memcpy (cached_palette, d_8to24table, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();
 
-	GL_UseProgramFunc (glprogs.palette_init);
+	GL_UseProgramFunc (glprogs.palette_init[metric]);
 	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, 0, 256 * sizeof (GLuint), d_8to24table);

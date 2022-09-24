@@ -773,6 +773,7 @@ void Mod_LoadLighting (lump_t *l)
 	unsigned int path_id;
 
 	loadmodel->lightdata = NULL;
+	loadmodel->litfile = false;
 	// LordHavoc: check for a .lit file
 	q_strlcpy(litfilename, loadmodel->name, sizeof(litfilename));
 	COM_StripExtension(litfilename, litfilename, sizeof(litfilename));
@@ -798,6 +799,7 @@ void Mod_LoadLighting (lump_t *l)
 				{
 					Con_DPrintf2("%s loaded\n", litfilename);
 					loadmodel->lightdata = data + 8;
+					loadmodel->litfile = true;
 					return;
 				}
 				Hunk_FreeToLowMark(mark);

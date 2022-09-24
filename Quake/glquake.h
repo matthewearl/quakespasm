@@ -503,7 +503,7 @@ typedef struct glprogs_s {
 	GLuint		gather_indirect;
 	GLuint		cull_mark;
 	GLuint		cluster_lights;
-	GLuint		palette_init;
+	GLuint		palette_init[3];	// [metric:naive/riemersma/oklab]
 	GLuint		palette_postprocess;
 } glprogs_t;
 

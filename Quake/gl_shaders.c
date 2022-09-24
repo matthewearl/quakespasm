@@ -314,7 +314,8 @@ void GL_CreateShaders (void)
 	glprogs.gather_indirect = GL_CreateComputeProgram (gather_indirect_compute_shader, "indirect draw gather");
 	glprogs.cull_mark = GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark");
 	glprogs.cluster_lights = GL_CreateComputeProgram (cluster_lights_compute_shader, "light cluster");
-	glprogs.palette_init = GL_CreateComputeProgram (palette_init_compute_shader, "palette init");
+	for (mode = 0; mode < 3; mode++)
+		glprogs.palette_init[mode] = GL_CreateComputeProgram (palette_init_compute_shader, "palette init|MODE %d", mode);
 	glprogs.palette_postprocess = GL_CreateComputeProgram (palette_postprocess_compute_shader, "palette postprocess");
 }
 

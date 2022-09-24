@@ -173,6 +173,7 @@ extern cvar_t gl_texture_anisotropy;
 extern cvar_t gl_texturemode;
 extern cvar_t gl_compress_textures;
 extern cvar_t gl_lodbias;
+extern cvar_t r_softemu_metric;
 extern cvar_t r_particles;
 extern cvar_t r_dynamic;
 extern cvar_t host_maxfps;
@@ -1274,6 +1275,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*height = vid.height;
 
 	GL_AcquireFrameResources ();
+	GLPalette_UpdateLookupTable ();
 
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, postprocess ? framebufs.composite.fbo : 0);
 }
@@ -1434,6 +1436,7 @@ void	VID_Init (void)
 		"vid_borderless",
 		"gl_texture_anisotropy",
 		"gl_compress_textures",
+		"r_softemu_metric",
 	};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
@@ -1464,6 +1467,8 @@ void	VID_Init (void)
 
 	Cvar_RegisterVariable (&gl_compress_textures);
 	Cvar_SetCallback (&gl_compress_textures, TexMgr_CompressTextures_f);
+
+	Cvar_RegisterVariable (&r_softemu_metric);
 
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz
