@@ -649,8 +649,8 @@ static frameres_t	frameres[FRAMES_IN_FLIGHT];
 static int			frameres_idx = 0;
 static size_t		frameres_host_offset = 0;
 static size_t		frameres_device_offset = 0;
-static size_t		frameres_host_buffer_size = 8 * 1024 * 1024;
-static size_t		frameres_device_buffer_size = 4 * 1024 * 1024;
+static size_t		frameres_host_buffer_size = 1 * 1024 * 1024;
+static size_t		frameres_device_buffer_size = 1 * 1024 * 1024;
 
 /*
 ====================
