@@ -951,36 +951,6 @@ void M_Main_Mousemove (int cx, int cy)
 }
 
 //=============================================================================
-
-void M_CheckMods (void)
-{
-	unsigned int id_mods, id_main;
-	int h, length;
-
-	m_main_mods = 0;
-	if (!COM_FileExists ("gfx/menumods.lmp", &id_mods))
-		return;
-
-	length = COM_OpenFile ("gfx/mainmenu.lmp", &h, &id_main);
-	if (id_mods >= id_main)
-		m_main_mods = 1;
-	else if (length == 26888)
-	{
-		int mark = Hunk_LowMark ();
-		byte* data = (byte*) Hunk_Alloc (length);
-		if (length == Sys_FileRead (h, data, length))
-		{
-			unsigned int hash = COM_HashBlock (data, length);
-			if (hash == 0x136bc7fd || hash == 0x90555cb4)
-				m_main_mods = 1;
-		}
-		Hunk_FreeToLowMark (mark);
-	}
-
-	COM_CloseFile (h);
-}
-
-//=============================================================================
 /* SINGLE PLAYER MENU */
 
 qboolean m_singleplayer_showlevels;
@@ -989,13 +959,7 @@ int	m_singleplayer_cursor;
 
 void M_Menu_SinglePlayer_f (void)
 {
-	unsigned int id_levels, id_main;
 	IN_DeactivateForMenu();
-	m_singleplayer_showlevels =
-		COM_FileExists ("gfx/sp_maps.lmp", &id_levels) &&
-		COM_FileExists ("gfx/sp_menu.lmp", &id_main) &&
-		id_levels >= id_main
-	;
 	if (m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
 		m_singleplayer_cursor = 0;
 	key_dest = key_menu;
@@ -1676,16 +1640,6 @@ void M_SetSkillMenuMap (const char *name)
 	q_strlcpy (m_skill_mapname, name, sizeof (m_skill_mapname));
 }
 
-qboolean M_Skill_CheckGfx (void)
-{
-	unsigned int path_id, base_id;
-	return
-		COM_FileExists ("gfx/skillmenu.lmp", &path_id) &&
-		COM_FileExists ("gfx/sp_menu.lmp", &base_id) &&
-		path_id >= base_id
-	;
-}
-
 void M_Menu_Skill_f (void)
 {
 	IN_DeactivateForMenu();
@@ -1693,7 +1647,6 @@ void M_Menu_Skill_f (void)
 	m_skill_prevmenu = m_state;
 	m_state = m_skill;
 	m_entersound = true;
-	m_skill_usegfx = M_Skill_CheckGfx ();
 	m_skill_cursor = (int)skill.value;
 	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
 }
@@ -4667,5 +4620,56 @@ void M_ConfigureNetSubsystem(void)
 
 	if (IPXConfig || TCPIPConfig)
 		net_hostport = lanConfig_port;
+}
+
+//=============================================================================
+
+static qboolean M_CheckCustomGfx (const char *custompath, const char *basepath, int knownlength, const unsigned int *hashes, int numhashes)
+{
+	unsigned int id_custom, id_base;
+	int h, length;
+	qboolean ret = false;
+
+	if (!COM_FileExists (custompath, &id_custom))
+		return false;
+
+	length = COM_OpenFile (basepath, &h, &id_base);
+	if (id_custom >= id_base)
+		ret = true;
+	else if (length == knownlength)
+	{
+		int mark = Hunk_LowMark ();
+		byte* data = (byte*) Hunk_Alloc (length);
+		if (length == Sys_FileRead (h, data, length))
+		{
+			unsigned int hash = COM_HashBlock (data, length);
+			while (numhashes-- > 0 && !ret)
+				if (hash == *hashes++)
+					ret = true;
+		}
+		Hunk_FreeToLowMark (mark);
+	}
+
+	COM_CloseFile (h);
+
+	return ret;
+}
+
+
+void M_CheckMods (void)
+{
+	const unsigned int
+		main_hashes[] = {0x136bc7fd, 0x90555cb4},
+		sp_hashes[] = {0x86a6f086}
+	;
+
+	m_main_mods = M_CheckCustomGfx ("gfx/menumods.lmp",
+		"gfx/mainmenu.lmp", 26888, main_hashes, countof (main_hashes));
+
+	m_singleplayer_showlevels = M_CheckCustomGfx ("gfx/sp_maps.lmp",
+		"gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
+
+	m_skill_usegfx = M_CheckCustomGfx ("gfx/skillmenu.lmp",
+		"gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
 }
 
