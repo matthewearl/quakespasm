@@ -1370,12 +1370,19 @@ static void Host_Loadgame_f (void)
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
+
+	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
+	if (Sys_FileTime (name) == -1)
+	{
+		Con_Printf ("ERROR: %s not found.\n", relname);
+		Host_InvalidateSave (relname);
+		return;
+	}
+
 	Con_Printf ("Loading game from %s...\n", relname);
 
 	SCR_BeginLoadingPlaque ();
 
-	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
-	
 // avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
 	if (start != NULL)
 		free (start);
