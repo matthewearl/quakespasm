@@ -638,7 +638,7 @@ NOISE_FUNCTIONS
 "		}\n"
 "	}\n"
 "#if DITHER >= 2\n"
-"	total_light = floor(total_light * 64. + 0.5) * (1./32.);\n"
+"	total_light = floor(total_light * 63. + 0.5) * (2./63.);\n"
 "#else\n"
 "	total_light *= 2.0;\n"
 "#endif\n"
@@ -664,6 +664,10 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb += mix(nearnoise, farnoise, farblend) * PAL_NOISESCALE;\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#endif // DITHER == 1\n"
+"#if DITHER >= 2\n"
+"	// nuke extra precision in 10-bit framebuffer\n"
+"	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
+"#endif\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
