@@ -260,6 +260,9 @@ void CL_AdjustAngles (void)
 	float	speed;
 	float	up, down;
 
+	if (cl.fixangle)
+		return;
+
 	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = host_frametime * cl_anglespeedkey.value;
 	else
