@@ -1274,6 +1274,12 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*width = vid.width;
 	*height = vid.height;
 
+	// reset state/bindings, just in case some other process
+	// injects code that makes changes without cleaning up
+	GL_ResetState ();
+	GL_ClearBindings ();
+	GL_ClearBufferBindings ();
+
 	GL_AcquireFrameResources ();
 	GLPalette_UpdateLookupTable ();
 
