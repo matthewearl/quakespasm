@@ -576,7 +576,7 @@ void Sys_Init (void)
 	{
 		key_hook = SetWindowsHookExW (WH_KEYBOARD_LL, KeyFilter, GetModuleHandleW (NULL), 0);
 		if (!key_hook)
-			Sys_Printf ("Warning: SetWindowsHookExW failed (%d)\n", GetLastError ());
+			Sys_Printf ("Warning: SetWindowsHookExW failed (%lu)\n", GetLastError ());
 	}
 
 	rcp_counter_freq = 1.0 / SDL_GetPerformanceFrequency();
