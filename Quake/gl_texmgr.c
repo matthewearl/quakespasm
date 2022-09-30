@@ -635,7 +635,7 @@ void TexMgr_DeleteTextureObjects (void)
 ================================================================================
 */
 
-static void SetColor (int *dst, byte r, byte g, byte b, byte a)
+static void SetColor (uint32_t *dst, byte r, byte g, byte b, byte a)
 {
 	((byte*)dst)[0] = r;
 	((byte*)dst)[1] = g;
