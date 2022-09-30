@@ -2128,8 +2128,6 @@ static void DrawQC_CharacterQuad (float x, float y, int num, float w, float h)
 }
 static void PF_cl_drawcharacter(void)
 {
-	extern gltexture_t *char_texture;
-
 	float *pos	= G_VECTOR(OFS_PARM0);
 	int charcode= (int)G_FLOAT (OFS_PARM1) & 0xff;
 	float *size	= G_VECTOR(OFS_PARM2);
