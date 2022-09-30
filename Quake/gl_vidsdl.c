@@ -161,7 +161,7 @@ cvar_t		vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t		vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 //johnfitz
-cvar_t		vid_saveresize = {"vid_saveresize", "1", CVAR_ARCHIVE};
+cvar_t		vid_saveresize = {"vid_saveresize", "0", CVAR_ARCHIVE};
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
