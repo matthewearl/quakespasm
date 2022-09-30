@@ -65,7 +65,7 @@ static HANDLE		hinput, houtput;
 #define	MAX_HANDLES		32	/* johnfitz -- was 10 */
 static FILE		*sys_handles[MAX_HANDLES];
 
-static double counter_freq;
+static double rcp_counter_freq;
 
 static int findhandle (void)
 {
@@ -579,7 +579,7 @@ void Sys_Init (void)
 			Sys_Printf ("Warning: SetWindowsHookExW failed (%d)\n", GetLastError ());
 	}
 
-	counter_freq = (double)SDL_GetPerformanceFrequency();
+	rcp_counter_freq = 1.0 / SDL_GetPerformanceFrequency();
 }
 
 void Sys_mkdir (const char *path)
@@ -686,7 +686,7 @@ void Sys_Quit (void)
 
 double Sys_DoubleTime (void)
 {
-	return (double)SDL_GetPerformanceCounter() / counter_freq;
+	return (double)SDL_GetPerformanceCounter() * rcp_counter_freq;
 }
 
 const char *Sys_ConsoleInput (void)
