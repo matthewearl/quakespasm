@@ -561,11 +561,16 @@ void Sys_Error (const char *error, ...)
 
 void Sys_Printf (const char *fmt, ...)
 {
-	va_list argptr;
+	va_list		argptr;
+	char		qtext[1024];
+	char		u8text[4096];
 
-	va_start(argptr, fmt);
-	vprintf(fmt, argptr);
-	va_end(argptr);
+	va_start (argptr,fmt);
+	q_vsnprintf (qtext, sizeof (qtext), fmt, argptr);
+	va_end (argptr);
+
+	UTF8_FromQuake (u8text, sizeof (u8text), qtext);
+	printf ("%s", u8text);
 }
 
 void Sys_Quit (void)
