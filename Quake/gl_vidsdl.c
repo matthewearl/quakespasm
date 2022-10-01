@@ -1279,6 +1279,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	GL_ResetState ();
 	GL_ClearBindings ();
 	GL_ClearBufferBindings ();
+	GL_ClearCachedProgram ();
 
 	GL_AcquireFrameResources ();
 	GLPalette_UpdateLookupTable ();
