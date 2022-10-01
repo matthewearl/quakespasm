@@ -66,7 +66,6 @@ typedef struct particle_s
 
 //====================================================
 
-extern	qboolean	r_cache_thrash;		// compatability
 extern	int		r_visframecount;	// ??? what difs?
 extern	int		r_framecount;
 extern	mplane_t	frustum[4];
@@ -311,9 +310,8 @@ typedef enum {
 void GL_DepthRange (zrange_t range);
 
 //johnfitz -- rendering statistics
-extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+extern int rs_brushpolys, rs_aliaspolys, rs_skypolys;
 extern int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
-extern float rs_megatexels;
 
 //johnfitz -- track developer statistics that vary every frame
 extern cvar_t devstats;
@@ -409,7 +407,7 @@ void R_AnimateLight (void);
 void R_MarkSurfaces (void);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
-void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles);
+void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
 
 void R_InitParticles (void);
 void R_DrawParticles (void);
@@ -557,8 +555,8 @@ void Sky_Init (void);
 void Sky_ClearAll (void);
 void Sky_DrawSky (void);
 void Sky_NewMap (void);
-void Sky_LoadTexture (texture_t *mt);
-void Sky_LoadTextureQ64 (texture_t *mt);
+void Sky_LoadTexture (qmodel_t *m, texture_t *mt);
+void Sky_LoadTextureQ64 (qmodel_t *m, texture_t *mt);
 void Sky_LoadSkyBox (const char *name);
 
 void GL_BindBuffer (GLenum target, GLuint buffer);

@@ -1622,9 +1622,22 @@ static void PF_makestatic (void)
 			bits |= B_LARGEFRAME;
 		if (ent->alpha != ENTALPHA_DEFAULT)
 			bits |= B_ALPHA;
+
+		if (sv.protocol == PROTOCOL_RMQ)
+		{
+			eval_t* val;
+			val = GetEdictFieldValueByName(ent, "scale");
+			if (val)
+				ent->scale = ENTSCALE_ENCODE(val->_float);
+			else
+				ent->scale = ENTSCALE_DEFAULT;
+
+			if (ent->scale != ENTSCALE_DEFAULT)
+				bits |= B_SCALE;
+		}
 	}
 
-	SV_ReserveSignonSpace (33);
+	SV_ReserveSignonSpace (34);
 
 	if (bits)
 	{
@@ -1657,6 +1670,9 @@ static void PF_makestatic (void)
 	if (bits & B_ALPHA)
 		MSG_WriteByte (sv.signon, ent->alpha);
 	//johnfitz
+
+	if (bits & B_SCALE)
+		MSG_WriteByte (sv.signon, ent->scale);
 
 // throw the entity away now
 	ED_Free (ent);

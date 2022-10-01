@@ -330,7 +330,9 @@ exec:
 		Cbuf_InsertText ("__cfgmarker");
 	}
 	Cbuf_InsertText (f);
-	Hunk_FreeToLowMark (mark);
+	if (f != default_cfg) {
+		Hunk_FreeToLowMark (mark);
+	}
 }
 
 

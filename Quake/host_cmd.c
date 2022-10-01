@@ -30,8 +30,6 @@ cvar_t			sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE}; // 0 = no, 1 = ask, 2
 
 int	current_skill;
 
-void Mod_Print (void);
-
 /*
 ==================
 Host_Quit_f
@@ -1466,9 +1464,14 @@ static void Host_Loadgame_f (void)
 		{	// parse an edict
 			ent = EDICT_NUM(entnum);
 			if (entnum < qcvm->num_edicts)
+			{
 				ED_ClearEdict (ent);
+			}
 			else
+			{
 				memset (ent, 0, qcvm->edict_size);
+				ent->baseline.scale = ENTSCALE_DEFAULT;
+			}
 			data = ED_ParseEdict (data, ent);
 
 			// link it into the bsp tree
@@ -2580,7 +2583,5 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("viewframe", Host_Viewframe_f);
 	Cmd_AddCommand ("viewnext", Host_Viewnext_f);
 	Cmd_AddCommand ("viewprev", Host_Viewprev_f);
-
-	Cmd_AddCommand ("mcache", Mod_Print);
 }
 

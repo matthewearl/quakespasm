@@ -62,7 +62,7 @@ do_strip=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O2
-#  -fno-asynchronous-unwind-tables
+#CFLAGS += -fno-asynchronous-unwind-tables
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
@@ -189,27 +189,8 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 MAKEFILE := $(lastword $(MAKEFILE_LIST))
 
 # ---------------------------
-# targets
-# ---------------------------
-
-.PHONY:	clean debug release
-
-DEFAULT_TARGET := ironwail
-
-# ---------------------------
-# rules
-# ---------------------------
-
-%.d:	%.c $(MAKEFILE)
-	@echo "Generating dependencies for $<" && \
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -MM $< -MF $@ -MT $@
-%.o:	%.c %.d $(MAKEFILE)
-	@echo "Compiling $<" && \
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-
-# ----------------------------------------------------------------------------
 # objects
-# ----------------------------------------------------------------------------
+# ---------------------------
 
 MUSIC_OBJS:= bgmusic.o \
 	snd_codec.o \
@@ -231,7 +212,6 @@ SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_NET := net_bsd.o net_udp.o
 SYSOBJ_SYS := pl_linux.o sys_sdl_unix.o
 SYSOBJ_MAIN:= main_sdl.o
-SYSOBJ_RES :=
 
 GLOBJS = \
 	gl_refrag.o \
@@ -302,9 +282,21 @@ OBJS := strlcat.o \
 OBJDEPS := $(OBJS:%.o=%.d)
 OBJS += $(SYSOBJ_RES)
 
-# ------------------------
-# Linux build rules
-# ------------------------
+# ---------------------------
+# targets / rules
+# ---------------------------
+
+.PHONY:	clean debug release
+
+DEFAULT_TARGET := ironwail
+all: $(DEFAULT_TARGET)
+
+%.d:	%.c $(MAKEFILE)
+	@echo "Generating dependencies for $<" && \
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -MM $< -MF $@ -MT $@
+%.o:	%.c %.d $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 
 ironwail:	$(OBJS) $(MAKEFILE)
 	@echo "Linking $@" && \
@@ -316,7 +308,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean: $(MAKEFILE)
-	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.d' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
+	$(RM) *.o *.d $(DEFAULT_TARGET)
 
 install:	ironwail
 	cp ironwail /usr/local/games/quake

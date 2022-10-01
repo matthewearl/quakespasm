@@ -418,7 +418,7 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
 	}
 
-	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles);
+	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	MatrixMultiply (model_matrix, translation_matrix);
 	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);

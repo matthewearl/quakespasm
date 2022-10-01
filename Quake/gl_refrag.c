@@ -117,17 +117,23 @@ R_AddEfrags
 void R_AddEfrags (entity_t *ent)
 {
 	qmodel_t	*entmodel;
+	vec_t		scalefactor;
 	int			i;
 
 	if (!ent->model)
 		return;
 
 	entmodel = ent->model;
-
-	for (i=0 ; i<3 ; i++)
+	scalefactor = ENTSCALE_DECODE(ent->scale);
+	if (scalefactor != 1.0f)
 	{
-		r_emins[i] = ent->origin[i] + entmodel->mins[i];
-		r_emaxs[i] = ent->origin[i] + entmodel->maxs[i];
+		VectorMA (ent->origin, scalefactor, entmodel->mins, r_emins);
+		VectorMA (ent->origin, scalefactor, entmodel->maxs, r_emaxs);
+	}
+	else
+	{
+		VectorAdd (ent->origin, entmodel->mins, r_emins);
+		VectorAdd (ent->origin, entmodel->maxs, r_emaxs);
 	}
 
 	i = VEC_SIZE (cl_efrags);

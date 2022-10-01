@@ -202,7 +202,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	angles[0] = -ent->angles[0];
 	angles[1] =  ent->angles[1];
 	angles[2] =  ent->angles[2];
-	R_EntityMatrix (mat, ent->origin, angles);
+	R_EntityMatrix (mat, ent->origin, angles, ent == &cl_entities[0] ? ENTSCALE_DEFAULT : ent->scale);
 
 	#define COPY_ROW(row)					\
 		inst->world[row*4+0] = mat[row+0],	\

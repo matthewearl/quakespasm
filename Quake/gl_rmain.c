@@ -36,9 +36,8 @@ float		r_matproj[16];
 float		r_matviewproj[16];
 
 //johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+int rs_brushpolys, rs_aliaspolys, rs_skypolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
-float rs_megatexels;
 
 //
 // view origin
@@ -333,20 +332,34 @@ R_GetEntityBounds -- johnfitz -- uses correct bounds based on rotation
 */
 void R_GetEntityBounds (const entity_t *e, vec3_t mins, vec3_t maxs)
 {
+	vec_t scalefactor, *minbounds, *maxbounds;
+
 	if (e->angles[0] || e->angles[2]) //pitch or roll
 	{
-		VectorAdd (e->origin, e->model->rmins, mins);
-		VectorAdd (e->origin, e->model->rmaxs, maxs);
+		minbounds = e->model->rmins;
+		maxbounds = e->model->rmaxs;
 	}
 	else if (e->angles[1]) //yaw
 	{
-		VectorAdd (e->origin, e->model->ymins, mins);
-		VectorAdd (e->origin, e->model->ymaxs, maxs);
+		minbounds = e->model->ymins;
+		maxbounds = e->model->ymaxs;
 	}
 	else //no rotation
 	{
-		VectorAdd (e->origin, e->model->mins, mins);
-		VectorAdd (e->origin, e->model->maxs, maxs);
+		minbounds = e->model->mins;
+		maxbounds = e->model->maxs;
+	}
+
+	scalefactor = ENTSCALE_DECODE(e->scale);
+	if (scalefactor != 1.0f)
+	{
+		VectorMA (e->origin, scalefactor, minbounds, mins);
+		VectorMA (e->origin, scalefactor, maxbounds, maxs);
+	}
+	else
+	{
+		VectorAdd (e->origin, minbounds, mins);
+		VectorAdd (e->origin, maxbounds, maxs);
 	}
 }
 
@@ -369,15 +382,16 @@ qboolean R_CullModelForEntity (entity_t *e)
 R_EntityMatrix
 ===============
 */
-void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles)
+void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale)
 {
-	float yaw   = DEG2RAD(angles[YAW]);
-	float pitch = angles[PITCH];
-	float roll  = angles[ROLL];
+	float scalefactor	= ENTSCALE_DECODE(scale);
+	float yaw			= DEG2RAD(angles[YAW]);
+	float pitch			= angles[PITCH];
+	float roll			= angles[ROLL];
 	if (pitch == 0.f && roll == 0.f)
 	{
-		float sy = sin(yaw);
-		float cy = cos(yaw);
+		float sy = sin(yaw) * scalefactor;
+		float cy = cos(yaw) * scalefactor;
 
 		// First column
 		matrix[ 0] = cy;
@@ -394,7 +408,7 @@ void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles)
 		// Third column
 		matrix[ 8] = 0.f;
 		matrix[ 9] = 0.f;
-		matrix[10] = 1.f;
+		matrix[10] = scalefactor;
 		matrix[11] = 0.f;
 	}
 	else
@@ -412,21 +426,21 @@ void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles)
 		// https://www.symbolab.com/solver/matrix-multiply-calculator FTW!
 
 		// First column
-		matrix[ 0] = cy*cp;
-		matrix[ 1] = sy*cp;
-		matrix[ 2] = sp;
+		matrix[ 0] = scalefactor * cy*cp;
+		matrix[ 1] = scalefactor * sy*cp;
+		matrix[ 2] = scalefactor * sp;
 		matrix[ 3] = 0.f;
 
 		// Second column
-		matrix[ 4] = -cy*sp*sr - cr*sy;
-		matrix[ 5] = cr*cy - sy*sp*sr;
-		matrix[ 6] = cp*sr;
+		matrix[ 4] = scalefactor * (-cy*sp*sr - cr*sy);
+		matrix[ 5] = scalefactor * (cr*cy - sy*sp*sr);
+		matrix[ 6] = scalefactor * cp*sr;
 		matrix[ 7] = 0.f;
 
 		// Third column
-		matrix[ 8] = sy*sr - cr*cy*sp;
-		matrix[ 9] = -cy*sr - cr*sy*sp;
-		matrix[10] = cr*cp;
+		matrix[ 8] = scalefactor * (sy*sr - cr*cy*sp);
+		matrix[ 9] = scalefactor * (-cy*sr - cr*sy*sp);
+		matrix[10] = scalefactor * cr*cp;
 		matrix[11] = 0.f;
 	}
 
@@ -835,8 +849,6 @@ void R_SetupView (void)
 
 	V_SetContentsColor (r_viewleaf->contents);
 	V_CalcBlend ();
-
-	r_cache_thrash = false;
 
 	//johnfitz -- calculate r_fovx and r_fovy here
 	r_fovx = r_refdef.fov_x;
@@ -1393,7 +1405,7 @@ void R_RenderView (void)
 		time1 = Sys_DoubleTime ();
 
 		//johnfitz -- rendering statistics
-		rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles = rs_fogpolys = rs_megatexels =
+		rs_brushpolys = rs_aliaspolys = rs_skypolys =
 		rs_dynamiclightmaps = rs_aliaspasses = rs_skypasses = rs_brushpasses = 0;
 	}
 	else if (gl_finish.value)
@@ -1407,12 +1419,12 @@ void R_RenderView (void)
 	time2 = Sys_DoubleTime ();
 	if (r_pos.value)
 		Con_Printf ("x %i y %i z %i (pitch %i yaw %i roll %i)\n",
-			(int)cl_entities[cl.viewentity].origin[0],
-			(int)cl_entities[cl.viewentity].origin[1],
-			(int)cl_entities[cl.viewentity].origin[2],
-			(int)cl.viewangles[PITCH],
-			(int)cl.viewangles[YAW],
-			(int)cl.viewangles[ROLL]);
+					(int)cl_entities[cl.viewentity].origin[0],
+					(int)cl_entities[cl.viewentity].origin[1],
+					(int)cl_entities[cl.viewentity].origin[2],
+					(int)cl.viewangles[PITCH],
+					(int)cl.viewangles[YAW],
+					(int)cl.viewangles[ROLL]);
 	else if (r_speeds.value == 2)
 		Con_Printf ("%3i ms  %4i/%4i wpoly %4i/%4i epoly %3i lmap %4i/%4i sky %1.1f mtex\n",
 					(int)((time2-time1)*1000),

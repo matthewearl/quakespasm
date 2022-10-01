@@ -100,7 +100,6 @@ cvar_t		scr_zoomfov = {"zoom_fov","30",CVAR_ARCHIVE};	// 10 - 170
 cvar_t		scr_zoomspeed = {"zoom_speed","8",CVAR_ARCHIVE};
 cvar_t		scr_conspeed = {"scr_conspeed","2000",CVAR_ARCHIVE};
 cvar_t		scr_centertime = {"scr_centertime","2",CVAR_NONE};
-cvar_t		scr_showram = {"showram","1",CVAR_NONE};
 cvar_t		scr_showturtle = {"showturtle","0",CVAR_NONE};
 cvar_t		scr_showpause = {"showpause","1",CVAR_NONE};
 cvar_t		scr_printspeed = {"scr_printspeed","8",CVAR_NONE};
@@ -114,7 +113,6 @@ extern	cvar_t	con_notifyfadetime;
 
 qboolean	scr_initialized;		// ready to draw
 
-qpic_t		*scr_ram;
 qpic_t		*scr_net;
 qpic_t		*scr_turtle;
 
@@ -490,7 +488,6 @@ SCR_LoadPics -- johnfitz
 */
 void SCR_LoadPics (void)
 {
-	scr_ram = Draw_PicFromWad ("ram");
 	scr_net = Draw_PicFromWad ("net");
 	scr_turtle = Draw_PicFromWad ("turtle");
 }
@@ -529,7 +526,6 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_zoomspeed);
 	Cvar_RegisterVariable (&scr_viewsize);
 	Cvar_RegisterVariable (&scr_conspeed);
-	Cvar_RegisterVariable (&scr_showram);
 	Cvar_RegisterVariable (&scr_showturtle);
 	Cvar_RegisterVariable (&scr_showpause);
 	Cvar_RegisterVariable (&scr_centertime);
@@ -703,24 +699,6 @@ void SCR_DrawDevStats (void)
 
 	sprintf (str, "GL upload|%4iK %4iK", dev_stats.gpu_upload/1024, dev_peakstats.gpu_upload/1024);
 	Draw_String (x, (y++)*8-x, str);
-}
-
-/*
-==============
-SCR_DrawRam
-==============
-*/
-void SCR_DrawRam (void)
-{
-	if (!scr_showram.value)
-		return;
-
-	if (!r_cache_thrash)
-		return;
-
-	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
-
-	Draw_Pic (scr_vrect.x+32, scr_vrect.y, scr_ram);
 }
 
 /*
@@ -1433,7 +1411,6 @@ void SCR_UpdateScreen (void)
 	else
 	{
 		SCR_DrawCrosshair (); //johnfitz
-		SCR_DrawRam ();
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();

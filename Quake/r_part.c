@@ -567,7 +567,9 @@ void R_TeleportSplash (vec3_t org)
 	vec3_t		dir;
 
 	for (i=-16 ; i<16 ; i+=4)
+	{
 		for (j=-16 ; j<16 ; j+=4)
+		{
 			for (k=-24 ; k<32 ; k+=4)
 			{
 				if (!(p = R_AllocParticle ()))
@@ -589,6 +591,8 @@ void R_TeleportSplash (vec3_t org)
 				vel = 50 + (rand()&63);
 				VectorScale (dir, vel, p->vel);
 			}
+		}
+	}
 }
 
 /*
@@ -881,8 +885,6 @@ static void R_DrawParticles_Real (qboolean showtris)
 		//alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
 		v->color[3] = 255; //(int)(alpha * 255);
 		//johnfitz
-
-		rs_particles++; //johnfitz //FIXME: just use r_numparticles
 	}
 
 	R_FlushParticleBatch ();
