@@ -251,6 +251,11 @@ void SCR_CheckDrawCenterString (void)
 	SCR_DrawCenterString ();
 }
 
+void SCR_ClearCenterString (void)
+{
+	scr_centertime_off = 0;
+}
+
 //=============================================================================
 
 /*
@@ -1118,6 +1123,16 @@ void SCR_ScreenShot_f (void)
 	{
 		Con_Printf ("SCR_ScreenShot_f: Couldn't allocate memory\n");
 		return;
+	}
+
+	if (scr_viewsize.value >= 130)
+	{
+		qboolean oldskip = scr_skipupdate;
+		Con_ClearNotify ();
+		SCR_ClearCenterString ();
+		scr_skipupdate = 1; // don't swap buffers at end of frame
+		SCR_UpdateScreen ();
+		scr_skipupdate = oldskip;
 	}
 
 	glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
