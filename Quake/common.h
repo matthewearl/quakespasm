@@ -80,27 +80,22 @@ GENERIC_TYPES (IMPL_GENERIC_FUNCS, NO_COMMA)
 	GENERIC_TYPES (SELECT_CLAMP, COMMA))(minval, val, maxval)
 
 #elif defined(__GNUC__)
-/* min and max macros with type checking -- based on tyrquake. */
-#define q_max(a,b) ({           \
-    const __typeof(a) a_ = (a); \
-    const __typeof(b) b_ = (b); \
-    (void)(&a_ == &b_);         \
-    (a_ > b_) ? a_ : b_;        \
+#define q_max(a,b) ({                   \
+	const __typeof((a) + (b)) a_ = (a); \
+	const __typeof((a) + (b)) b_ = (b); \
+	(a_ > b_) ? a_ : b_;                \
 })
-#define q_min(a,b) ({           \
-    const __typeof(a) a_ = (a); \
-    const __typeof(b) b_ = (b); \
-    (void)(&a_ == &b_);         \
-    (a_ < b_) ? a_ : b_;        \
+#define q_min(a,b) ({                   \
+	const __typeof((a) + (b)) a_ = (a); \
+	const __typeof((a) + (b)) b_ = (b); \
+	(a_ < b_) ? a_ : b_;                \
 })
-#define CLAMP(_minval, x, _maxval) ({           \
-    const __typeof(x) x_ = (x);                 \
-    const __typeof(_minval) valmin_ = (_minval);\
-    const __typeof(_maxval) valmax_ = (_maxval);\
-    (void)(&x_ == &valmin_);                    \
-    (void)(&x_ == &valmax_);                    \
-    (x_ < valmin_) ? valmin_ :                  \
-    (x_ > valmax_) ? valmax_ : x_;              \
+#define CLAMP(_minval, x, _maxval) ({                                \
+	const __typeof((_minval) + (x) + (_maxval)) x_      = (x);       \
+	const __typeof((_minval) + (x) + (_maxval)) valmin_ = (_minval); \
+	const __typeof((_minval) + (x) + (_maxval)) valmax_ = (_maxval); \
+	(x_ < valmin_) ? valmin_ :                                       \
+	(x_ > valmax_) ? valmax_ : x_;                                   \
 })
 
 #else
