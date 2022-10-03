@@ -918,7 +918,7 @@ void _Host_Frame (double time)
 	rand ();
 
 // decide the simulation time
-	accumtime += host_netinterval?CLAMP(0, time, 0.2):0;	//for renderer/server isolation
+	accumtime += host_netinterval?CLAMP(0.0, time, 0.2):0.0;	//for renderer/server isolation
 	if (!Host_FilterTime (time))
 		return;			// don't run too fast, or packets will flood out
 
@@ -956,7 +956,7 @@ void _Host_Frame (double time)
 		float realframetime = host_frametime;
 		if (host_netinterval)
 		{
-			host_frametime = q_max(accumtime, host_netinterval);
+			host_frametime = q_max(accumtime, (double)host_netinterval);
 			accumtime -= host_frametime;
 			if (host_timescale.value > 0)
 				host_frametime *= host_timescale.value;

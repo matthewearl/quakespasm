@@ -1338,7 +1338,7 @@ void Sbar_Draw (void)
 	if (cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
 	{
 		qboolean deathmatchoverlay = false;
-		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		float s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 		sb_updates++;
 		GL_SetCanvas (CANVAS_CSQC); //johnfitz
 		PR_SwitchQCVM(&cl.qcvm);
@@ -1763,7 +1763,7 @@ void Sbar_IntermissionOverlay (void)
 
 	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{
-		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		float s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 		GL_SetCanvas (CANVAS_CSQC);
 		PR_SwitchQCVM(&cl.qcvm);
 		if (qcvm->extglobals.cltime)

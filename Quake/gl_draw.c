@@ -898,8 +898,8 @@ void Draw_FadeScreen (void)
 	}
 	else if (softemu == SOFTEMU_COARSE)
 	{
-		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
-		s = CLAMP (1.0, scr_menuscale.value, s);
+		s = q_min ((float)glwidth / 320.0f, (float)glheight / 200.0f);
+		s = CLAMP (1.0f, scr_menuscale.value, s);
 		s = floor (s);
 		smax = glwidth / (winquakemenubg->width * s);
 		tmax = glheight / (winquakemenubg->height * s);
@@ -1003,7 +1003,7 @@ void GL_SetCanvas (canvastype newcanvas)
 		glViewport (viewport.x, viewport.y, viewport.width, viewport.height);
 		break;
 	case CANVAS_CSQC:
-		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
 		glViewport (glx, gly, glwidth, glheight);
 		break;
@@ -1021,8 +1021,8 @@ void GL_SetCanvas (canvastype newcanvas)
 		}
 		break;
 	case CANVAS_SBAR2:
-		s = q_min (glwidth / 400.0, glheight / 225.0);
-		s = CLAMP (1.0, scr_sbarscale.value, s);
+		s = q_min (glwidth / 400.0f, glheight / 225.0f);
+		s = CLAMP (1.0f, scr_sbarscale.value, s);
 		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
 		glViewport (glx, gly, glwidth, glheight);
 		break;

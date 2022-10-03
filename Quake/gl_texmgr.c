@@ -302,7 +302,7 @@ TexMgr_SoftEmu_f -- called when r_softemu changes
 static void TexMgr_SoftEmu_f (cvar_t *var)
 {
 	softemu = (int)r_softemu.value;
-	softemu = CLAMP (0, softemu, SOFTEMU_NUMMODES - 1);
+	softemu = CLAMP (0, (int)softemu, SOFTEMU_NUMMODES - 1);
 
 	gl_texturemode.callback (&gl_texturemode);
 }
@@ -1972,7 +1972,7 @@ void GLPalette_UpdateLookupTable (void)
 	else
 	{
 		metric = (int)r_softemu_metric.value;
-		metric = CLAMP (0, metric, SOFTEMU_METRIC_COUNT - 1);
+		metric = CLAMP (0, (int)metric, SOFTEMU_METRIC_COUNT - 1);
 	}
 
 	SDL_assert ((unsigned)metric < SOFTEMU_METRIC_COUNT);
@@ -2039,7 +2039,7 @@ int GLPalette_Postprocess (void)
 	GL_UseProgram (glprogs.palette_postprocess);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_palette_buffer[1], 0, 256 * sizeof (GLuint));
-	GL_Uniform2fFunc (0, vid_gamma.value, q_min(2.0, q_max(1.0, vid_contrast.value)));
+	GL_Uniform2fFunc (0, vid_gamma.value, CLAMP (1.0f, vid_contrast.value, 2.0f));
 	GL_Uniform4fvFunc (1, 1, blend);
 	GL_DispatchComputeFunc (256/64, 1, 1);
 	GL_MemoryBarrierFunc (GL_SHADER_STORAGE_BARRIER_BIT);

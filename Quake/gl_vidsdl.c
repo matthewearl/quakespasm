@@ -2026,7 +2026,7 @@ static void VID_Menu_ChooseNextAnisotropy (int dir)
 			aniso = gl_max_anisotropy;
 	}
 
-	Cvar_SetValueQuick (&gl_texture_anisotropy, CLAMP (1, aniso, gl_max_anisotropy));
+	Cvar_SetValueQuick (&gl_texture_anisotropy, CLAMP (1, aniso, (int)gl_max_anisotropy));
 }
 
 /*

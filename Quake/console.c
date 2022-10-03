@@ -1091,7 +1091,7 @@ static float Con_NotifyAlpha (double time)
 	if (!fade)
 		return 1.f;
 	time = time / fade;
-	return q_min (time, 1.f);
+	return q_min (time, 1.0);
 }
 
 /*

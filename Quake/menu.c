@@ -481,7 +481,7 @@ void M_List_DrawSearch (const menulist_t *list, int cx, int cy, int maxlen)
 	for (i = ofs; i < list->search.len; i++)
 		M_DrawCharacter (cx + (i-ofs)*8, cy, list->search.text[i]);
 
-	alpha = CLAMP (0.f, list->search.timeout / SEARCH_FADE_TIMEOUT, 1.f);
+	alpha = CLAMP (0.f, (float) list->search.timeout / SEARCH_FADE_TIMEOUT, 1.f);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
 	M_DrawCharacter (cx + (i-ofs)*8, cy, list->search.errtimeout ? 11^128 : 11);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);

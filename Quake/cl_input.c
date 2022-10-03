@@ -129,7 +129,7 @@ void IN_AccumMWheelPitch (float amt)
 	if (key == K_MWHEELDOWN || key == K_MWHEELUP)
 	{
 		cl.wheel_pitch += amt;
-		cl.wheel_pitch = CLAMP (-90, cl.wheel_pitch, 90);
+		cl.wheel_pitch = CLAMP (-90.f, cl.wheel_pitch, 90.f);
 	}
 }
 

@@ -285,7 +285,7 @@ void GL_PostProcess (void)
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0);
 	glViewport (glx, gly, glwidth, glheight);
 
-	variant = q_min(softemu, 2);
+	variant = q_min ((int)softemu, 2);
 	GL_UseProgram (glprogs.postprocess[variant]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_2D, framebufs.composite.color_tex);
