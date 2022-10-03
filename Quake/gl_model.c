@@ -452,7 +452,7 @@ static qboolean Mod_CheckAnimTextureArrayQ64(texture_t *anims[], int numTex)
 Mod_TextureTypeFromName
 ================
 */
-textype_t Mod_TextureTypeFromName (const char *texname)
+static textype_t Mod_TextureTypeFromName (const char *texname)
 {
 	if (texname[0] == '*')
 	{
@@ -1634,7 +1634,7 @@ static void Mod_LoadLeafs (lump_t *l, int bsp2)
 Mod_CheckWaterVis
 =================
 */
-void Mod_CheckWaterVis(void)
+static void Mod_CheckWaterVis(void)
 {
 	mleaf_t		*leaf, *other;
 	msurface_t * surf;
@@ -1742,7 +1742,7 @@ void Mod_CheckWaterVis(void)
 Mod_FindUsedTextures
 =================
 */
-void Mod_FindUsedTextures (qmodel_t *mod)
+static void Mod_FindUsedTextures (qmodel_t *mod)
 {
 	msurface_t *s;
 	int i, count, bit;
