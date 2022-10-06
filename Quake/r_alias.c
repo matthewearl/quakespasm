@@ -392,8 +392,6 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 	float		radiansangle;
 	float		fovscale = 1.0f;
 	float		model_matrix[16];
-	float		translation_matrix[16];
-	float		scale_matrix[16];
 	aliasinstance_t	*instance;
 
 	//
@@ -422,10 +420,8 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 	}
 
 	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	MatrixMultiply (model_matrix, scale_matrix);
+	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 
 	//
 	// set up for alpha blending

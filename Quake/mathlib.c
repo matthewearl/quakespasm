@@ -715,3 +715,62 @@ void IdentityMatrix(float matrix[16])
 	// Fourth column
 	matrix[3*4 + 3] = 1.0f;
 }
+
+/*
+=============
+ApplyScale
+=============
+*/
+void ApplyScale(float matrix[16], float x, float y, float z)
+{
+	matrix[0*4 + 0] *= x;
+	matrix[0*4 + 1] *= x;
+	matrix[0*4 + 2] *= x;
+	matrix[0*4 + 3] *= x;
+
+	matrix[1*4 + 0] *= y;
+	matrix[1*4 + 1] *= y;
+	matrix[1*4 + 2] *= y;
+	matrix[1*4 + 3] *= y;
+
+	matrix[2*4 + 0] *= z;
+	matrix[2*4 + 1] *= z;
+	matrix[2*4 + 2] *= z;
+	matrix[2*4 + 3] *= z;
+}
+
+/*
+=============
+ApplyTranslation
+=============
+*/
+void ApplyTranslation(float matrix[16], float x, float y, float z)
+{
+#ifdef USE_SSE2
+	__m128 v0 = _mm_loadu_ps (matrix + 0*4);
+	__m128 v1 = _mm_loadu_ps (matrix + 1*4);
+	__m128 v2 = _mm_loadu_ps (matrix + 2*4);
+	__m128 v3 = _mm_loadu_ps (matrix + 3*4);
+
+	v3 = _mm_add_ps (v3, _mm_mul_ps (v0, _mm_set_ps1 (x)));
+	v3 = _mm_add_ps (v3, _mm_mul_ps (v1, _mm_set_ps1 (y)));
+	v3 = _mm_add_ps (v3, _mm_mul_ps (v2, _mm_set_ps1 (z)));
+
+	_mm_storeu_ps (matrix + 3*4, v3);
+#else
+	matrix[3*4 + 0] += x*matrix[0*4 + 0];
+	matrix[3*4 + 1] += x*matrix[0*4 + 1];
+	matrix[3*4 + 2] += x*matrix[0*4 + 2];
+	matrix[3*4 + 3] += x*matrix[0*4 + 3];
+
+	matrix[3*4 + 0] += y*matrix[1*4 + 0];
+	matrix[3*4 + 1] += y*matrix[1*4 + 1];
+	matrix[3*4 + 2] += y*matrix[1*4 + 2];
+	matrix[3*4 + 3] += y*matrix[1*4 + 3];
+
+	matrix[3*4 + 0] += z*matrix[2*4 + 0];
+	matrix[3*4 + 1] += z*matrix[2*4 + 1];
+	matrix[3*4 + 2] += z*matrix[2*4 + 2];
+	matrix[3*4 + 3] += z*matrix[2*4 + 3];
+#endif
+}
