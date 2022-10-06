@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //===========================================================================
 
+extern cvar_t r_oit;
+extern cvar_t r_alphasort;
+
 /*
 ===============================================================================
 
@@ -153,10 +156,10 @@ R_AddStaticModels
 */
 void R_AddStaticModels (const byte *vis)
 {
-	int			i, j, leafidx, numleafs, *efrags;
+	int			i, j, start, leafidx, numleafs, *efrags;
 	entity_t	*ent;
 
-	for (i = 0, ent = cl_static_entities, efrags = cl_efrags; i < cl.num_statics; i++, ent++)
+	for (i = 0, start = cl_numvisedicts, ent = cl_static_entities, efrags = cl_efrags; i < cl.num_statics; i++, ent++)
 	{
 		if (!ent->model)
 			continue;
@@ -172,5 +175,18 @@ void R_AddStaticModels (const byte *vis)
 			}
 		}
 		efrags += numleafs;
+	}
+
+	// reverse order to match QS, if needed
+	if (!r_oit.value && !r_alphasort.value)
+	{
+		int count = cl_numvisedicts - start;
+		int half = count / 2;
+		for (i = 0, j = count - 1; i < half; i++, j--)
+		{
+			ent = cl_visedicts[start + i];
+			cl_visedicts[start + i] = cl_visedicts[start + j];
+			cl_visedicts[start + j] = ent;
+		}
 	}
 }

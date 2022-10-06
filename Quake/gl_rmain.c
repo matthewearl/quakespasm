@@ -623,6 +623,10 @@ static void R_SortEntities (void)
 
 			visedict_keys[i] = ~CLAMP (0, (int)dist, 0xffff);
 		}
+		else if (translucent && !r_oit.value)
+		{
+			visedict_keys[i] = i;
+		}
 		else
 		{
 			if (ent->model->type == mod_alias)
