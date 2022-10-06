@@ -574,6 +574,62 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 
 /*
 =============
+R_GetBModelAlphaPasses
+=============
+*/
+static uint32_t R_GetBModelAlphaPasses (const entity_t *ent)
+{
+	const qmodel_t *mod = ent->model;
+	uint32_t mask = 0;
+
+	if (mod->texofs[TEXTYPE_CUTOUT] != mod->texofs[TEXTYPE_DEFAULT])
+		mask |= (1 << BP_SOLID);
+	if (mod->texofs[TEXTYPE_SKY] != mod->texofs[TEXTYPE_CUTOUT])
+		mask |= (1 << BP_ALPHATEST);
+
+	return mask;
+}
+
+/*
+=============
+R_CanMergeBModelAlphaPasses
+=============
+*/
+static qboolean R_CanMergeBModelAlphaPasses (uint32_t mask_a, uint32_t mask_b)
+{
+	COMPILE_TIME_ASSERT (check_bit_0, BP_SOLID == 0);
+	COMPILE_TIME_ASSERT (check_bit_1, BP_ALPHATEST == 1);
+
+	enum
+	{
+		#define ALLOW_MERGE(a, b) (1 << ((a)|((b)<<2)))
+
+		MERGE_LUT =
+			ALLOW_MERGE (0, 0) |
+			ALLOW_MERGE (0, 1) |
+			ALLOW_MERGE (0, 2) |
+			ALLOW_MERGE (0, 3) |
+
+			ALLOW_MERGE (1, 0) |
+			ALLOW_MERGE (1, 1) |
+			ALLOW_MERGE (1, 2) |
+			ALLOW_MERGE (1, 3) |
+
+			ALLOW_MERGE (2, 0) |
+			ALLOW_MERGE (2, 2) |
+
+			ALLOW_MERGE (3, 0) |
+			ALLOW_MERGE (3, 2)
+		,
+
+		#undef ALLOW_MERGE
+	};
+
+	return (MERGE_LUT & (1 << (mask_a | (mask_b << 2)))) != 0;
+}
+
+/*
+=============
 R_DrawBrushModels
 =============
 */
@@ -583,8 +639,36 @@ void R_DrawBrushModels (entity_t **ents, int count)
 	if (!count)
 		return;
 	translucent = (ents[0] != &cl_entities[0]) && !ENTALPHA_OPAQUE (ents[0]->alpha);
-	R_DrawBrushModels_Real (ents, count, BP_SOLID, translucent);
-	R_DrawBrushModels_Real (ents, count, BP_ALPHATEST, translucent);
+	if (!translucent || r_oit.value)
+	{
+		R_DrawBrushModels_Real (ents, count, BP_SOLID, translucent);
+		R_DrawBrushModels_Real (ents, count, BP_ALPHATEST, translucent);
+	}
+	else
+	{
+		int i, j;
+		for (i = 0; i < count; /**/)
+		{
+			uint32_t mask = R_GetBModelAlphaPasses (ents[i]);
+			if (!mask)
+			{
+				i++;
+				continue;
+			}
+			for (j = i + 1; j < count; j++)
+			{
+				uint32_t nextmask = R_GetBModelAlphaPasses (ents[j]);
+				if (!R_CanMergeBModelAlphaPasses (mask, nextmask))
+					break;
+				mask |= nextmask;
+			}
+			if (mask & (1 << BP_SOLID))
+				R_DrawBrushModels_Real (ents + i, j - i, BP_SOLID, true);
+			if (mask & (1 << BP_ALPHATEST))
+				R_DrawBrushModels_Real (ents + i, j - i, BP_ALPHATEST, true);
+			i = j;
+		}
+	}
 }
 
 /*
