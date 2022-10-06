@@ -614,13 +614,16 @@ static void R_SortEntities (void)
 
 		if (translucent && alphasort)
 		{
-			float dist;
+			float dist, delta;
 			vec3_t mins, maxs;
 
 			R_GetEntityBounds (ent, mins, maxs);
 			for (j = 0, dist = 0.f; j < 3; j++)
-				dist += (CLAMP (mins[j], r_refdef.vieworg[j], maxs[j]) - r_refdef.vieworg[j]) * vpn[j];
-
+			{
+				delta = CLAMP (mins[j], r_refdef.vieworg[j], maxs[j]) - r_refdef.vieworg[j];
+				dist += delta * delta;
+			}
+			dist = sqrt (dist);
 			visedict_keys[i] = ~CLAMP (0, (int)dist, 0xffff);
 		}
 		else if (translucent && !r_oit.value)
