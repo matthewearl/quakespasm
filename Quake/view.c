@@ -551,16 +551,16 @@ void V_PolyBlend (void)
 
 	if (softemu)
 	{
-		// If software emulation is active then it's best to perform the color shifting
-		// through palette remapping, which is consistent with the old software renderers
-		// and also avoids palettization artifacts (e.g. underwater).
+		// If softemu is active then it's generally best to perform color shifting through
+		// palette remapping, which is consistent with the old software renderers, and also
+		// avoids palettization artifacts (e.g. underwater).
 
-		// However, when a custom color shift is active (v_cshift), then the expectation is
-		// that the effect is applied before centerprints: the books in Arcane Dimensions
-		// use a black overlay to make the text easier to read, but rendering it at the end
-		// of the pipeline would have the opposite effect. In this case, we perform
-		// the color shifting here.
-		if (!cshift_empty.percent)
+		// However, a black v_cshift is sometimes used as a background for centerprint text
+		// to make it easier to read (e.g. books in Arcane Dimensions). Applying the effect
+		// at the end of the frame would defeat its purpose (and make the UI harder to use),
+		// so we detect this case and apply the effect here.
+		int maxcolor = q_max (cshift_empty.destcolor[0], q_max (cshift_empty.destcolor[1], cshift_empty.destcolor[2]));
+		if (!cshift_empty.percent || maxcolor > 0)
 			return;
 	}
 	else
