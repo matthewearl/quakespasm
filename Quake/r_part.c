@@ -835,7 +835,7 @@ static void R_FlushParticleBatch (void)
 R_DrawParticles_Real -- johnfitz -- moved all non-drawing code to CL_RunParticles
 ===============
 */
-static void R_DrawParticles_Real (qboolean showtris)
+static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 {
 	particle_t		*p;
 	particlevert_t	*v;
@@ -844,7 +844,7 @@ static void R_DrawParticles_Real (qboolean showtris)
 	extern	cvar_t	r_oit;
 	//float			alpha; //johnfitz -- particle transparency
 	float			scalex, scaley;
-	qboolean		dither;
+	qboolean		dither, oit;
 
 	if (!r_particles.value)
 		return;
@@ -852,10 +852,15 @@ static void R_DrawParticles_Real (qboolean showtris)
 	if (!active_particles)
 		return;
 
+	// square particles are drawn opaque (avoiding alpha sorting issues)
+	if (!showtris && alpha != ((int)r_particles.value != 2))
+		return;
+
 	GL_BeginGroup ("Particles");
 
 	dither = (softemu == SOFTEMU_COARSE && !showtris);
-	GL_UseProgram (glprogs.particles[r_oit.value != 0.f][dither]);
+	oit = (alpha && r_oit.value != 0.f);
+	GL_UseProgram (glprogs.particles[oit][dither]);
 
 	// compensate for apparent size of different particle textures
 	// this bakes in the additional scaling of vup and vright by 1.5f for billboarding,
@@ -867,7 +872,10 @@ static void R_DrawParticles_Real (qboolean showtris)
 	GL_Uniform2fFunc (0, scalex, scaley);
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
-	GL_SetState (GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
+	if (alpha)
+		GL_SetState (GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
+	else
+		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
 
 	numpartverts = 0;
 	for (p=active_particles ; p ; p=p->next)
@@ -898,9 +906,9 @@ static void R_DrawParticles_Real (qboolean showtris)
 R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 ===============
 */
-void R_DrawParticles (void)
+void R_DrawParticles (qboolean alpha)
 {
-	R_DrawParticles_Real (false);
+	R_DrawParticles_Real (alpha, false);
 }
 /*
 ===============
@@ -909,6 +917,6 @@ R_DrawParticles_ShowTris -- johnfitz
 */
 void R_DrawParticles_ShowTris (void)
 {
-	R_DrawParticles_Real (true);
+	R_DrawParticles_Real (false, true);
 }
 

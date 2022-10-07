@@ -413,7 +413,7 @@ qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
 
 void R_InitParticles (void);
-void R_DrawParticles (void);
+void R_DrawParticles (qboolean alpha);
 void R_DrawParticles_ShowTris (void);
 void CL_RunParticles (void);
 void R_ClearParticles (void);
