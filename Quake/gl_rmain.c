@@ -78,7 +78,7 @@ cvar_t	r_novis = {"r_novis","0",CVAR_ARCHIVE};
 #if defined(USE_SIMD)
 cvar_t	r_simd = {"r_simd","1",CVAR_ARCHIVE};
 #endif
-cvar_t	r_alphasort = {"r_alphasort","1",CVAR_NONE};
+cvar_t	r_alphasort = {"r_alphasort","1",CVAR_ARCHIVE};
 cvar_t	r_oit = {"r_oit","1",CVAR_ARCHIVE};
 
 cvar_t	gl_finish = {"gl_finish","0",CVAR_NONE};
