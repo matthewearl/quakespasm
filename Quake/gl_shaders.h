@@ -217,6 +217,10 @@ SOFTWARE.*/\
 "\n"\
 "#define DITHER_NOISE(uv) tri(ignoise01(uv))\n"\
 "#define SCREEN_SPACE_NOISE() DITHER_NOISE(floor(gl_FragCoord.xy)+0.5)\n"\
+"#define SUPPRESS_BANDING() \\\n"\
+"	(gl_NumSamples > 1 ?\\\n"\
+"		ignoise(floor(gl_FragCoord.xy) + 0.5) * (1.5/255.) :\\\n"\
+"		ignoise(gl_FragCoord.xy) * (1.5/255.))\n"\
 "#define PAL_NOISESCALE (12./255.)\n"\
 
 ////////////////////////////////////////////////////////////////
@@ -709,6 +713,8 @@ OIT_OUTPUT (out_fragcolor)
 "#if DITHER >= 2\n"
 "	// nuke extra precision in 10-bit framebuffer\n"
 "	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
+"#elif DITHER == 0\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING ();\n"
 "#endif\n"
 "}\n";
 
@@ -785,6 +791,8 @@ OIT_OUTPUT (out_fragcolor)
 "		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
@@ -853,6 +861,7 @@ static const char sky_layers_fragment_shader[] =
 "#endif\n"
 "\n"
 FRAMEDATA_BUFFER
+NOISE_FUNCTIONS
 "\n"
 "layout(location=0) in vec3 in_dir;\n"
 "#if BINDLESS\n"
@@ -873,6 +882,7 @@ FRAMEDATA_BUFFER
 "	result.rgb = mix(result.rgb, layer.rgb, layer.a);\n"
 "	result.rgb = mix(result.rgb, SkyFog.rgb, SkyFog.a);\n"
 "	out_fragcolor = result;\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -922,6 +932,8 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
 "	out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
@@ -971,6 +983,8 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
 "	out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
@@ -1119,6 +1133,8 @@ OIT_OUTPUT (out_fragcolor)
 "		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
@@ -1171,6 +1187,8 @@ NOISE_FUNCTIONS
 "		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
@@ -1242,6 +1260,8 @@ OIT_OUTPUT (out_fragcolor)
 "		out_fragcolor.rgb += SCREEN_SPACE_NOISE() * PAL_NOISESCALE;\n"
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
+"#else\n"
+"	out_fragcolor.rgb += SUPPRESS_BANDING();\n"
 "#endif\n"
 "}\n";
 
