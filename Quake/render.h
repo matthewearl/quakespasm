@@ -66,14 +66,8 @@ typedef struct entity_s
 	byte					*colormap;
 	int						effects;		// light, particles, etc
 	int						skinnum;		// for Alias models
-	int						visframe;		// last frame this entity was
-											//  found in an active leaf
-
-	int						dlightframe;	// dynamic lighting
-	int						dlightbits;
 
 // FIXME: could turn these into a union
-	int						trivial_accept;
 
 	byte					alpha;			//johnfitz -- alpha
 	byte					scale;
