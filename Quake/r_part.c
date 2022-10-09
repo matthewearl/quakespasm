@@ -38,8 +38,8 @@ vec3_t			r_pright, r_pup, r_ppn;
 
 int			r_numparticles;
 
-gltexture_t *particletexture, *particletexture1, *particletexture2, *particletexture3, *particletexture4; //johnfitz
-float texturescalefactor; //johnfitz -- compensate for apparent size of different particle textures
+static float uvscale;
+static float texturescalefactor; //johnfitz -- compensate for apparent size of different particle textures
 
 cvar_t	r_particles = {"r_particles","2", CVAR_ARCHIVE}; //johnfitz
 
@@ -53,75 +53,6 @@ static int numpartverts = 0;
 
 /*
 ===============
-R_ParticleTextureLookup -- johnfitz -- generate nice antialiased 32x32 circle for particles
-===============
-*/
-int R_ParticleTextureLookup (int x, int y, int sharpness)
-{
-	int r; //distance from point x,y to circle origin, squared
-	int a; //alpha value to return
-
-	x -= 16;
-	y -= 16;
-	r = x * x + y * y;
-	r = r > 255 ? 255 : r;
-	a = sharpness * (255 - r);
-	a = q_min(a,255);
-	return a;
-}
-
-/*
-===============
-R_InitParticleTextures -- johnfitz -- rewritten
-===============
-*/
-void R_InitParticleTextures (void)
-{
-	int			x,y;
-	static byte	particle1_data[64*64*4];
-	static byte	particle2_data[2*2*4];
-	static byte	particle3_data[64*64*4];
-	byte		*dst;
-
-	// particle texture 1 -- circle
-	dst = particle1_data;
-	for (x=0 ; x<64 ; x++)
-		for (y=0 ; y<64 ; y++)
-		{
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = R_ParticleTextureLookup(x, y, 8);
-		}
-	particletexture1 = TexMgr_LoadImage (NULL, "particle1", 64, 64, SRC_RGBA, particle1_data, "", (src_offset_t)particle1_data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
-
-	// particle texture 2 -- square
-	dst = particle2_data;
-	for (x=0 ; x<2 ; x++)
-		for (y=0 ; y<2 ; y++)
-		{
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = x || y ? 0 : 255;
-		}
-	particletexture2 = TexMgr_LoadImage (NULL, "particle2", 2, 2, SRC_RGBA, particle2_data, "", (src_offset_t)particle2_data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_NEAREST);
-
-	// particle texture 3 -- blob
-	dst = particle3_data;
-	for (x=0 ; x<64 ; x++)
-		for (y=0 ; y<64 ; y++)
-		{
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = 255;
-			*dst++ = R_ParticleTextureLookup(x, y, 2);
-		}
-	particletexture3 = TexMgr_LoadImage (NULL, "particle3", 64, 64, SRC_RGBA, particle3_data, "", (src_offset_t)particle3_data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
-}
-
-/*
-===============
 R_SetParticleTexture_f -- johnfitz
 ===============
 */
@@ -130,17 +61,13 @@ static void R_SetParticleTexture_f (cvar_t *var)
 	switch ((int)(r_particles.value))
 	{
 	case 1:
-		particletexture = particletexture1;
+		uvscale = 1;
 		texturescalefactor = 1.27;
 		break;
 	case 2:
-		particletexture = particletexture2;
+		uvscale = 0.25;
 		texturescalefactor = 1.0;
 		break;
-//	case 3:
-//		particletexture = particletexture3;
-//		texturescalefactor = 1.5;
-//		break;
 	}
 }
 
@@ -185,8 +112,6 @@ void R_InitParticles (void)
 
 	particles = (particle_t *)
 			Hunk_AllocName (r_numparticles * sizeof(particle_t), "particles");
-
-	R_InitParticleTextures (); //johnfitz
 
 	Cvar_RegisterVariable (&r_particles); //johnfitz
 	Cvar_SetCallback (&r_particles, R_SetParticleTexture_f);
@@ -869,9 +794,8 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 	// projection factors (see GL_FrustumMatrix), negated to make things easier in the shader
 	scalex *=  r_matproj[1*4 + 0]; // -1 / tan (fovx/2)
 	scaley *= -r_matproj[2*4 + 1]; // -1 / tan (fovy/2)
-	GL_Uniform2fFunc (0, scalex, scaley);
+	GL_Uniform3fFunc (0, scalex, scaley, uvscale);
 
-	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : particletexture);
 	if (alpha)
 		GL_SetState (GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
 	else
