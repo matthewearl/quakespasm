@@ -136,8 +136,6 @@ typedef struct cachepic_s
 cachepic_t	menu_cachepics[MAX_CACHED_PICS];
 int			menu_numcachepics;
 
-byte		menuplyr_pixels[4096];
-
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture
 //  to crutch up stupid hardware / drivers
@@ -337,7 +335,6 @@ qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 	int			i, x, y;
 	qpic_t		*dat;
 	glpic_t		gl;
-	qboolean	menuplyr = false;
 
 	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
 	{
@@ -357,19 +354,16 @@ qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 		return NULL;
 	SwapPic (dat);
 
-	// HACK HACK HACK --- we need to keep the bytes for
-	// the translatable player picture just for the menu
-	// configuration dialog
+	// HACK HACK HACK --- we need to keep this as a separate texture
+	// so that the menu configuration dialog can translate its colors
+	// without affecting the whole scrap atlas
 	if (!strcmp (path, "gfx/menuplyr.lmp"))
-	{
-		menuplyr = true;
-		memcpy (menuplyr_pixels, dat->data, dat->width*dat->height);
-	}
+		texflags &= ~TEXPREF_PAD; // no scrap usage
 
 	pic->pic.width = dat->width;
 	pic->pic.height = dat->height;
 
-	if (!menuplyr && Scrap_Compatible (texflags) && Scrap_AllocBlock (dat->width, dat->height, &x, &y))
+	if (Scrap_Compatible (texflags) && Scrap_AllocBlock (dat->width, dat->height, &x, &y))
 	{
 		Scrap_FillTexels (x, y, dat->width, dat->height, dat->data);
 		gl.gltexture = scrap_texture;
