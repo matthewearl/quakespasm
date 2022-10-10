@@ -1437,7 +1437,7 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 			       byte *data, const char *source_file, src_offset_t source_offset, unsigned flags)
 {
 	unsigned short crc = 0;
-	gltexture_t *glt;
+	gltexture_t *glt = NULL;
 	int mark;
 
 	if (isDedicated)
@@ -1448,7 +1448,7 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 		flags = (flags & ~(TEXPREF_OVERWRITE | TEXPREF_PAD)) | TEXPREF_NOPICMIP;
 
 	// cache check
-	if (data && (flags & TEXPREF_OVERWRITE) && (glt = TexMgr_FindTexture (owner, name)))
+	if (data && (flags & TEXPREF_OVERWRITE))
 	{
 		switch (format)
 		{
@@ -1466,13 +1466,12 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 			break;
 		}
 
-		if (glt->source_crc == crc)
+		if ((glt = TexMgr_FindTexture (owner, name)) && glt->source_crc == crc)
 			return glt;
 	}
-	else
-	{
+
+	if (!glt)
 		glt = TexMgr_NewTexture ();
-	}
 
 	// copy data
 	glt->owner = owner;
