@@ -142,30 +142,40 @@ byte		menuplyr_pixels[4096];
 //  Allocate all the little status bar obejcts into a single texture
 //  to crutch up stupid hardware / drivers
 
-#define	MAX_SCRAPS		2
-#define	BLOCK_WIDTH		256
-#define	BLOCK_HEIGHT	256
-#define	SCRAP_PADDING	1
+#define	SCRAP_BLOCKS_X		4
+#define	SCRAP_BLOCKS_Y		1
+#define	MAX_SCRAPS			(SCRAP_BLOCKS_X * SCRAP_BLOCKS_Y)
+#define	BLOCK_WIDTH			256
+#define	BLOCK_HEIGHT		1024
+#define	SCRAP_ATLAS_WIDTH	(SCRAP_BLOCKS_X * BLOCK_WIDTH)
+#define	SCRAP_ATLAS_HEIGHT	(SCRAP_BLOCKS_Y * BLOCK_HEIGHT)
+#define	SCRAP_PADDING		1
+#define	MAX_SCRAP_WIDTH		128
+#define	MAX_SCRAP_HEIGHT	128
 
 int			scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
-byte		scrap_texels[MAX_SCRAPS][BLOCK_WIDTH*BLOCK_HEIGHT]; //johnfitz -- removed *4 after BLOCK_HEIGHT
+byte		scrap_texels[SCRAP_ATLAS_WIDTH*SCRAP_ATLAS_HEIGHT];
 qboolean	scrap_dirty;
-gltexture_t	*scrap_textures[MAX_SCRAPS]; //johnfitz
+gltexture_t	*scrap_texture; //johnfitz
 gltexture_t	*winquakemenubg;
 
 
 /*
 ================
 Scrap_AllocBlock
-
-returns an index into scrap_texnums[] and the position inside it
 ================
 */
-int Scrap_AllocBlock (int w, int h, int *x, int *y)
+qboolean Scrap_AllocBlock (int w, int h, int *x, int *y)
 {
 	int		i, j;
 	int		best, best2;
 	int		texnum;
+
+	w += SCRAP_PADDING;
+	h += SCRAP_PADDING;
+
+	if (w > MAX_SCRAP_WIDTH || h > MAX_SCRAP_HEIGHT)
+		return false;
 
 	for (texnum=0 ; texnum<MAX_SCRAPS ; texnum++)
 	{
@@ -195,11 +205,13 @@ int Scrap_AllocBlock (int w, int h, int *x, int *y)
 		for (i=0 ; i<w ; i++)
 			scrap_allocated[texnum][*x + i] = best + h;
 
-		return texnum;
+		*x += (texnum % SCRAP_BLOCKS_X) * BLOCK_WIDTH;
+		*y += (texnum / SCRAP_BLOCKS_X) * BLOCK_HEIGHT;
+
+		return true;
 	}
 
-	Sys_Error ("Scrap_AllocBlock: full"); //johnfitz -- correct function name
-	return 0; //johnfitz -- shut up compiler
+	return false;
 }
 
 /*
@@ -209,17 +221,35 @@ Scrap_Upload -- johnfitz -- now uses TexMgr
 */
 void Scrap_Upload (void)
 {
-	char name[8];
-	int	i;
-
-	for (i=0; i<MAX_SCRAPS; i++)
-	{
-		sprintf (name, "scrap%i", i);
-		scrap_textures[i] = TexMgr_LoadImage (NULL, name, BLOCK_WIDTH, BLOCK_HEIGHT, SRC_INDEXED, scrap_texels[i],
-			"", (src_offset_t)scrap_texels[i], TEXPREF_ALPHA | TEXPREF_OVERWRITE | TEXPREF_NOPICMIP);
-	}
-
+	scrap_texture = TexMgr_LoadImage (NULL, "scrap", SCRAP_ATLAS_WIDTH, SCRAP_ATLAS_HEIGHT, SRC_INDEXED, scrap_texels,
+		"", (src_offset_t)scrap_texels, TEXPREF_ALPHA | TEXPREF_OVERWRITE | TEXPREF_NOPICMIP);
 	scrap_dirty = false;
+}
+
+/*
+================
+Scrap_FillTexels
+================
+*/
+void Scrap_FillTexels (int x, int y, int w, int h, const byte *data)
+{
+	int i;
+	byte *dst = &scrap_texels[y*SCRAP_ATLAS_WIDTH + x];
+	for (i = 0; i < h; i++, dst += SCRAP_ATLAS_WIDTH, data += w)
+		memcpy (dst, data, w);
+	scrap_dirty = true;
+}
+
+/*
+================
+Scrap_Compatible
+================
+*/
+qboolean Scrap_Compatible (unsigned int texflags)
+{
+	unsigned int required = TEXPREF_PAD;
+	unsigned int unsupported = TEXPREF_MIPMAP | TEXPREF_NEAREST | TEXPREF_LINEAR;
+	return (texflags & required) == required && (texflags & unsupported) == 0;
 }
 
 /*
@@ -229,7 +259,7 @@ Draw_PicFromWad
 */
 qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 {
-	int i;
+	int i, x, y;
 	cachepic_t *pic;
 	qpic_t	*p;
 	glpic_t	gl;
@@ -257,26 +287,16 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	if ((size_t)info->size > sizeof(int)*2+p->width*p->height) Con_DPrintf ("Draw_PicFromWad: pic \"%s\" over-sized (%u*%u requires only %u bytes)\n", name, p->width,p->height, 8+p->width*p->height);
 
 	// load little ones into the scrap
-	if (p->width < 64 && p->height < 64)
+	if (Scrap_Compatible (texflags) && Scrap_AllocBlock (p->width, p->height, &x, &y))
 	{
-		int		x, y;
-		int		i, j, k;
-		int		texnum;
+		Scrap_FillTexels (x, y, p->width, p->height, p->data);
 
-		texnum = Scrap_AllocBlock (p->width + SCRAP_PADDING, p->height + SCRAP_PADDING, &x, &y);
-		scrap_dirty = true;
-		k = 0;
-		for (i=0 ; i<p->height ; i++)
-		{
-			for (j=0 ; j<p->width ; j++, k++)
-				scrap_texels[texnum][(y+i)*BLOCK_WIDTH + x + j] = p->data[k];
-		}
-		gl.gltexture = scrap_textures[texnum]; //johnfitz -- changed to an array
+		gl.gltexture = scrap_texture; //johnfitz -- changed to an array
 		//johnfitz -- no longer go from 0.01 to 0.99
-		gl.sl = x/(float)BLOCK_WIDTH;
-		gl.sh = (x+p->width)/(float)BLOCK_WIDTH;
-		gl.tl = y/(float)BLOCK_WIDTH;
-		gl.th = (y+p->height)/(float)BLOCK_WIDTH;
+		gl.sl = x/(float)SCRAP_ATLAS_WIDTH;
+		gl.sh = (x+p->width)/(float)SCRAP_ATLAS_WIDTH;
+		gl.tl = y/(float)SCRAP_ATLAS_HEIGHT;
+		gl.th = (y+p->height)/(float)SCRAP_ATLAS_HEIGHT;
 	}
 	else
 	{
@@ -314,9 +334,10 @@ Draw_CachePic
 qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 {
 	cachepic_t	*pic;
-	int			i;
+	int			i, x, y;
 	qpic_t		*dat;
 	glpic_t		gl;
+	qboolean	menuplyr = false;
 
 	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
 	{
@@ -340,17 +361,33 @@ qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 	// the translatable player picture just for the menu
 	// configuration dialog
 	if (!strcmp (path, "gfx/menuplyr.lmp"))
+	{
+		menuplyr = true;
 		memcpy (menuplyr_pixels, dat->data, dat->width*dat->height);
+	}
 
 	pic->pic.width = dat->width;
 	pic->pic.height = dat->height;
 
-	gl.gltexture = TexMgr_LoadImage (NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path,
-									  sizeof(int)*2, texflags); //johnfitz -- TexMgr
-	gl.sl = 0;
-	gl.sh = (float)dat->width/(float)TexMgr_PadConditional(dat->width); //johnfitz
-	gl.tl = 0;
-	gl.th = (float)dat->height/(float)TexMgr_PadConditional(dat->height); //johnfitz
+	if (!menuplyr && Scrap_Compatible (texflags) && Scrap_AllocBlock (dat->width, dat->height, &x, &y))
+	{
+		Scrap_FillTexels (x, y, dat->width, dat->height, dat->data);
+		gl.gltexture = scrap_texture;
+		gl.sl = x/(float)SCRAP_ATLAS_WIDTH;
+		gl.tl = y/(float)SCRAP_ATLAS_HEIGHT;
+		gl.sh = (x+dat->width)/(float)SCRAP_ATLAS_WIDTH;
+		gl.th = (y+dat->height)/(float)SCRAP_ATLAS_HEIGHT;
+	}
+	else
+	{
+		gl.gltexture = TexMgr_LoadImage (NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path,
+										  sizeof(int)*2, texflags); //johnfitz -- TexMgr
+		gl.sl = 0;
+		gl.sh = (float)dat->width/(float)TexMgr_PadConditional(dat->width); //johnfitz
+		gl.tl = 0;
+		gl.th = (float)dat->height/(float)TexMgr_PadConditional(dat->height); //johnfitz
+	}
+
 	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
 	return &pic->pic;
@@ -413,7 +450,7 @@ void Draw_LoadPics (void)
 		WADFILENAME, offset, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS);
 
 	draw_disc = Draw_PicFromWad ("disc");
-	draw_backtile = Draw_PicFromWad ("backtile");
+	draw_backtile = Draw_PicFromWad2 ("backtile", TEXPREF_ALPHA | TEXPREF_NOPICMIP); // no pad flag to force separate allocation
 }
 
 /*
