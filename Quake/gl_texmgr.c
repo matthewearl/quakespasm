@@ -339,26 +339,50 @@ static void TexMgr_Imagelist_f (void)
 {
 	double bytes = 0;
 	double texels = 0;
+	int count = 0;
+	const char *filter = NULL;
 	gltexture_t	*glt;
+
+	if (Cmd_Argc () >= 2)
+		filter = Cmd_Argv (1);
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
+		char buf[MAX_QPATH];
 		char mip = glt->flags & TEXPREF_MIPMAP ? 'm' : ' ';
 		char comp = glt->compression > 1 ? 'c' : ' ';
 		unsigned int layers = glt->flags & TEXPREF_CUBEMAP ? glt->depth * 6 : glt->depth;
 		unsigned int s = glt->width * glt->height * layers;
 
-		if (layers > 1)
-			Con_SafePrintf ("%3i x %4i x %4i %c%c %s\n", layers, glt->width, glt->height, comp, mip, glt->name);
+		if (filter)
+		{
+			if (!q_strcasestr (glt->name, filter))
+				continue;
+			COM_TintSubstring (glt->name, filter, buf, sizeof (buf));
+		}
 		else
-			Con_SafePrintf ("      %4i x %4i %c%c %s\n", glt->width, glt->height, comp, mip, glt->name);
+		{
+			q_strlcpy (buf, glt->name, sizeof (buf));
+		}
+
+		if (layers > 1)
+			Con_SafePrintf ("%3i x %4i x %4i %c%c %s\n", layers, glt->width, glt->height, comp, mip, buf);
+		else
+			Con_SafePrintf ("      %4i x %4i %c%c %s\n", glt->width, glt->height, comp, mip, buf);
+
 		if (glt->flags & TEXPREF_MIPMAP)
 			s = (s * 4 + 3) / 3;
 		texels += s;
 		bytes += s * 4 / glt->compression;
+		count++;
 	}
 
-	Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n", numgltextures, texels * 1e-6, bytes / 0x100000);
+	if (filter)
+		Con_Printf ("%i/%i textures containing '%s': %.1lf mpixels %1.1lf megabytes\n",
+			count, numgltextures, filter, texels * 1e-6, bytes / 0x100000);
+	else
+		Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n",
+			numgltextures, texels * 1e-6, bytes / 0x100000);
 }
 
 /*
