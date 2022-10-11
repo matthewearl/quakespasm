@@ -54,13 +54,12 @@ typedef struct particle_s
 {
 // driver-usable fields
 	vec3_t		org;
-	float		color;
+	byte		color;
 // drivers never touch the following fields
-	struct particle_s	*next;
+	byte		type;
+	float		die;
 	vec3_t		vel;
 	float		ramp;
-	float		die;
-	ptype_t		type;
 } particle_t;
 
 

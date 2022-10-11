@@ -32,9 +32,8 @@ int		ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
 int		ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
 int		ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
-particle_t	*active_particles, *free_particles, *particles;
-
-int			r_numparticles;
+particle_t	*particles;
+int			r_numparticles, r_numactiveparticles;
 
 static float uvscale;
 static float texturescalefactor; //johnfitz -- compensate for apparent size of different particle textures
@@ -76,14 +75,9 @@ R_AllocParticle
 */
 particle_t *R_AllocParticle (void)
 {
-	particle_t *p = free_particles;
-	if (p)
-	{
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-	}
-	return p;
+	if (r_numactiveparticles < r_numparticles)
+		return &particles[r_numactiveparticles++];
+	return NULL;
 }
 
 /*
@@ -110,6 +104,7 @@ void R_InitParticles (void)
 
 	particles = (particle_t *)
 			Hunk_AllocName (r_numparticles * sizeof(particle_t), "particles");
+	r_numactiveparticles = 0;
 
 	Cvar_RegisterVariable (&r_particles); //johnfitz
 	Cvar_SetCallback (&r_particles, R_SetParticleTexture_f);
@@ -189,14 +184,7 @@ R_ClearParticles
 */
 void R_ClearParticles (void)
 {
-	int		i;
-
-	free_particles = &particles[0];
-	active_particles = NULL;
-
-	for (i=0 ;i<r_numparticles ; i++)
-		particles[i].next = &particles[i+1];
-	particles[r_numparticles-1].next = NULL;
+	r_numactiveparticles = 0;
 }
 
 /*
@@ -631,8 +619,8 @@ CL_RunParticles -- johnfitz -- all the particle behavior, separated from R_DrawP
 */
 void CL_RunParticles (void)
 {
-	particle_t		*p, *kill;
-	int				i;
+	particle_t		*p;
+	int				i, cur, active;
 	float			time1, time2, time3, dvel, frametime, grav;
 	extern	cvar_t	sv_gravity;
 
@@ -643,33 +631,10 @@ void CL_RunParticles (void)
 	grav = frametime * sv_gravity.value * 0.05;
 	dvel = 4*frametime;
 
-	for ( ;; )
+	for (cur = active = 0, p = particles; cur < r_numactiveparticles; cur++, p++)
 	{
-		kill = active_particles;
-		if (kill && kill->die < cl.time)
-		{
-			active_particles = kill->next;
-			kill->next = free_particles;
-			free_particles = kill;
+		if (p->die < cl.time)
 			continue;
-		}
-		break;
-	}
-
-	for (p=active_particles ; p ; p=p->next)
-	{
-		for ( ;; )
-		{
-			kill = p->next;
-			if (kill && kill->die < cl.time)
-			{
-				p->next = kill->next;
-				kill->next = free_particles;
-				free_particles = kill;
-				continue;
-			}
-			break;
-		}
 
 		p->org[0] += p->vel[0]*frametime;
 		p->org[1] += p->vel[1]*frametime;
@@ -727,7 +692,13 @@ void CL_RunParticles (void)
 			p->vel[2] -= grav;
 			break;
 		}
+
+		if (cur != active)
+			particles[active] = *p;
+		active++;
 	}
+
+	r_numactiveparticles = active;
 }
 
 /*
@@ -768,11 +739,12 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 	//float			alpha; //johnfitz -- particle transparency
 	float			scalex, scaley;
 	qboolean		dither, oit;
+	int				i;
 
 	if (!r_particles.value)
 		return;
 
-	if (!active_particles)
+	if (!r_numactiveparticles)
 		return;
 
 	// square particles are drawn opaque (avoiding alpha sorting issues)
@@ -800,7 +772,7 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));
 
 	numpartverts = 0;
-	for (p=active_particles ; p ; p=p->next)
+	for (i = 0, p = particles; i < r_numactiveparticles; i++, p++)
 	{
 		if (numpartverts == countof(partverts))
 			R_FlushParticleBatch ();
@@ -810,11 +782,12 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 
 		//johnfitz -- particle transparency and fade out
 		c = showtris ? color : (GLubyte *) &d_8to24table[(int)p->color];
+		*(uint32_t*)&v->color = *(uint32_t*)c;
 		v->color[0] = c[0];
 		v->color[1] = c[1];
 		v->color[2] = c[2];
 		//alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
-		v->color[3] = 255; //(int)(alpha * 255);
+		v->color[3] = c[3]; //(int)(alpha * 255);
 		//johnfitz
 	}
 
