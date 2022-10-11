@@ -147,7 +147,6 @@ int			menu_numcachepics;
 #define	BLOCK_HEIGHT		1024
 #define	SCRAP_ATLAS_WIDTH	(SCRAP_BLOCKS_X * BLOCK_WIDTH)
 #define	SCRAP_ATLAS_HEIGHT	(SCRAP_BLOCKS_Y * BLOCK_HEIGHT)
-#define	SCRAP_PADDING		1
 #define	MAX_SCRAP_WIDTH		128
 #define	MAX_SCRAP_HEIGHT	128
 
@@ -169,8 +168,9 @@ qboolean Scrap_AllocBlock (int w, int h, int *x, int *y)
 	int		best, best2;
 	int		texnum;
 
-	w += SCRAP_PADDING;
-	h += SCRAP_PADDING;
+	// padding
+	w += 2;
+	h += 2;
 
 	if (w > MAX_SCRAP_WIDTH || h > MAX_SCRAP_HEIGHT)
 		return false;
@@ -203,8 +203,8 @@ qboolean Scrap_AllocBlock (int w, int h, int *x, int *y)
 		for (i=0 ; i<w ; i++)
 			scrap_allocated[texnum][*x + i] = best + h;
 
-		*x += (texnum % SCRAP_BLOCKS_X) * BLOCK_WIDTH;
-		*y += (texnum / SCRAP_BLOCKS_X) * BLOCK_HEIGHT;
+		*x += 1 + (texnum % SCRAP_BLOCKS_X) * BLOCK_WIDTH;
+		*y += 1 + (texnum / SCRAP_BLOCKS_X) * BLOCK_HEIGHT;
 
 		return true;
 	}
@@ -227,14 +227,22 @@ void Scrap_Upload (void)
 /*
 ================
 Scrap_FillTexels
+
+Fills the given rectangle *and* a 1-pixel border around it
+with the closest pixels from the source image (emulating UV clamping)
 ================
 */
 void Scrap_FillTexels (int x, int y, int w, int h, const byte *data)
 {
 	int i;
-	byte *dst = &scrap_texels[y*SCRAP_ATLAS_WIDTH + x];
-	for (i = 0; i < h; i++, dst += SCRAP_ATLAS_WIDTH, data += w)
-		memcpy (dst, data, w);
+	byte *dst = &scrap_texels[(y - 1) * SCRAP_ATLAS_WIDTH + x - 1];
+	for (i = -1; i <= h; i++, dst += SCRAP_ATLAS_WIDTH)
+	{
+		const byte *src = data + CLAMP (0, i, h - 1) * w;
+		dst[0] = src[0];
+		memcpy (dst + 1, src, w);
+		dst[w + 1] = src[w - 1];
+	}
 	scrap_dirty = true;
 }
 
