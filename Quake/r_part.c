@@ -34,8 +34,6 @@ int		ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
 particle_t	*active_particles, *free_particles, *particles;
 
-vec3_t			r_pright, r_pup, r_ppn;
-
 int			r_numparticles;
 
 static float uvscale;
