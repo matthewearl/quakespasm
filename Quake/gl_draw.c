@@ -561,6 +561,9 @@ void Draw_Flush (void)
 	if (!numbatchquads)
 		return;
 
+	if (scrap_dirty && glcanvas.texture == scrap_texture)
+		Scrap_Upload ();
+
 	GL_UseProgram (glprogs.gui);
 	GL_SetState (glcanvas.blendmode | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
 	GL_Bind (GL_TEXTURE0, glcanvas.texture);
@@ -751,8 +754,6 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	if (!pic)
 		return;
 
-	if (scrap_dirty)
-		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
 	Draw_SetTexture (gl->gltexture);
 
@@ -779,8 +780,6 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 	s2 += s1;
 	t2 += t1;
 
-	if (scrap_dirty)
-		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
 	Draw_SetTexture (gl->gltexture);
 
