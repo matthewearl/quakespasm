@@ -317,8 +317,7 @@ Loads a model into the cache
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
 	byte	*buf;
-	byte	stackbuf[1024];		// avoid dirtying the cache heap
-	int	mod_type;
+	int		mod_type;
 
 	if (!mod->needload)
 	{
@@ -342,7 +341,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
-	buf = COM_LoadStackFile (mod->name, stackbuf, sizeof(stackbuf), & mod->path_id);
+	buf = COM_LoadMallocFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
 		if (crash)
@@ -379,6 +378,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
+
+	free (buf);
 
 	return mod;
 }
