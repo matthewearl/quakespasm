@@ -633,23 +633,14 @@ void Host_ClearMemory (void)
 
 /*
 ===================
-Host_FilterTime
-
-Returns false if the time is too short to run a frame
+Host_GetFrameInterval
 ===================
 */
-qboolean Host_FilterTime (float time)
+double Host_GetFrameInterval (void)
 {
-	float maxfps; // johnfitz
-	float min_frame_time;
-	float delta_since_last_frame;
-
-	realtime += time;
-	delta_since_last_frame = realtime - oldrealtime;
-
-	//johnfitz -- max fps cvar
 	if ((host_maxfps.value || cls.state == ca_disconnected) && !cls.timedemo)
 	{
+		float maxfps;
 		if (cls.state == ca_disconnected)
 		{
 			maxfps = vid.refreshrate ? vid.refreshrate : 60.f;
@@ -662,16 +653,23 @@ qboolean Host_FilterTime (float time)
 			maxfps = CLAMP (10.f, host_maxfps.value, 1000.f);
 		}
 
-		// Check if we still have more than 2ms till next frame and if so wait for "1ms"
-		// E.g. Windows is not a real time OS and the sleeps can vary in length even with timeBeginPeriod(1)
-		min_frame_time = 1.0f / maxfps;
-		if((min_frame_time - delta_since_last_frame) > (2.0f/1000.0f))
-			SDL_Delay(1);
-
-		if (delta_since_last_frame < min_frame_time)
-			return false; // framerate is too high
+		return 1.0 / maxfps;
 	}
-	//johnfitz
+
+	return 0.0;
+}
+
+/*
+===================
+Host_AdvanceTime
+===================
+*/
+static void Host_AdvanceTime (double dt)
+{
+	double delta_since_last_frame;
+
+	realtime += dt;
+	delta_since_last_frame = realtime - oldrealtime;
 
 	host_frametime = delta_since_last_frame;
 	oldrealtime = realtime;
@@ -684,8 +682,6 @@ qboolean Host_FilterTime (float time)
 		host_frametime = host_framerate.value;
 	else if (host_maxfps.value)// don't allow really long or short frames
 		host_frametime = CLAMP (0.0001, host_frametime, 0.1); //johnfitz -- use CLAMP
-
-	return true;
 }
 
 /*
@@ -919,8 +915,7 @@ void _Host_Frame (double time)
 
 // decide the simulation time
 	accumtime += host_netinterval?CLAMP(0.0, time, 0.2):0.0;	//for renderer/server isolation
-	if (!Host_FilterTime (time))
-		return;			// don't run too fast, or packets will flood out
+	Host_AdvanceTime (time);
 
 // get new key events
 	Key_UpdateForDest ();
