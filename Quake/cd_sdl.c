@@ -22,6 +22,8 @@
  */
 
 
+#include "quakedef.h"
+
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -36,8 +38,6 @@
 #include "cd_null.c"
 
 #else	/* SDL_INIT_CDROM */
-
-#include "quakedef.h"
 
 static qboolean cdValid = false;
 static qboolean	playing = false;
