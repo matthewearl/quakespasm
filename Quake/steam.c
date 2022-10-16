@@ -279,30 +279,48 @@ qboolean Steam_FindGame (steamgame_t *game, int appid)
 
 	steamcfg = Steam_ReadLibFolders ();
 	if (!steamcfg)
+	{
+		Sys_Printf ("Steam library not found.\n");
 		return false;
+	}
 
 	q_snprintf (appidstr, sizeof (appidstr), "%d", appid);
 	memset (&libparser, 0, sizeof (libparser));
 	libparser.appid = appidstr;
 	if (!VDB_Parse (steamcfg, VDB_OnLibFolderProperty, &libparser))
+	{
+		Sys_Printf ("ERROR: Couldn't parse Steam library.\n");
 		goto done_cfg;
+	}
 
 	if ((size_t) q_snprintf (path, sizeof (path), "%s/steamapps/appmanifest_%s.acf", libparser.result, appidstr) >= sizeof (path))
+	{
+		Sys_Printf ("ERROR: Couldn't read Steam manifest for app %s (path too long).\n", appidstr);
 		goto done_cfg;
+	}
 
 	manifest = (char *) COM_LoadMallocFile_TextMode_OSPath (path, NULL);
 	if (!manifest)
+	{
+		Sys_Printf ("ERROR: Couldn't read Steam manifest for app %s.\n", appidstr);
 		goto done_cfg;
+	}
 
 	memset (&acfparser, 0, sizeof (acfparser));
 	if (!VDB_Parse (manifest, ACF_OnManifestProperty, &acfparser))
+	{
+		Sys_Printf ("ERROR: Couldn't parse Steam manifest for app %s.\n", appidstr);
 		goto done_manifest;
+	}
 
 	liblen = strlen (libparser.result);
 	sublen = strlen (acfparser.result);
 
 	if (liblen + 1 + sublen + 1 > countof (game->library))
+	{
+		Sys_Printf ("ERROR: Path for Steam app %s is too long.\n", appidstr);
 		goto done_manifest;
+	}
 
 	memcpy (game->library, libparser.result, liblen + 1);
 	game->subdir = game->library + liblen + 1;
