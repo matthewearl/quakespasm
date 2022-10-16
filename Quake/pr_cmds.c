@@ -2161,8 +2161,6 @@ static void PF_cl_drawcharacter(void)
 
 static void PF_cl_drawrawstring(void)
 {
-	extern gltexture_t *char_texture;
-
 	float *pos	= G_VECTOR(OFS_PARM0);
 	const char *text = G_STRING (OFS_PARM1);
 	float *size	= G_VECTOR(OFS_PARM2);
@@ -2186,8 +2184,6 @@ static void PF_cl_drawrawstring(void)
 }
 static void PF_cl_drawstring(void)
 {
-	extern gltexture_t *char_texture;
-
 	float *pos	= G_VECTOR(OFS_PARM0);
 	const char *text = G_STRING (OFS_PARM1);
 	float *size	= G_VECTOR(OFS_PARM2);
