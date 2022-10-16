@@ -1452,6 +1452,8 @@ void	VID_Init (void)
 	};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
+	Con_SafePrintf ("\nVideo initialization\n");
+
 	Cvar_RegisterVariable (&vid_fullscreen); //johnfitz
 	Cvar_RegisterVariable (&vid_width); //johnfitz
 	Cvar_RegisterVariable (&vid_height); //johnfitz
