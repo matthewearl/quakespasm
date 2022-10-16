@@ -540,6 +540,11 @@ static void Mod_LoadTextures (lump_t *l)
 		loadmodel->textures[i] = tx;
 
 		memcpy (tx->name, mt->name, sizeof(tx->name));
+		if (!tx->name[0])
+		{
+			q_snprintf (tx->name, sizeof(tx->name), "unnamed%d", i);
+			Con_Warning ("unnamed texture in %s, renaming to %s\n", loadmodel->name, tx->name);
+		}
 		tx->width = mt->width;
 		tx->height = mt->height;
 		// the pixels immediately follow the structures
