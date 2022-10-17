@@ -902,10 +902,10 @@ Runs all active servers
 void _Host_Frame (double time)
 {
 	static double	accumtime = 0;
-	static double		time1 = 0;
-	static double		time2 = 0;
-	static double		time3 = 0;
-	int			pass1, pass2, pass3;
+	double time1, time2, time3;
+	qboolean ranserver = false;
+
+	time1 = Sys_DoubleTime ();
 
 	if (setjmp (host_abortserver) )
 		return;			// something bad happened, or the server disconnected
@@ -969,6 +969,7 @@ void _Host_Frame (double time)
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();
+		ranserver = true;
 	}
 
 // fetch results from server
@@ -977,14 +978,14 @@ void _Host_Frame (double time)
 
 // update video
 	if (host_speeds.value)
-		time1 = Sys_DoubleTime ();
+		time2 = Sys_DoubleTime ();
 
 	SCR_UpdateScreen ();
 
 	CL_RunParticles (); //johnfitz -- seperated from rendering
 
 	if (host_speeds.value)
-		time2 = Sys_DoubleTime ();
+		time3 = Sys_DoubleTime ();
 
 // update audio
 	BGM_Update();	// adds music raw samples and/or advances midi driver
@@ -1001,16 +1002,44 @@ void _Host_Frame (double time)
 
 	if (host_speeds.value)
 	{
-		pass1 = (time1 - time3)*1000;
-		time3 = Sys_DoubleTime ();
-		pass2 = (time2 - time1)*1000;
-		pass3 = (time3 - time2)*1000;
-		Con_Printf ("%3i tot %3i server %3i gfx %3i snd\n",
-					pass1+pass2+pass3, pass1, pass2, pass3);
+		static double pass1 = 0.0;
+		static double pass2 = 0.0;
+		static double pass3 = 0.0;
+		static double elapsed = 0.0;
+		static int numframes = 0;
+		static int numserverframes = 0;
+
+		time1 = time2 - time1;
+		time2 = time3 - time2;
+		time3 = Sys_DoubleTime () - time3;
+
+		if (ranserver || host_speeds.value < 0.f)
+		{
+			pass1 += time1;
+			numserverframes++;
+		}
+		numframes++;
+		pass2 += time2;
+		pass3 += time3;
+		elapsed += time;
+
+		if (elapsed >= host_speeds.value * 0.375)
+		{
+			pass1 /= q_max (numserverframes, 1);
+			pass2 /= numframes;
+			pass3 /= numframes;
+			if (host_speeds.value < 0.f)
+				Con_Printf ("%5.2f tot | %5.2f server | %5.2f gfx | %5.2f snd\n",
+					(pass1+pass2+pass3)*1000.0, pass1*1000.0, pass2*1000.0, pass3*1000.0);
+			else
+				Con_Printf ("%5.2f server | %5.2f gfx | %5.2f snd\n",
+					pass1*1000.0, pass2*1000.0, pass3*1000.0);
+			pass1 = pass2 = pass3 = elapsed = 0.0;
+			numframes = numserverframes = 0;
+		}
 	}
 
 	host_framecount++;
-
 }
 
 void Host_Frame (double time)
