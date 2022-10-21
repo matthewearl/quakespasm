@@ -128,10 +128,10 @@ void Fog_FogCommand_f (void)
 		Con_Printf("   fog <red> <green> <blue>\n");
 		Con_Printf("   fog <density> <red> <green> <blue>\n");
 		Con_Printf("current values:\n");
-		Con_Printf("   \"density\" is \"%f\"\n", fog_density);
-		Con_Printf("   \"red\" is \"%f\"\n", fog_red);
-		Con_Printf("   \"green\" is \"%f\"\n", fog_green);
-		Con_Printf("   \"blue\" is \"%f\"\n", fog_blue);
+		Con_Printf("   \"density\" is \"%g\"\n", fog_density);
+		Con_Printf("   \"red\"     is \"%g\"\n", fog_red);
+		Con_Printf("   \"green\"   is \"%g\"\n", fog_green);
+		Con_Printf("   \"blue\"    is \"%g\"\n", fog_blue);
 		return;
 	case 2:
 		d = Q_atof(Cmd_Argv(1));
