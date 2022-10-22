@@ -582,14 +582,16 @@ void ED_Print (edict_t *ed)
 	int		i, j, l;
 	const char	*name;
 	int		type;
+	char	field[4096], buf[4096], *p;
 
 	if (ed->free)
 	{
-		Con_Printf ("FREE\n");
+		Con_SafePrintf ("FREE\n");
 		return;
 	}
 
-	Con_SafePrintf("\nEDICT %i:\n", NUM_FOR_EDICT(ed)); //johnfitz -- was Con_Printf
+	q_snprintf (buf, sizeof (buf), "\nEDICT %i:\n", NUM_FOR_EDICT(ed)); //johnfitz -- was Con_Printf
+	p = buf + strlen (buf);
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
@@ -611,12 +613,19 @@ void ED_Print (edict_t *ed)
 		if (j == type_size[type])
 			continue;
 
-		Con_SafePrintf ("%s", name); //johnfitz -- was Con_Printf
-		while (l++ < 15)
-			Con_SafePrintf (" "); //johnfitz -- was Con_Printf
+		q_snprintf (field, sizeof (field), "%-14s %s\n", name, PR_ValueString (d->type, (eval_t *)v)); // johnfitz -- was Con_Printf
+		l = strlen (field);
+		if (l + 1 > buf + sizeof (buf) - p)
+		{
+			Con_SafePrintf ("%s", buf);
+			p = buf;
+		}
 
-		Con_SafePrintf ("%s\n", PR_ValueString(d->type, (eval_t *)v)); //johnfitz -- was Con_Printf
+		memcpy (p, field, l + 1);
+		p += l;
 	}
+
+	Con_SafePrintf ("%s", buf);
 }
 
 /*
