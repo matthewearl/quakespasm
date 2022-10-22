@@ -513,6 +513,91 @@ void SaveList_Init (void)
 	}
 }
 
+//==============================================================================
+//sky list management
+//==============================================================================
+
+filelist_item_t	*skylist;
+
+static void SkyList_Clear (void)
+{
+	FileList_Clear (&skylist);
+}
+
+void SkyList_Rebuild (void)
+{
+	SkyList_Clear ();
+	SkyList_Init ();
+}
+
+static qboolean SkyList_AddFile (const char *path)
+{
+	const char	prefix[] = "gfx/env/";
+	const char	suffix[] = "up";
+	const char	*ext;
+	char		skyname[MAX_QPATH];
+	size_t		len;
+
+	ext = COM_FileGetExtension (path);
+	if (q_strcasecmp (ext, "tga") != 0)
+		return false;
+
+	COM_StripExtension (path, skyname, sizeof (skyname));
+	len = strlen (skyname);
+	if (len < sizeof (suffix) - 1)
+		return false;
+	len -= sizeof (suffix) - 1;
+	if (q_strcasecmp (skyname + len, suffix) != 0)
+		return false;
+	skyname[len] = '\0';
+
+	SDL_assert (len > sizeof (prefix) - 1);
+	SDL_assert (!q_strncasecmp (skyname, prefix, sizeof (prefix) - 1));
+	if (len <= sizeof (prefix) - 1)
+		return false;
+
+	FileList_Add (skyname + (sizeof (prefix) - 1), &skylist);
+
+	return true;
+}
+
+static void SkyList_AddDirRec (const char *root, const char *relpath)
+{
+	findfile_t	*find;
+	char		child[MAX_OSPATH];
+	char		fullpath[MAX_OSPATH];
+
+	q_snprintf (fullpath, sizeof (fullpath), "%s/%s", root, relpath);
+	for (find = Sys_FindFirst (fullpath, NULL); find; find = Sys_FindNext (find))
+	{
+		q_snprintf (child, sizeof (child), "%s/%s", relpath, find->name);
+		if (find->attribs & FA_DIRECTORY)
+		{
+			if (find->name[0] == '.')
+				continue;
+			SkyList_AddDirRec (root, child);
+			continue;
+		}
+		SkyList_AddFile (child);
+	}
+}
+
+void SkyList_Init (void)
+{
+	searchpath_t	*search;
+	pack_t			*pak;
+	int				i;
+
+	for (search = com_searchpaths; search; search = search->next)
+	{
+		if (*search->filename) //directory
+			SkyList_AddDirRec (search->filename, "gfx/env");
+		else //pakfile
+			for (i = 0, pak = search->pack; i < pak->numfiles; i++)
+				SkyList_AddFile (pak->files[i].name);
+	}
+}
+
 /*
 ==================
 Host_Mods_f -- johnfitz

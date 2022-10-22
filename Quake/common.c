@@ -2271,6 +2271,7 @@ static void COM_Game_f (void)
 		Host_Resetdemos ();
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
+		SkyList_Rebuild ();
 		M_CheckMods ();
 		Cvar_SetQuick (&max_edicts, max_edicts.default_string);
 

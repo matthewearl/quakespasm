@@ -1133,6 +1133,7 @@ void Host_Init (void)
 		Modlist_Init (); //johnfitz
 		DemoList_Init (); //ericw
 		SaveList_Init ();
+		SkyList_Init ();
 		M_CheckMods ();
 		VID_Init ();
 		IN_Init ();

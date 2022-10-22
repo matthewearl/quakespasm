@@ -829,6 +829,7 @@ static const arg_completion_type_t arg_completion_types[] =
 	{ "timedemo ", &demolist },
 	{ "load ", &savelist },
 	{ "save ", &savelist },
+	{ "sky ", &skylist },
 };
 
 static const int num_arg_completion_types =

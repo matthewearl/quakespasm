@@ -347,6 +347,7 @@ extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
 extern filelist_item_t	*demolist;
 extern filelist_item_t	*savelist;
+extern filelist_item_t	*skylist;
 
 void Host_ClearMemory (void);
 void Host_ServerFrame (void);
@@ -372,10 +373,13 @@ void ExtraMaps_Init (void);
 void Modlist_Init (void);
 void DemoList_Init (void);
 void SaveList_Init (void);
+void SkyList_Init (void);
 
 void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
 void SaveList_Rebuild (void);
+void SkyList_Rebuild (void);
+
 
 void M_CheckMods (void);
 
