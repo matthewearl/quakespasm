@@ -544,10 +544,10 @@ qboolean M_List_SelectNextMatch (menulist_t *list, int start, int dir)
 
 void M_List_Update (menulist_t *list)
 {
-	list->search.errtimeout = q_max (0.0, list->search.errtimeout - host_frametime);
+	list->search.errtimeout = q_max (0.0, list->search.errtimeout - host_rawframetime);
 	if (list->search.timeout && cl_menusearchtimeout.value > 0.f)
 	{
-		list->search.timeout -= host_frametime / cl_menusearchtimeout.value;
+		list->search.timeout -= host_rawframetime / cl_menusearchtimeout.value;
 		if (list->search.timeout <= 0.0)
 			M_List_ClearSearch (list);
 	}
@@ -1447,9 +1447,9 @@ void M_Maps_Draw (void)
 	else
 	{
 		if (mapsmenu.scroll_wait_time <= 0.0)
-			mapsmenu.scroll_time += host_frametime;
+			mapsmenu.scroll_time += host_rawframetime;
 		else
-			mapsmenu.scroll_wait_time = q_max (0.0, mapsmenu.scroll_wait_time - host_frametime);
+			mapsmenu.scroll_wait_time = q_max (0.0, mapsmenu.scroll_wait_time - host_rawframetime);
 	}
 
 	x = mapsmenu.x;

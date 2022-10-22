@@ -42,6 +42,7 @@ quakeparms_t *host_parms;
 qboolean	host_initialized;		// true if into command execution
 
 double		host_frametime;
+double		host_rawframetime;
 double		realtime;				// without any filtering or bounding
 double		oldrealtime;			// last frame run
 
@@ -666,12 +667,8 @@ Host_AdvanceTime
 */
 static void Host_AdvanceTime (double dt)
 {
-	double delta_since_last_frame;
-
 	realtime += dt;
-	delta_since_last_frame = realtime - oldrealtime;
-
-	host_frametime = delta_since_last_frame;
+	host_frametime = host_rawframetime = realtime - oldrealtime;
 	oldrealtime = realtime;
 
 	//johnfitz -- host_timescale is more intuitive than host_framerate
