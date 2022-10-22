@@ -139,9 +139,12 @@ size_t maxlevelnamelen;
 /*
 ==================
 FileList_Print
+
+Prints all items in list (containing substr, if any)
+Note: types array contains singular/plural forms for the list type
 ==================
 */
-static void FileList_Print (filelist_item_t *list, const char *type, const char *substr)
+static void FileList_Print (filelist_item_t *list, const char *types[2], const char *substr)
 {
 	int i;
 	filelist_item_t	*item;
@@ -170,9 +173,9 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 		}
 
 		if (i)
-			Con_SafePrintf ("%i %s(s) containing \"%s\"\n", i, type, substr);
+			Con_SafePrintf ("%i %s containing \"%s\"\n", i, types[i!=1], substr);
 		else
-			Con_SafePrintf ("no %ss found containing \"%s\"\n", type, substr);
+			Con_SafePrintf ("no %s found containing \"%s\"\n", types[1], substr);
 	}
 	else
 	{
@@ -188,9 +191,9 @@ static void FileList_Print (filelist_item_t *list, const char *type, const char 
 		}
 
 		if (i)
-			Con_SafePrintf ("%i %s(s)\n", i, type);
+			Con_SafePrintf ("%i %s\n", i, types[i!=1]);
 		else
-			Con_SafePrintf ("no %ss found\n", type);
+			Con_SafePrintf ("no %s found\n", types[1]);
 	}
 }
 
@@ -342,7 +345,8 @@ Host_Maps_f
 */
 static void Host_Maps_f (void)
 {
-	FileList_Print (extralevels, "map", Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
+	const char *types[] = {"map", "maps"};
+	FileList_Print (extralevels, types, Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
 }
 
 //==============================================================================
@@ -600,6 +604,19 @@ void SkyList_Init (void)
 
 /*
 ==================
+Host_Skies_f
+
+list all potential skies
+==================
+*/
+static void Host_Skies_f (void)
+{
+	const char *types[] = {"sky", "skies"};
+	FileList_Print (skylist, types, Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
+}
+
+/*
+==================
 Host_Mods_f -- johnfitz
 
 list all potential mod directories (contain either a pak file or a progs.dat)
@@ -607,7 +624,8 @@ list all potential mod directories (contain either a pak file or a progs.dat)
 */
 static void Host_Mods_f (void)
 {
-	FileList_Print (modlist, "mod", Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
+	const char *types[] = {"mod", "mods"};
+	FileList_Print (modlist, types, Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL);
 }
 
 //==============================================================================
@@ -2628,6 +2646,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("maps", Host_Maps_f); //johnfitz
 	Cmd_AddCommand ("mods", Host_Mods_f); //johnfitz
 	Cmd_AddCommand ("games", Host_Mods_f); // as an alias to "mods" -- S.A. / QuakeSpasm
+	Cmd_AddCommand ("skies", Host_Skies_f); //ericw
 	Cmd_AddCommand ("mapname", Host_Mapname_f); //johnfitz
 	Cmd_AddCommand ("randmap", Host_Randmap_f); //ericw
 
