@@ -2452,7 +2452,7 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 	FILE			*f;
 	lump_t			*entlump;
 	dheader_t		header;
-	int				i, filesize;
+	int				i, j, k, filesize;
 	qboolean		ret = false;
 
 	if (!maxchars)
@@ -2541,7 +2541,24 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 
 			if (is_message)
 			{
-				q_strlcpy (desc, com_token, maxchars);
+				// copy map title and clean it up a bit
+				for (j = k = 0; com_token[j] && k + 1 < maxchars; j++)
+				{
+					char c = com_token[j];
+					// replace \n with a space
+					if (c == '\\' && com_token[j + 1] == 'n')
+					{
+						c = ' ';
+						j++;
+					}
+					// remove leading spaces, replace consecutive spaces with single one
+					if (c != ' ' || (k > 0 && desc[k - 1] != c))
+						desc[k++] = c;
+				}
+				// remove trailing space, if any
+				if (k > 0 && desc[k - 1] == ' ')
+					--k;
+				desc[k++] = '\0';
 				if (ret)
 					return true;
 			}
