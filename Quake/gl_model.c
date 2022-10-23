@@ -2544,7 +2544,7 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 				// copy map title and clean it up a bit
 				for (j = k = 0; com_token[j] && k + 1 < maxchars; j++)
 				{
-					char c = com_token[j];
+					char c = com_token[j] & 0x7f;
 					// replace \n with a space
 					if (c == '\\' && com_token[j + 1] == 'n')
 					{
