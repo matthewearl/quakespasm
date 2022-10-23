@@ -197,12 +197,13 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 	}
 }
 
-static maptype_t ExtraMaps_Categorize (const char *name, unsigned int path_id)
+static maptype_t ExtraMaps_Categorize (const char *name, const searchpath_t *source)
 {
 	size_t len = strlen (name);
+	maptype_t base;
 	qboolean is_start, is_end, is_dm;
 
-	if (path_id == 0)
+	if (!source)
 	{
 		switch (name[0])
 		{
@@ -233,24 +234,25 @@ static maptype_t ExtraMaps_Categorize (const char *name, unsigned int path_id)
 		len--;
 	is_dm = (len >= 2 && !memcmp (name + len - 2, "dm", 2));
 
-	if (path_id != com_searchpaths->path_id)
+	if (source->path_id != com_searchpaths->path_id)
 	{
 		if (is_start)
-			return MAPTYPE_CUSTOM_START;
+			return MAPTYPE_CUSTOM_ID_START;
 		if (is_end)
-			return MAPTYPE_CUSTOM_END;
+			return MAPTYPE_CUSTOM_ID_END;
 		if (is_dm)
-			return MAPTYPE_CUSTOM_DM;
-		return MAPTYPE_CUSTOM_LEVEL;
+			return MAPTYPE_CUSTOM_ID_DM;
+		return MAPTYPE_CUSTOM_ID_LEVEL;
 	}
 
+	base = *source->filename ? MAPTYPE_CUSTOM_MOD_START : MAPTYPE_MOD_START;
 	if (is_start)
-		return MAPTYPE_MOD_START;
+		return base + MAPTYPE_CUSTOM_MOD_START;
 	if (is_end)
-		return MAPTYPE_MOD_END;
+		return base + MAPTYPE_CUSTOM_MOD_END;
 	if (is_dm)
-		return MAPTYPE_MOD_DM;
-	return MAPTYPE_MOD_LEVEL;
+		return base + MAPTYPE_CUSTOM_MOD_DM;
+	return base + MAPTYPE_CUSTOM_MOD_LEVEL;
 }
 
 const levelinfo_t *ExtraMaps_GetInfo (const filelist_item_t *item)
@@ -268,13 +270,23 @@ const char *ExtraMaps_GetMessage (const filelist_item_t *item)
 	return ExtraMaps_GetInfo (item)->message;
 }
 
-static void ExtraMaps_Add (const char *name, unsigned int path_id)
+qboolean ExtraMaps_IsStart (maptype_t type)
+{
+	return
+		type == MAPTYPE_CUSTOM_MOD_START ||
+		type == MAPTYPE_MOD_START ||
+		type == MAPTYPE_CUSTOM_ID_START ||
+		type == MAPTYPE_ID_START
+	;
+}
+
+static void ExtraMaps_Add (const char *name, const searchpath_t *source)
 {
 	levelinfo_t info;
 	memset (&info, 0, sizeof (info));
 	if (Mod_LoadMapDescription (info.message, sizeof (info.message), name))
 	{
-		info.type = ExtraMaps_Categorize (name, path_id);
+		info.type = ExtraMaps_Categorize (name, source);
 		FileList_AddWithData (name, &info, sizeof (info), &extralevels);
 		maxlevelnamelen = q_max (maxlevelnamelen, strlen (name));
 	}
@@ -305,7 +317,7 @@ void ExtraMaps_Init (void)
 				if (find->attribs & FA_DIRECTORY)
 					continue;
 				COM_StripExtension (find->name, mapname, sizeof (mapname));
-				ExtraMaps_Add (mapname, search->path_id);
+				ExtraMaps_Add (mapname, search);
 			}
 		}
 		else //pakfile
@@ -319,7 +331,7 @@ void ExtraMaps_Init (void)
 					!strcmp (COM_FileGetExtension (pak->files[i].name), "bsp"))
 				{
 					COM_StripExtension (pak->files[i].name + 5, mapname, sizeof (mapname));
-					ExtraMaps_Add (mapname, isbase ? 0 : search->path_id);
+					ExtraMaps_Add (mapname, isbase ? NULL : search);
 				}
 			}
 		}

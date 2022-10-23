@@ -1307,10 +1307,16 @@ static void M_Maps_AddSeparator (maptype_t before, maptype_t after)
 		}
 		M_Maps_AddDecoration ("");
 	}
-	else if (after >= MAPTYPE_CUSTOM_START && before < MAPTYPE_CUSTOM_START)
+	else if (after >= MAPTYPE_CUSTOM_ID_START && before < MAPTYPE_CUSTOM_ID_START)
 	{
 		M_Maps_AddDecoration ("");
 		M_Maps_AddDecoration (QBAR " Custom Quake levels " QBAR);
+		M_Maps_AddDecoration ("");
+	}
+	else if (after >= MAPTYPE_MOD_START && before < MAPTYPE_MOD_START)
+	{
+		M_Maps_AddDecoration ("");
+		M_Maps_AddDecoration (QBAR " Official mod levels " QBAR);
 		M_Maps_AddDecoration ("");
 	}
 
@@ -1398,7 +1404,7 @@ static void M_Maps_Init (void)
 			map.active = M_Maps_IsActive (item->name);
 			map.message = (const char *) (item + 1);
 			map.mapidx = mapsmenu.mapcount++;
-			if (map.active)
+			if (map.active || (mapsmenu.list.cursor == -1 && ExtraMaps_IsStart (type)))
 				mapsmenu.list.cursor = VEC_SIZE (mapsmenu.items);
 			VEC_PUSH (mapsmenu.items, map);
 			mapsmenu.list.numitems++;
