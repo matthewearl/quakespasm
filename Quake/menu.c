@@ -1307,7 +1307,7 @@ static void M_Maps_AddSeparator (maptype_t before, maptype_t after)
 		}
 		M_Maps_AddDecoration ("");
 	}
-	else if (after >= MAPTYPE_CUSTOM_START)
+	else if (after >= MAPTYPE_CUSTOM_START && before < MAPTYPE_CUSTOM_START)
 	{
 		M_Maps_AddDecoration ("");
 		M_Maps_AddDecoration (QBAR " Custom Quake levels " QBAR);
