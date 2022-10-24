@@ -922,6 +922,7 @@ void R_SetupView (void)
 	r_framedata.time = cl.time;
 
 	Fog_SetupFrame (); //johnfitz
+	Sky_SetupFrame ();
 
 // build the transformation matrix for the given view angles
 	VectorCopy (r_refdef.vieworg, r_origin);

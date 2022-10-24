@@ -396,6 +396,8 @@ typedef struct gpuframedata_s {
 	float	viewproj[16];
 	float	fogdata[4];
 	float	skyfogdata[4];
+	vec3_t	winddir;
+	float	windphase;
 	vec3_t	eyepos;
 	float	time;
 	float	zlogscale;
@@ -494,7 +496,7 @@ typedef struct glprogs_s {
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
 	GLuint		skylayers[2];		// [dither]
-	GLuint		skycubemap[2];		// [dither]
+	GLuint		skycubemap[2][2];	// [anim][dither]
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2];		// [OIT][mode:standard/dithered/noperspective][alpha test]
 	GLuint		sprites[2];			// [dither]
@@ -575,6 +577,8 @@ void Sky_NewMap (void);
 void Sky_LoadTexture (qmodel_t *m, texture_t *mt);
 void Sky_LoadTextureQ64 (qmodel_t *m, texture_t *mt);
 void Sky_LoadSkyBox (const char *name);
+void Sky_SetupFrame (void);
+qboolean Sky_IsAnimated (void);
 
 void GL_BindBuffer (GLenum target, GLuint buffer);
 void GL_BindBufferRange (GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);

@@ -397,7 +397,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	case BP_SKYCUBEMAP:
 		texbegin = TEXTYPE_SKY;
 		texend = TEXTYPE_SKY + 1;
-		program = glprogs.skycubemap[softemu == SOFTEMU_COARSE];
+		program = glprogs.skycubemap[Sky_IsAnimated ()][softemu == SOFTEMU_COARSE];
 		break;
 	case BP_SKYSTENCIL:
 		texbegin = TEXTYPE_SKY;

@@ -280,6 +280,8 @@ NOISE_FUNCTIONS
 "	mat4	ViewProj;\n"\
 "	vec4	Fog;\n"\
 "	vec4	SkyFog;\n"\
+"	vec3	WindDir;\n"\
+"	float	WindPhase;\n"\
 "	vec3	EyePos;\n"\
 "	float	Time;\n"\
 "	float	ZLogScale;\n"\
@@ -931,7 +933,23 @@ NOISE_FUNCTIONS
 "\n"
 "void main()\n"
 "{\n"
+"#if ANIM\n"
+"	float t1 = WindPhase;\n"
+"	float t2 = fract(t1) - 0.5;\n"
+"	float blend = abs(t1 * 2.0);\n"
+"	vec3 dir = normalize(in_dir);\n"
+"	vec4 base = texture(Skybox, in_dir);\n"
+"	vec4 layer1 = texture(Skybox, dir + t1 * WindDir);\n"
+"	vec4 layer2 = texture(Skybox, dir + t2 * WindDir);\n"
+"	layer1.a *= 1.0 - blend;\n"
+"	layer2.a *= blend;\n"
+"	layer1.rgb *= layer1.a;\n"
+"	layer2.rgb *= layer2.a;\n"
+"	vec4 combined = layer1 + layer2;\n"
+"	out_fragcolor = vec4(base.rgb * (1.0 - combined.a) + combined.rgb, 1);\n"
+"#else\n"
 "	out_fragcolor = texture(Skybox, in_dir);\n"
+"#endif\n"
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, SkyFog.rgb, SkyFog.a);\n"
 "#if DITHER\n"
 "	out_fragcolor.rgb = sqrt(out_fragcolor.rgb);\n"
