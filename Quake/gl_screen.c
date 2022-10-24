@@ -1093,7 +1093,7 @@ void SCR_ScreenShot_f (void)
 
 	q_snprintf (imagename, sizeof (imagename), "%s.%s", basename, ext);
 	q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
-	if (Sys_FileTime (checkname) != -1) // base name already used, try appending an index
+	if (Sys_FileExists (checkname)) // base name already used, try appending an index
 	{
 	append_index:
 		// append underscore if basename ends with a digit
@@ -1108,7 +1108,7 @@ void SCR_ScreenShot_f (void)
 		{
 			q_snprintf (imagename, sizeof (imagename), "%s%04i.%s", basename, i, ext);
 			q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
-			if (Sys_FileTime (checkname) == -1)
+			if (!Sys_FileExists (checkname))
 				break;	// file doesn't exist
 		}
 		if (i == 10000)

@@ -211,19 +211,13 @@ int Sys_FileWrite (int handle, const void *data, int count)
 	return fwrite (data, 1, count, sys_handles[handle]);
 }
 
-int Sys_FileTime (const char *path)
+qboolean Sys_FileExists (const char *path)
 {
-	FILE	*f;
-
-	f = Sys_fopen (path, "rb");
-
-	if (f)
-	{
-		fclose(f);
-		return 1;
-	}
-
-	return -1;
+	wchar_t	wpath[MAX_PATH];
+	DWORD attr;
+	UTF8ToWideString (path, wpath, countof (wpath));
+	attr = GetFileAttributesW (wpath);
+	return attr != INVALID_FILE_ATTRIBUTES && !(attr & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_DEVICE));
 }
 
 qboolean Sys_GetSteamDir (char *path, size_t pathsize)

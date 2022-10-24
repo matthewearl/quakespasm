@@ -421,15 +421,15 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 	q_snprintf (modpath, sizeof (modpath), "%s/%s", base, modname);
 
 	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
-	if (Sys_FileTime (itempath) != -1)
+	if (Sys_FileExists (itempath))
 		return true;
 
 	q_snprintf (itempath, sizeof (itempath), "%s/csprogs.dat", modpath);
-	if (Sys_FileTime (itempath) != -1)
+	if (Sys_FileExists (itempath))
 		return true;
 
 	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
-	if (Sys_FileTime (itempath) != -1)
+	if (Sys_FileExists (itempath))
 		return true;
 
 	for (i = 0; i < countof (assetdirs); i++)
@@ -1523,7 +1523,7 @@ static void Host_Loadgame_f (void)
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
-	if (Sys_FileTime (name) == -1)
+	if (!Sys_FileExists (name))
 	{
 		Con_Printf ("ERROR: %s not found.\n", relname);
 		Host_InvalidateSave (relname);

@@ -1585,7 +1585,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 	searchpath_t	*search;
 	char		netpath[MAX_OSPATH];
 	pack_t		*pak;
-	int		i, findtime;
+	int			i;
 
 	if (file && handle)
 		Sys_Error ("COM_FindFile: both handle and file set");
@@ -1637,8 +1637,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 			}
 
 			q_snprintf (netpath, sizeof(netpath), "%s/%s",search->filename, filename);
-			findtime = Sys_FileTime (netpath);
-			if (findtime == -1)
+			if (!Sys_FileExists (netpath))
 				continue;
 
 			if (path_id)
@@ -2336,7 +2335,7 @@ static qboolean COM_SetBaseDir (const char *path)
 
 	memcpy (pakpath, path, i);
 	memcpy (pakpath + i, pak0, sizeof (pak0));
-	if (Sys_FileTime (pakpath) == -1)
+	if (!Sys_FileExists (pakpath))
 		return false;
 
 	memcpy (com_basedir, path, i);

@@ -46,7 +46,7 @@ void Sys_FileClose (int handle);
 void Sys_FileSeek (int handle, int position);
 int Sys_FileRead (int handle, void *dest, int count);
 int Sys_FileWrite (int handle,const void *data, int count);
-int Sys_FileTime (const char *path);
+qboolean Sys_FileExists (const char *path);
 void Sys_mkdir (const char *path);
 FILE *Sys_fopen (const char *path, const char *mode);
 int Sys_remove (const char *path);
