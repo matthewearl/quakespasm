@@ -2542,7 +2542,7 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 			if (is_message)
 			{
 				// copy map title and clean it up a bit
-				for (j = k = 0; com_token[j] && k + 1 < maxchars; j++)
+				for (j = k = 0; com_token[j] && (size_t)k + 1 < maxchars; j++)
 				{
 					char c = com_token[j] & 0x7f;
 					// replace \n with a space
