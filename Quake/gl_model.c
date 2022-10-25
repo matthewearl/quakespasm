@@ -2446,14 +2446,14 @@ Returns true if map is playable, false otherwise
 */
 qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 {
-	static THREAD_LOCAL char buf[16 * 1024];
-	char			path[MAX_QPATH];
-	const char		*data;
-	FILE			*f;
-	lump_t			*entlump;
-	dheader_t		header;
-	int				i, j, k, filesize;
-	qboolean		ret = false;
+	char		buf[4 * 1024];
+	char		path[MAX_QPATH];
+	const char	*data;
+	FILE		*f;
+	lump_t		*entlump;
+	dheader_t	header;
+	int			i, j, k, filesize;
+	qboolean	ret = false;
 
 	if (!maxchars)
 		return false;
