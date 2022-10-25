@@ -1259,10 +1259,10 @@ void M_Save_Mousemove (int cx, int cy)
 
 typedef struct
 {
-	const char		*name;
-	const char		*message;
-	int				mapidx;
-	qboolean		active;
+	const char				*name;
+	const filelist_item_t	*source;
+	int						mapidx;
+	qboolean				active;
 } mapitem_t;
 
 static struct
@@ -1277,6 +1277,12 @@ static struct
 	mapitem_t		*items;
 } mapsmenu;
 
+const char *M_Maps_GetMessage (const mapitem_t *item)
+{
+	if (!item->source)
+		return item->name;
+	return ExtraMaps_GetMessage (item->source);
+}
 
 static qboolean M_Maps_IsActive (const char *map)
 {
@@ -1287,8 +1293,7 @@ static void M_Maps_AddDecoration (const char *text)
 {
 	mapitem_t item;
 	memset (&item, 0, sizeof (item));
-	item.name = "";
-	item.message = text;
+	item.name = text;
 	item.mapidx = -1;
 	VEC_PUSH (mapsmenu.items, item);
 	mapsmenu.list.numitems++;
@@ -1323,54 +1328,22 @@ static void M_Maps_AddSeparator (maptype_t before, maptype_t after)
 	#undef QBAR
 }
 
-static filelist_item_t **M_Maps_Sort (void)
-{
-	int counts[MAPTYPE_COUNT];
-	int i, sum;
-	filelist_item_t *item, **sorted_items;
-
-	if (!extralevels)
-		return NULL;
-
-	memset (counts, 0, sizeof (counts));
-	for (item = extralevels; item; item = item->next)
-		counts[ExtraMaps_GetType (item)]++;
-
-	for (i = sum = 0; i < MAPTYPE_COUNT; i++)
-	{
-		int tmp = counts[i];
-		counts[i] = sum;
-		sum += tmp;
-	}
-	sum++; // NULL terminator
-
-	sorted_items = (filelist_item_t **) malloc (sum * sizeof (*sorted_items));
-	if (!sorted_items)
-	{
-		Con_Warning ("M_Maps_Sort: out of memory on %d items\n", sum);
-		return NULL;
-	}
-
-	for (item = extralevels; item; item = item->next)
-		sorted_items[counts[ExtraMaps_GetType (item)]++] = item;
-	sorted_items[sum - 1] = NULL;
-
-	return sorted_items;
-}
-
 static qboolean M_Maps_Match (int index)
 {
-	if (!mapsmenu.items[index].name[0])
+	const char *message;
+	if (mapsmenu.items[index].mapidx < 0)
 		return false;
-	return
-		q_strcasestr (mapsmenu.items[index].name, mapsmenu.list.search.text) ||
-		q_strcasestr (mapsmenu.items[index].message, mapsmenu.list.search.text)
-	;
+
+	if (q_strcasestr (mapsmenu.items[index].name, mapsmenu.list.search.text))
+		return true;
+
+	message = M_Maps_GetMessage (&mapsmenu.items[index]);
+	return message && q_strcasestr (message, mapsmenu.list.search.text);
 }
 
 static void M_Maps_Init (void)
 {
-	filelist_item_t **sorted_items;
+	int i, type, prev_type;
 
 	mapsmenu.x = 8;
 	mapsmenu.y = 32;
@@ -1385,32 +1358,26 @@ static void M_Maps_Init (void)
 	mapsmenu.mapcount = 0;
 	VEC_CLEAR (mapsmenu.items);
 
-	sorted_items = M_Maps_Sort ();
-	if (sorted_items)
+	for (i = 0, prev_type = -1; extralevels_sorted[i]; i++)
 	{
-		int i, type, prev_type;
+		mapitem_t map;
+		filelist_item_t *item = extralevels_sorted[i];
 
-		for (i = 0, prev_type = -1; sorted_items[i]; i++)
-		{
-			mapitem_t map;
-			filelist_item_t *item = sorted_items[i];
+		type = ExtraMaps_GetType (item);
+		if (type >= MAPTYPE_BMODEL)
+			continue;
+		if (prev_type != -1 && prev_type != type)
+			M_Maps_AddSeparator (prev_type, type);
+		prev_type = type;
 
-			type = ExtraMaps_GetType (item);
-			if (prev_type != -1 && prev_type != type)
-				M_Maps_AddSeparator (prev_type, type);
-			prev_type = type;
-
-			map.name = item->name;
-			map.active = M_Maps_IsActive (item->name);
-			map.message = (const char *) (item + 1);
-			map.mapidx = mapsmenu.mapcount++;
-			if (map.active || (mapsmenu.list.cursor == -1 && ExtraMaps_IsStart (type)))
-				mapsmenu.list.cursor = VEC_SIZE (mapsmenu.items);
-			VEC_PUSH (mapsmenu.items, map);
-			mapsmenu.list.numitems++;
-		}
-
-		free (sorted_items);
+		map.name = item->name;
+		map.active = M_Maps_IsActive (item->name);
+		map.source = item;
+		map.mapidx = mapsmenu.mapcount++;
+		if (map.active || (mapsmenu.list.cursor == -1 && ExtraMaps_IsStart (type)))
+			mapsmenu.list.cursor = VEC_SIZE (mapsmenu.items);
+		VEC_PUSH (mapsmenu.items, map);
+		mapsmenu.list.numitems++;
 	}
 
 	if (mapsmenu.list.cursor == -1)
@@ -1473,12 +1440,13 @@ void M_Maps_Draw (void)
 	{
 		int idx = i + firstvis;
 		const mapitem_t *item = &mapsmenu.items[idx];
+		const char *message = M_Maps_GetMessage (item);
 		int mask = item->active ? 128 : 0;
 		qboolean selected = (idx == mapsmenu.list.cursor);
 
-		if (!item->name[0])
+		if (!item->source)
 		{
-			M_PrintWhite (x + (cols - strlen (item->message))/2*8, y + i*8, item->message);
+			M_PrintWhite (x + (cols - strlen (item->name))/2*8, y + i*8, item->name);
 		}
 		else
 		{
@@ -1495,20 +1463,29 @@ void M_Maps_Draw (void)
 			for (j = 0; j < namecols - 2 && buf[j]; j++)
 				M_DrawCharacter (x + j*8, y + i*8, buf[j] ^ mask);
 
-			if (item->message[0])
+			if (!message || message[0])
 			{
-				if (mapsmenu.list.search.len > 0)
-					COM_TintSubstring (item->message, mapsmenu.list.search.text, buf, sizeof (buf));
+				if (!message)
+				{
+					memset (buf, '.' | 0x80, desccols);
+					buf[desccols] = '\0';
+				}
+				else if (mapsmenu.list.search.len > 0)
+					COM_TintSubstring (message, mapsmenu.list.search.text, buf, sizeof (buf));
 				else
-					q_strlcpy (buf, item->message, sizeof (buf));
+					q_strlcpy (buf, message, sizeof (buf));
 
 				GL_SetCanvasColor (1, 1, 1, 0.375f);
 				for (/**/; j < namecols; j++)
 					M_DrawCharacter (x + j*8, y + i*8, '.' | mask);
-				GL_SetCanvasColor (1, 1, 1, 1);
+				if (message)
+					GL_SetCanvasColor (1, 1, 1, 1);
 
 				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
 					selected ? mapsmenu.scroll_time : 0.0, true);
+				
+				if (!message)
+					GL_SetCanvasColor (1, 1, 1, 1);
 			}
 		}
 

@@ -262,7 +262,7 @@ extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args)
 
 //============================================================================
 
-extern	char		com_token[1024];
+extern	THREAD_LOCAL char		com_token[1024];
 extern	qboolean	com_eof;
 
 const char *COM_Parse (const char *data);
@@ -345,12 +345,12 @@ typedef struct searchpath_s
 extern searchpath_t *com_searchpaths;
 extern searchpath_t *com_base_searchpaths;
 
-extern int com_filesize;
+extern THREAD_LOCAL int com_filesize;
 struct cache_user_s;
 
 extern	char	com_basedir[MAX_OSPATH];
 extern	char	com_gamedir[MAX_OSPATH];
-extern	int	file_from_pak;	// global indicating that file came from a pak
+extern	THREAD_LOCAL int	file_from_pak;	// global indicating that file came from a pak
 
 void COM_WriteFile (const char *filename, const void *data, int len);
 int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);

@@ -1202,6 +1202,7 @@ void Host_Shutdown(void)
 	{
 		if (con_initialized)
 			History_Shutdown ();
+		ExtraMaps_ShutDown ();
 		BGM_Shutdown();
 		CDAudio_Shutdown ();
 		S_Shutdown ();

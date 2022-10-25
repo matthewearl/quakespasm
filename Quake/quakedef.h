@@ -336,20 +336,16 @@ typedef enum
 	MAPTYPE_ID_DM,
 	MAPTYPE_ID_LEVEL,
 
+	MAPTYPE_BMODEL,
+
 	MAPTYPE_COUNT,
 } maptype_t;
 
-typedef struct levelinfo_s
-{
-	char			message[96];
-	maptype_t		type;
-} levelinfo_t;
-
-const levelinfo_t	*ExtraMaps_GetInfo (const filelist_item_t *item);
 maptype_t			ExtraMaps_GetType (const filelist_item_t *item);
 qboolean			ExtraMaps_IsStart (maptype_t type);
 const char			*ExtraMaps_GetMessage (const filelist_item_t *item);
 
+extern filelist_item_t **extralevels_sorted;
 extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
 extern filelist_item_t	*demolist;
@@ -382,7 +378,9 @@ void DemoList_Init (void);
 void SaveList_Init (void);
 void SkyList_Init (void);
 
-void ExtraMaps_NewGame (void);
+void ExtraMaps_Clear (void);
+void ExtraMaps_ShutDown (void);
+
 void DemoList_Rebuild (void);
 void SaveList_Rebuild (void);
 void SkyList_Rebuild (void);

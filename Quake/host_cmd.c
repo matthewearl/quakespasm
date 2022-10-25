@@ -142,6 +142,11 @@ static void FileList_Add (const char *name, filelist_item_t **list)
 	FileList_AddWithData (name, NULL, 0, list);
 }
 
+/*
+==================
+FileList_Clear
+==================
+*/
 static void FileList_Clear (filelist_item_t **list)
 {
 	filelist_item_t *blah;
@@ -154,6 +159,11 @@ static void FileList_Clear (filelist_item_t **list)
 	}
 }
 
+/*
+==================
+RightPad
+==================
+*/
 static const char *RightPad (const char *str, size_t minlen, char c)
 {
 	static char buf[1024];
@@ -171,8 +181,12 @@ static const char *RightPad (const char *str, size_t minlen, char c)
 	return buf;
 }
 
-filelist_item_t	*extralevels;
+filelist_item_t *extralevels;
+filelist_item_t **extralevels_sorted;
 size_t maxlevelnamelen;
+
+static SDL_Thread*	extralevels_parsing_thread;
+static SDL_atomic_t	extralevels_cancel_parsing;
 
 /*
 ==================
@@ -184,12 +198,12 @@ Note: types array contains singular/plural forms for the list type
 */
 static void FileList_Print (filelist_item_t *list, const char *types[2], const char *substr)
 {
-	int i;
+	int				i;
 	filelist_item_t	*item;
-	const char *desc;
-	char buf[256], buf2[256];
-	char padchar = '.' | 0x80;
-	size_t ofsdesc = list == extralevels ? maxlevelnamelen + 2 : 0;
+	const char		*desc;
+	char			buf[256], buf2[256];
+	char			padchar = '.' | 0x80;
+	size_t			ofsdesc = list == extralevels ? maxlevelnamelen + 2 : 0;
 
 	if (substr && *substr)
 	{
@@ -197,7 +211,9 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 		{
 			if (list == extralevels && ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
 				continue;
-			desc = ofsdesc ? (const char*)(item + 1) : "";
+			desc = ofsdesc ? ExtraMaps_GetMessage (item) : NULL;
+			if (!desc)
+				desc = "";
 			if (q_strcasestr (item->name, substr) || q_strcasestr (desc, substr))
 			{
 				const char *tinted_name = COM_TintSubstring (item->name, substr, buf, sizeof (buf));
@@ -221,8 +237,8 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 		{
 			if (list == extralevels && ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
 				continue;
-			desc = ofsdesc ? (const char*)(item + 1) : "";
-			if (*desc)
+			desc = ofsdesc ? ExtraMaps_GetMessage (item) : NULL;
+			if (desc && *desc)
 				Con_SafePrintf ("   %s%c%s\n", RightPad (item->name, ofsdesc, padchar), padchar, desc);
 			else
 				Con_SafePrintf ("   %s\n", item->name);
@@ -235,6 +251,11 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 	}
 }
 
+/*
+==================
+ExtraMaps_Categorize
+==================
+*/
 static maptype_t ExtraMaps_Categorize (const char *name, const searchpath_t *source)
 {
 	size_t len = strlen (name);
@@ -293,21 +314,49 @@ static maptype_t ExtraMaps_Categorize (const char *name, const searchpath_t *sou
 	return base + MAPTYPE_CUSTOM_MOD_LEVEL;
 }
 
-const levelinfo_t *ExtraMaps_GetInfo (const filelist_item_t *item)
+typedef struct levelinfo_s
+{
+	SDL_atomic_t	type;
+	const char		*message;
+} levelinfo_t;
+
+/*
+==================
+ExtraMaps_GetInfo
+==================
+*/
+static const levelinfo_t *ExtraMaps_GetInfo (const filelist_item_t *item)
 {
 	return (const levelinfo_t *) (item + 1);
 }
 
+/*
+==================
+ExtraMaps_GetType
+==================
+*/
 maptype_t ExtraMaps_GetType (const filelist_item_t *item)
 {
-	return ExtraMaps_GetInfo (item)->type;
+	const levelinfo_t *info = ExtraMaps_GetInfo (item);
+	return SDL_AtomicGet ((SDL_atomic_t *) &info->type);
 }
 
+/*
+==================
+ExtraMaps_GetMessage
+==================
+*/
 const char *ExtraMaps_GetMessage (const filelist_item_t *item)
 {
-	return ExtraMaps_GetInfo (item)->message;
+	const levelinfo_t *info = ExtraMaps_GetInfo (item);
+	return (const char *) SDL_AtomicGetPtr ((void **) &info->message);
 }
 
+/*
+==================
+ExtraMaps_IsStart
+==================
+*/
 qboolean ExtraMaps_IsStart (maptype_t type)
 {
 	return
@@ -318,25 +367,105 @@ qboolean ExtraMaps_IsStart (maptype_t type)
 	;
 }
 
+/*
+==================
+ExtraMaps_Sort
+==================
+*/
+static void ExtraMaps_Sort (void)
+{
+	int counts[MAPTYPE_COUNT];
+	int i, sum;
+	filelist_item_t *item;
+
+	memset (counts, 0, sizeof (counts));
+	for (item = extralevels; item; item = item->next)
+		counts[ExtraMaps_GetType (item)]++;
+
+	for (i = sum = 0; i < MAPTYPE_COUNT; i++)
+	{
+		int tmp = counts[i];
+		counts[i] = sum;
+		sum += tmp;
+	}
+	sum++; // NULL terminator
+
+	extralevels_sorted = (filelist_item_t **) realloc (extralevels_sorted, sizeof (*extralevels_sorted) * sum);
+	if (!extralevels_sorted)
+		Sys_Error ("ExtraMaps_Sort: out of memory on %d items", sum);
+
+	for (item = extralevels; item; item = item->next)
+		extralevels_sorted[counts[ExtraMaps_GetType (item)]++] = item;
+	extralevels_sorted[sum - 1] = NULL;
+}
+
+/*
+==================
+ExtraMaps_Add
+==================
+*/
 static void ExtraMaps_Add (const char *name, const searchpath_t *source)
 {
 	levelinfo_t info;
 	memset (&info, 0, sizeof (info));
-	if (Mod_LoadMapDescription (info.message, sizeof (info.message), name))
+	info.type.value = ExtraMaps_Categorize (name, source);
+	FileList_AddWithData (name, &info, sizeof (info), &extralevels);
+	maxlevelnamelen = q_max (maxlevelnamelen, strlen (name));
+}
+
+/*
+==================
+ExtraMaps_ParseDescriptions
+==================
+*/
+static int ExtraMaps_ParseDescriptions (void *unused)
+{
+	char buf[1024];
+	int i;
+
+	for (i = 0; extralevels_sorted[i]; i++)
 	{
-		info.type = ExtraMaps_Categorize (name, source);
-		FileList_AddWithData (name, &info, sizeof (info), &extralevels);
-		maxlevelnamelen = q_max (maxlevelnamelen, strlen (name));
+		filelist_item_t	*item = extralevels_sorted[i];
+		levelinfo_t		*extra = (levelinfo_t *) (item + 1);
+
+		if (SDL_AtomicGet (&extralevels_cancel_parsing))
+			return 1;
+
+		if (!Mod_LoadMapDescription (buf, sizeof (buf), item->name))
+			SDL_AtomicSet (&extra->type, MAPTYPE_BMODEL);
+		SDL_AtomicSetPtr ((void **) &extra->message, buf[0] ? strdup (buf) : "");
+	}
+
+	return 0;
+}
+
+/*
+==================
+ExtraMaps_WaitForParsingThread
+==================
+*/
+static void ExtraMaps_WaitForParsingThread (void)
+{
+	if (extralevels_parsing_thread)
+	{
+		SDL_WaitThread (extralevels_parsing_thread, NULL);
+		extralevels_parsing_thread = NULL;
+		SDL_AtomicSet (&extralevels_cancel_parsing, 0);
 	}
 }
 
+/*
+==================
+ExtraMaps_Init
+==================
+*/
 void ExtraMaps_Init (void)
 {
-	char		mapname[32];
-	char		ignorepakdir[32];
+	char			mapname[32];
+	char			ignorepakdir[32];
 	searchpath_t	*search;
-	pack_t		*pak;
-	int		i;
+	pack_t			*pak;
+	int				i;
 
 	// we don't want to list the maps in id1 pakfiles,
 	// because these are not "add-on" levels
@@ -374,18 +503,47 @@ void ExtraMaps_Init (void)
 			}
 		}
 	}
+
+	ExtraMaps_Sort ();
+
+	SDL_AtomicSet (&extralevels_cancel_parsing, 0);
+	extralevels_parsing_thread = SDL_CreateThread (ExtraMaps_ParseDescriptions, "Map parser", NULL);
 }
 
-static void ExtraMaps_Clear (void)
+/*
+==================
+ExtraMaps_Clear
+==================
+*/
+void ExtraMaps_Clear (void)
 {
+	filelist_item_t *item;
+
+	SDL_AtomicSet (&extralevels_cancel_parsing, 1);
+	ExtraMaps_WaitForParsingThread ();
+
 	maxlevelnamelen = 0;
+	for (item = extralevels; item; item = item->next)
+	{
+		levelinfo_t *extra = (levelinfo_t *) (item + 1);
+		if (extra->message && *extra->message)
+		{
+			free ((void *)extra->message);
+			extra->message = NULL;
+		}
+	}
+
 	FileList_Clear(&extralevels);
 }
 
-void ExtraMaps_NewGame (void)
+/*
+==================
+ExtraMaps_ShutDown
+==================
+*/
+void ExtraMaps_ShutDown (void)
 {
 	ExtraMaps_Clear ();
-	ExtraMaps_Init ();
 }
 
 /*
