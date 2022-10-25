@@ -2463,7 +2463,7 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 		return false;
 
 	filesize = COM_FOpenFile (path, &f, NULL);
-	if (filesize <= sizeof (header))
+	if (filesize <= (int) sizeof (header))
 		return false;
 
 	if (fread (&header, sizeof (header), 1, f) != 1)
