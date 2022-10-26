@@ -373,7 +373,7 @@ typedef struct
 {
 	int				len;
 	int				maxlen;
-	qboolean		(*match) (int index);
+	qboolean		(*match_fn) (int index);
 	double			timeout;
 	double			errtimeout;
 	char			text[32];
@@ -385,6 +385,7 @@ typedef struct
 	int				numitems;
 	int				viewsize;
 	int				scroll;
+	qboolean		(*isactive_fn) (int index);
 	listsearch_t	search;
 } menulist_t;
 
@@ -518,20 +519,31 @@ qboolean M_List_IsItemVisible (const menulist_t *list, int i)
 	return (unsigned)(i - first) < (unsigned)count;
 }
 
-qboolean M_List_SelectNextMatch (menulist_t *list, int start, int dir)
+qboolean M_List_SelectNextMatch (menulist_t *list, qboolean (*match_fn) (int idx), int start, int dir, qboolean wrap)
 {
 	int i, j;
 
-	if (list->numitems <= 0 || !list->search.match)
+	if (list->numitems <= 0)
 		return false;
+
+	if (!wrap)
+		start = CLAMP (0, start, list->numitems - 1);
 
 	for (i = 0, j = start; i < list->numitems; i++, j+=dir)
 	{
 		if (j < 0)
+		{
+			if (!wrap)
+				return false;
 			j = list->numitems - 1;
+		}
 		else if (j >= list->numitems)
+		{
+			if (!wrap)
+				return false;
 			j = 0;
-		if (list->search.match (j))
+		}
+		if (!match_fn || match_fn (j))
 		{
 			list->cursor = j;
 			M_List_AutoScroll (list);
@@ -540,6 +552,27 @@ qboolean M_List_SelectNextMatch (menulist_t *list, int start, int dir)
 	}
 
 	return false;
+}
+
+qboolean M_List_SelectNextSearchMatch (menulist_t *list, int start, int dir)
+{
+	if (!list->search.match_fn)
+		return false;
+	return M_List_SelectNextMatch (list, list->search.match_fn, start, dir, true);
+}
+
+qboolean M_List_SelectNextActive (menulist_t *list, int start, int dir, qboolean wrap)
+{
+	return M_List_SelectNextMatch (list, list->isactive_fn, start, dir, wrap);
+}
+
+void M_List_UpdateMouseSelection (menulist_t *list)
+{
+	M_ForceMousemove ();
+	if (list->cursor < list->scroll)
+		M_List_SelectNextActive (list, list->scroll, 1, false);
+	else if (list->cursor >= list->scroll + list->viewsize)
+		M_List_SelectNextActive (list, list->scroll + list->viewsize, -1, false);
 }
 
 void M_List_Update (menulist_t *list)
@@ -588,13 +621,12 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, 0, 1);
+			M_List_SelectNextSearchMatch (list, 0, 1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
-			list->cursor = 0;
-			M_List_AutoScroll (list);
+			M_List_SelectNextActive (list, 0, 1, false);
 		}
 		return true;
 
@@ -603,13 +635,12 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, list->numitems - 1, -1);
+			M_List_SelectNextSearchMatch (list, list->numitems - 1, -1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
-			list->cursor = list->numitems - 1;
-			M_List_AutoScroll (list);
+			M_List_SelectNextActive (list, list->numitems - 1, -1, false);
 		}
 		return true;
 
@@ -618,17 +649,18 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, list->cursor + 1, 1);
+			M_List_SelectNextSearchMatch (list, list->cursor + 1, 1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
+			qboolean sel;
 			if (list->cursor - list->scroll < list->viewsize - 1)
-				list->cursor = list->scroll + list->viewsize - 1;
+				sel = M_List_SelectNextActive (list, list->scroll + list->viewsize - 1, 1, false);
 			else
-				list->cursor += list->viewsize - 1;
-			list->cursor = q_min (list->cursor, list->numitems - 1);
-			M_List_AutoScroll (list);
+				sel = M_List_SelectNextActive (list, list->cursor + list->viewsize - 1, 1, false);
+			if (!sel)
+				M_List_SelectNextActive (list, list->numitems - 1, -1, false);
 		}
 		return true;
 
@@ -637,17 +669,18 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, list->cursor - 1, -1);
+			M_List_SelectNextSearchMatch (list, list->cursor - 1, -1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
+			qboolean sel;
 			if (list->cursor > list->scroll)
-				list->cursor = list->scroll;
+				sel = M_List_SelectNextActive (list, list->scroll, -1, false);
 			else
-				list->cursor -= list->viewsize - 1;
-			list->cursor = q_max (list->cursor, 0);
-			M_List_AutoScroll (list);
+				sel = M_List_SelectNextActive (list, list->cursor - list->viewsize + 1, -1, false);
+			if (!sel)
+				M_List_SelectNextActive (list, 0, 1, false);
 		}
 		return true;
 
@@ -656,14 +689,12 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, list->cursor - 1, -1);
+			M_List_SelectNextSearchMatch (list, list->cursor - 1, -1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
-			if (--list->cursor < 0)
-				list->cursor = list->numitems - 1;
-			M_List_AutoScroll (list);
+			M_List_SelectNextActive (list, list->cursor - 1, -1, true);
 		}
 		return true;
 
@@ -671,7 +702,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 		list->scroll -= 3;
 		if (list->scroll < 0)
 			list->scroll = 0;
-		M_ForceMousemove ();
+		M_List_UpdateMouseSelection (list);
 		return true;
 
 	case K_MWHEELDOWN:
@@ -680,7 +711,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 			list->scroll = list->numitems - list->viewsize;
 		if (list->scroll < 0)
 			list->scroll = 0;
-		M_ForceMousemove ();
+		M_List_UpdateMouseSelection (list);
 		return true;
 
 	case K_DOWNARROW:
@@ -688,14 +719,12 @@ qboolean M_List_Key (menulist_t *list, int key)
 		S_LocalSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
-			M_List_SelectNextMatch (list, list->cursor + 1, 1);
+			M_List_SelectNextSearchMatch (list, list->cursor + 1, 1);
 			list->search.timeout = SEARCH_NAV_TIMEOUT;
 		}
 		else
 		{
-			if (++list->cursor >= list->numitems)
-				list->cursor = 0;
-			M_List_AutoScroll (list);
+			M_List_SelectNextActive (list, list->cursor + 1, 1, true);
 		}
 		return true;
 
@@ -708,7 +737,7 @@ void M_List_Char (menulist_t *list, int key)
 {
 	int maxlen, start;
 
-	if (list->numitems <= 0 || !list->search.match)
+	if (list->numitems <= 0 || !list->search.match_fn)
 		return;
 
 	maxlen = (int) countof (list->search.text) - 1;
@@ -734,7 +763,7 @@ void M_List_Char (menulist_t *list, int key)
 	if (list->search.len == 1)
 		start++;
 
-	if (!M_List_SelectNextMatch (list, start, 1))
+	if (!M_List_SelectNextSearchMatch (list, start, 1))
 	{
 		list->search.len--;
 		list->search.text[list->search.len] = '\0';
@@ -746,19 +775,46 @@ void M_List_Char (menulist_t *list, int key)
 
 void M_List_Mousemove (menulist_t *list, int yrel)
 {
-	int firstvis, numvis;
+	int i, firstvis, numvis;
+
 	M_List_GetVisibleRange (list, &firstvis, &numvis);
-	if (!numvis)
+	if (!numvis || yrel < 0)
 		return;
-	yrel /= 8;
-	if (yrel < 0)
+	i = yrel / 8;
+	if (i >= numvis)
 		return;
-	if (yrel >= numvis)
+
+	i += firstvis;
+	if (list->cursor == i)
 		return;
-	yrel += firstvis;
-	if (list->cursor == yrel)
-		return;
-	list->cursor = yrel;
+
+	if (list->isactive_fn && !list->isactive_fn (i))
+	{
+		int before, after;
+		yrel += firstvis * 8;
+
+		for (before = i - 1; before >= firstvis; before--)
+			if (list->isactive_fn (before))
+				break;
+		for (after = i + 1; after < firstvis + numvis; after++)
+			if (list->isactive_fn (after))
+				break;
+
+		if (before >= firstvis && after < firstvis + numvis)
+		{
+			int distbefore = yrel - 4 - before * 8;
+			int distafter = after * 8 + 4 - yrel;
+			i = distbefore < distafter ? before : after;
+		}
+		else if (before >= firstvis)
+			i = before;
+		else if (after < firstvis + numvis)
+			i = after;
+		else
+			return;
+	}
+
+	list->cursor = i;
 }
 
 
@@ -1341,6 +1397,11 @@ static qboolean M_Maps_Match (int index)
 	return message && q_strcasestr (message, mapsmenu.list.search.text);
 }
 
+static qboolean M_Maps_IsSelectable (int index)
+{
+	return mapsmenu.items[index].source != NULL;
+}
+
 static void M_Maps_Init (void)
 {
 	int i, type, prev_type;
@@ -1350,7 +1411,8 @@ static void M_Maps_Init (void)
 	mapsmenu.cols = 38;
 	mapsmenu.scrollbar_grab = false;
 	memset (&mapsmenu.list.search, 0, sizeof (mapsmenu.list.search));
-	mapsmenu.list.search.match = M_Maps_Match;
+	mapsmenu.list.search.match_fn = M_Maps_Match;
+	mapsmenu.list.isactive_fn = M_Maps_IsSelectable;
 	mapsmenu.list.viewsize = MAX_VIS_MAPS;
 	mapsmenu.list.cursor = -1;
 	mapsmenu.list.scroll = 0;
@@ -4044,7 +4106,7 @@ static void M_Mods_Init (void)
 	modsmenu.cols = 28;
 	modsmenu.scrollbar_grab = false;
 	memset (&modsmenu.list.search, 0, sizeof (modsmenu.list.search));
-	modsmenu.list.search.match = M_Mods_Match;
+	modsmenu.list.search.match_fn = M_Mods_Match;
 	modsmenu.list.viewsize = MAX_VIS_MODS;
 	modsmenu.list.cursor = -1;
 	modsmenu.list.scroll = 0;
