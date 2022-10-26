@@ -233,7 +233,7 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 	}
 	else
 	{
-		for (item = list, i = 0; item; item = item->next, i++)
+		for (item = list, i = 0; item; item = item->next)
 		{
 			if (list == extralevels && ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
 				continue;
@@ -242,6 +242,7 @@ static void FileList_Print (filelist_item_t *list, const char *types[2], const c
 				Con_SafePrintf ("   %s%c%s\n", RightPad (item->name, ofsdesc, padchar), padchar, desc);
 			else
 				Con_SafePrintf ("   %s\n", item->name);
+			i++;
 		}
 
 		if (i)
