@@ -1677,6 +1677,7 @@ void M_Maps_Mousemove (int cx, int cy)
 
 int			m_skill_cursor;
 qboolean	m_skill_usegfx;
+qboolean	m_skill_usecustomtitle;
 char		m_skill_mapname[MAX_QPATH];
 enum m_state_e m_skill_prevmenu;
 
@@ -1702,7 +1703,7 @@ void M_Skill_Draw (void)
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
-	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
+	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
 	if (m_skill_usegfx)
@@ -4705,7 +4706,8 @@ void M_CheckMods (void)
 {
 	const unsigned int
 		main_hashes[] = {0x136bc7fd, 0x90555cb4},
-		sp_hashes[] = {0x86a6f086}
+		sp_hashes[] = {0x86a6f086},
+		sgl_hashes[] = {0x7bba813d}
 	;
 
 	m_main_mods = M_CheckCustomGfx ("gfx/menumods.lmp",
@@ -4716,5 +4718,8 @@ void M_CheckMods (void)
 
 	m_skill_usegfx = M_CheckCustomGfx ("gfx/skillmenu.lmp",
 		"gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
+
+	m_skill_usecustomtitle = M_CheckCustomGfx ("gfx/p_skill.lmp",
+		"gfx/ttl_sgl.lmp", 6728, sgl_hashes, countof (sgl_hashes));
 }
 
