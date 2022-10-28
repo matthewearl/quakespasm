@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
-extern cvar_t cl_mousemenu;
+extern cvar_t ui_mouse;
 
 static qboolean	textmode;
 
@@ -235,7 +235,7 @@ void IN_DeactivateForConsole (void)
 
 void IN_DeactivateForMenu (void)
 {
-	IN_Deactivate(modestate == MS_WINDOWED || cl_mousemenu.value);
+	IN_Deactivate(modestate == MS_WINDOWED || ui_mouse.value);
 }
 
 void IN_StartupJoystick (void)

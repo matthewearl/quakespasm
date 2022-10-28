@@ -24,15 +24,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "q_ctype.h"
 
+cvar_t ui_mouse	= {"ui_mouse", "1", CVAR_ARCHIVE};
+cvar_t ui_mouse_sound = {"ui_mouse_sound", "0", CVAR_ARCHIVE};
+cvar_t ui_sound_throttle = {"ui_sound_throttle", "0.1", CVAR_ARCHIVE};
+cvar_t ui_search_timeout = {"ui_search_timeout", "1", CVAR_ARCHIVE};
+
 void (*vid_menucmdfn)(void); //johnfitz
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
 void (*vid_menumousefn)(int cx, int cy);
 
-extern cvar_t cl_mousemenu;
-extern cvar_t cl_mousemenusound;
-extern cvar_t cl_menusoundthrottle;
-extern cvar_t cl_menusearchtimeout;
 extern qboolean quake64;
 
 enum m_state_e m_state;
@@ -146,7 +147,7 @@ void M_SetSkillMenuMap (const char *name);
 
 static void M_ThrottledSound (const char *sound)
 {
-	if (strcmp (m_lastsound, sound) == 0 && realtime - m_lastsoundtime < cl_menusoundthrottle.value)
+	if (strcmp (m_lastsound, sound) == 0 && realtime - m_lastsoundtime < ui_sound_throttle.value)
 		return;
 	q_strlcpy (m_lastsound, sound, sizeof (m_lastsound));
 	m_lastsoundtime = realtime;
@@ -155,7 +156,7 @@ static void M_ThrottledSound (const char *sound)
 
 static void M_MouseSound (const char *sound)
 {
-	if (!cl_mousemenusound.value)
+	if (!ui_mouse_sound.value)
 		return;
 	M_ThrottledSound (sound);
 }
@@ -599,9 +600,9 @@ void M_List_UpdateMouseSelection (menulist_t *list)
 void M_List_Update (menulist_t *list)
 {
 	list->search.errtimeout = q_max (0.0, list->search.errtimeout - host_rawframetime);
-	if (list->search.timeout && cl_menusearchtimeout.value > 0.f)
+	if (list->search.timeout && ui_search_timeout.value > 0.f)
 	{
-		list->search.timeout -= host_rawframetime / cl_menusearchtimeout.value;
+		list->search.timeout -= host_rawframetime / ui_search_timeout.value;
 		if (list->search.timeout <= 0.0)
 			M_List_ClearSearch (list);
 	}
@@ -4364,6 +4365,11 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 	Cmd_AddCommand ("menu_mods", M_Menu_Mods_f);
 	Cmd_AddCommand ("menu_maps", M_Menu_Maps_f);
+
+	Cvar_RegisterVariable (&ui_mouse);
+	Cvar_RegisterVariable (&ui_mouse_sound);
+	Cvar_RegisterVariable (&ui_sound_throttle);
+	Cvar_RegisterVariable (&ui_search_timeout);
 }
 
 
@@ -4489,7 +4495,7 @@ void M_Draw (void)
 
 void M_Keydown (int key)
 {
-	if (!cl_mousemenu.value && M_IsMouseKey (key))
+	if (!ui_mouse.value && M_IsMouseKey (key))
 		return;
 
 	switch (m_state)
@@ -4580,7 +4586,7 @@ void M_Mousemove (int x, int y)
 {
 	vrect_t bounds, viewport;
 
-	if (!cl_mousemenu.value)
+	if (!ui_mouse.value)
 		return;
 
 	Draw_GetMenuTransform (&bounds, &viewport);
