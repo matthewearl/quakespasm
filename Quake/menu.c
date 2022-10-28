@@ -30,6 +30,8 @@ void (*vid_menukeyfn)(int key);
 void (*vid_menumousefn)(int cx, int cy);
 
 extern cvar_t cl_mousemenu;
+extern cvar_t cl_mousemenusound;
+extern cvar_t cl_menusoundthrottle;
 extern cvar_t cl_menusearchtimeout;
 extern qboolean quake64;
 
@@ -117,6 +119,9 @@ void M_Main_Mousemove (int cx, int cy);
 	//void M_Help_Mousemove (int cx, int cy);
 	//void M_Quit_Mousemove (int cx, int cy);
 
+static double m_lastsoundtime;
+static char m_lastsound[MAX_QPATH];
+
 qboolean	m_entersound;		// play after drawing a frame, so caching
 								// won't disrupt the sound
 qboolean	m_recursiveDraw;
@@ -138,6 +143,22 @@ void M_SetSkillMenuMap (const char *name);
 #define SEARCH_ERASE_TIMEOUT			1.5
 #define SEARCH_NAV_TIMEOUT				2.0
 #define SEARCH_ERROR_STATUS_TIMEOUT		0.25
+
+static void M_ThrottledSound (const char *sound)
+{
+	if (strcmp (m_lastsound, sound) == 0 && realtime - m_lastsoundtime < cl_menusoundthrottle.value)
+		return;
+	q_strlcpy (m_lastsound, sound, sizeof (m_lastsound));
+	m_lastsoundtime = realtime;
+	S_LocalSound (sound);
+}
+
+static void M_MouseSound (const char *sound)
+{
+	if (!cl_mousemenusound.value)
+		return;
+	M_ThrottledSound (sound);
+}
 
 /*
 ================
@@ -618,7 +639,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_HOME:
 	case K_KP_HOME:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, 0, 1);
@@ -632,7 +653,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_END:
 	case K_KP_END:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, list->numitems - 1, -1);
@@ -646,7 +667,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_PGDN:
 	case K_KP_PGDN:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, list->cursor + 1, 1);
@@ -666,7 +687,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_PGUP:
 	case K_KP_PGUP:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, list->cursor - 1, -1);
@@ -686,7 +707,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_UPARROW:
 	case K_KP_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, list->cursor - 1, -1);
@@ -716,7 +737,7 @@ qboolean M_List_Key (menulist_t *list, int key)
 
 	case K_DOWNARROW:
 	case K_KP_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (list->search.len)
 		{
 			M_List_SelectNextSearchMatch (list, list->cursor + 1, 1);
@@ -748,7 +769,7 @@ void M_List_Char (menulist_t *list, int key)
 	{
 		list->search.timeout = SEARCH_ERASE_TIMEOUT;
 		list->search.errtimeout = SEARCH_ERROR_STATUS_TIMEOUT;
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		return;
 	}
 
@@ -769,7 +790,7 @@ void M_List_Char (menulist_t *list, int key)
 		list->search.text[list->search.len] = '\0';
 		list->search.timeout = SEARCH_ERASE_TIMEOUT;
 		list->search.errtimeout = SEARCH_ERROR_STATUS_TIMEOUT;
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 	}
 }
 
@@ -812,9 +833,14 @@ void M_List_Mousemove (menulist_t *list, int yrel)
 			i = after;
 		else
 			return;
+
+		if (list->cursor == i)
+			return;
 	}
 
 	list->cursor = i;
+
+	M_MouseSound ("misc/menu1.wav");
 }
 
 
@@ -949,7 +975,7 @@ void M_Main_Key (int key)
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (++m_main_cursor >= MAIN_ITEMS)
 			m_main_cursor = 0;
 		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
@@ -957,7 +983,7 @@ void M_Main_Key (int key)
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_main_cursor < 0)
 			m_main_cursor = MAIN_ITEMS - 1;
 		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
@@ -1001,9 +1027,12 @@ void M_Main_Key (int key)
 
 void M_Main_Mousemove (int cx, int cy)
 {
+	int prev = m_main_cursor;
 	M_UpdateCursor (cy, 32, 20, MAIN_ITEMS - !m_main_mods, &m_main_cursor);
 	if (m_main_cursor >= MAIN_MODS && !m_main_mods)
 		++m_main_cursor;
+	if (m_main_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -1054,13 +1083,13 @@ void M_SinglePlayer_Key (int key)
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (++m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
 			m_singleplayer_cursor = 0;
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_singleplayer_cursor < 0)
 			m_singleplayer_cursor = SINGLEPLAYER_ITEMS - 1;
 		break;
@@ -1111,7 +1140,10 @@ void M_SinglePlayer_Key (int key)
 
 void M_SinglePlayer_Mousemove (int cx, int cy)
 {
+	int prev = m_singleplayer_cursor;
 	M_UpdateCursor (cy, 32, 20, SINGLEPLAYER_ITEMS, &m_singleplayer_cursor);
+	if (m_singleplayer_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -1228,7 +1260,7 @@ void M_Load_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		if (!loadable[load_cursor])
 			return;
 		m_state = m_none;
@@ -1241,7 +1273,7 @@ void M_Load_Key (int k)
 
 	case K_UPARROW:
 	case K_LEFTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		load_cursor--;
 		if (load_cursor < 0)
 			load_cursor = MAX_SAVEGAMES-1;
@@ -1249,7 +1281,7 @@ void M_Load_Key (int k)
 
 	case K_DOWNARROW:
 	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		load_cursor++;
 		if (load_cursor >= MAX_SAVEGAMES)
 			load_cursor = 0;
@@ -1281,7 +1313,7 @@ void M_Save_Key (int k)
 
 	case K_UPARROW:
 	case K_LEFTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		load_cursor--;
 		if (load_cursor < 0)
 			load_cursor = MAX_SAVEGAMES-1;
@@ -1289,7 +1321,7 @@ void M_Save_Key (int k)
 
 	case K_DOWNARROW:
 	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		load_cursor++;
 		if (load_cursor >= MAX_SAVEGAMES)
 			load_cursor = 0;
@@ -1299,12 +1331,18 @@ void M_Save_Key (int k)
 
 void M_Load_Mousemove (int cx, int cy)
 {
+	int prev = load_cursor;
 	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
+	if (load_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 void M_Save_Mousemove (int cx, int cy)
 {
+	int prev = load_cursor;
 	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
+	if (load_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -1616,13 +1654,13 @@ void M_Maps_Key (int key)
 		mapsmenu.scroll_time += 0.25;
 		mapsmenu.scroll_wait_time = 1.5;
 		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		break;
 	case K_LEFTARROW:
 		mapsmenu.scroll_time -= 0.25;
 		mapsmenu.scroll_wait_time = 1.5;
 		M_List_KeepSearchVisible (&mapsmenu.list, 1.0);
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	case K_ENTER:
@@ -1636,7 +1674,7 @@ void M_Maps_Key (int key)
 			M_Menu_Skill_f ();
 		}
 		else
-			S_LocalSound ("misc/menu3.wav");
+			M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	case K_MOUSE1:
@@ -1741,13 +1779,13 @@ void M_Skill_Key (int key)
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (++m_skill_cursor > 3)
 			m_skill_cursor = 0;
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_skill_cursor < 0)
 			m_skill_cursor = 3;
 		break;
@@ -1771,10 +1809,13 @@ void M_Skill_Key (int key)
 
 void M_Skill_Mousemove (int cx, int cy)
 {
+	int prev = m_skill_cursor;
 	if (m_skill_usegfx)
 		M_UpdateCursor (cy, 32, 20, 4, &m_skill_cursor);
 	else
 		M_UpdateCursor (cy, 44, 16, 4, &m_skill_cursor);
+	if (m_skill_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -1825,13 +1866,13 @@ void M_MultiPlayer_Key (int key)
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (++m_multiplayer_cursor >= MULTIPLAYER_ITEMS)
 			m_multiplayer_cursor = 0;
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_multiplayer_cursor < 0)
 			m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
 		break;
@@ -1863,7 +1904,10 @@ void M_MultiPlayer_Key (int key)
 
 void M_MultiPlayer_Mousemove (int cx, int cy)
 {
+	int prev = m_multiplayer_cursor;
 	M_UpdateCursor (cy, 32, 20, MULTIPLAYER_ITEMS, &m_multiplayer_cursor);
+	if (m_multiplayer_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -1943,14 +1987,14 @@ void M_Setup_Key (int k)
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		setup_cursor--;
 		if (setup_cursor < 0)
 			setup_cursor = NUM_SETUP_CMDS-1;
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		setup_cursor++;
 		if (setup_cursor >= NUM_SETUP_CMDS)
 			setup_cursor = 0;
@@ -1961,7 +2005,7 @@ void M_Setup_Key (int k)
 	case K_MWHEELDOWN:
 		if (setup_cursor < 2)
 			return;
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		if (setup_cursor == 2)
 			setup_top = setup_top - 1;
 		if (setup_cursor == 3)
@@ -1972,7 +2016,7 @@ void M_Setup_Key (int k)
 		if (setup_cursor < 2)
 			return;
 forward:
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		if (setup_cursor == 2)
 			setup_top = setup_top + 1;
 		if (setup_cursor == 3)
@@ -2060,7 +2104,10 @@ qboolean M_Setup_TextEntry (void)
 
 void M_Setup_Mousemove (int cx, int cy)
 {
+	int prev = setup_cursor;
 	M_UpdateCursorWithTable (cy, setup_cursor_table, NUM_SETUP_CMDS, &setup_cursor);
+	if (setup_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -2148,13 +2195,13 @@ again:
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (++m_net_cursor >= m_net_items)
 			m_net_cursor = 0;
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if (--m_net_cursor < 0)
 			m_net_cursor = m_net_items - 1;
 		break;
@@ -2177,11 +2224,14 @@ again:
 
 void M_Net_Mousemove (int cx, int cy)
 {
+	int prev = m_net_cursor;
 	M_UpdateCursor (cy, 32, 20, m_net_items, &m_net_cursor);
 	if (m_net_cursor == 0 && !ipxAvailable)
 		m_net_cursor = 1;
 	if (m_net_cursor == 1 && !tcpipAvailable)
 		m_net_cursor = 0;
+	if (m_net_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -2244,7 +2294,7 @@ void M_AdjustSliders (int dir)
 	int	curr_alwaysrun, target_alwaysrun;
 	float	f, l;
 
-	S_LocalSound ("misc/menu3.wav");
+	M_ThrottledSound ("misc/menu3.wav");
 
 	switch (options_cursor)
 	{
@@ -2460,7 +2510,7 @@ void M_ReleaseSliderGrab (void)
 	if (!slider_grab)
 		return;
 	slider_grab = false;
-	S_LocalSound ("misc/menu1.wav");
+	M_ThrottledSound ("misc/menu1.wav");
 	if (options_cursor == OPT_SCALE)
 		M_SetSliderValue (OPT_SCALE, target_scale_frac);
 }
@@ -2477,7 +2527,7 @@ qboolean M_SliderClick (int cx, int cy)
 	if (!M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx)))
 		return false;
 	slider_grab = true;
-	S_LocalSound ("misc/menu3.wav");
+	M_ThrottledSound ("misc/menu3.wav");
 	return true;
 }
 
@@ -2657,14 +2707,14 @@ void M_Options_Key (int k)
 		return;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		options_cursor--;
 		if (options_cursor < 0)
 			options_cursor = OPTIONS_ITEMS-1;
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		options_cursor++;
 		if (options_cursor >= OPTIONS_ITEMS)
 			options_cursor = 0;
@@ -2698,6 +2748,7 @@ void M_Options_Key (int k)
 
 void M_Options_Mousemove (int cx, int cy)
 {
+	int prev;
 	if (slider_grab)
 	{
 		if (!keydown[K_MOUSE1])
@@ -2709,7 +2760,10 @@ void M_Options_Mousemove (int cx, int cy)
 		return;
 	}
 
+	prev = options_cursor;
 	M_UpdateCursor (cy, 32, 8, OPTIONS_ITEMS, &options_cursor);
+	if (options_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -2885,7 +2939,7 @@ void M_Keys_Key (int k)
 
 	if (bind_grab)
 	{	// defining a key
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		if ((k != K_ESCAPE) && (k != '`'))
 		{
 			M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
@@ -2916,7 +2970,7 @@ void M_Keys_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		bind_grab = true;
 		M_List_AutoScroll (&keysmenu.list);
 		IN_Activate(); // activate to allow mouse key binding
@@ -2924,7 +2978,7 @@ void M_Keys_Key (int k)
 
 	case K_BACKSPACE:	// delete bindings
 	case K_DEL:
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
 		break;
 	}
@@ -3285,14 +3339,14 @@ void M_LanConfig_Key (int key)
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		lanConfig_cursor--;
 		if (lanConfig_cursor < 0)
 			lanConfig_cursor = NUM_LANCONFIG_CMDS-1;
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		lanConfig_cursor++;
 		if (lanConfig_cursor >= NUM_LANCONFIG_CMDS)
 			lanConfig_cursor = 0;
@@ -3401,7 +3455,10 @@ qboolean M_LanConfig_TextEntry (void)
 
 void M_LanConfig_Mousemove (int cx, int cy)
 {
+	int prev = lanConfig_cursor;
 	M_UpdateCursorWithTable (cy, lanConfig_cursor_table, NUM_LANCONFIG_CMDS - StartingGame, &lanConfig_cursor);
+	if (lanConfig_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -3806,14 +3863,14 @@ void M_GameOptions_Key (int key)
 		break;
 
 	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		gameoptions_cursor--;
 		if (gameoptions_cursor < 0)
 			gameoptions_cursor = NUM_GAMEOPTIONS-1;
 		break;
 
 	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		gameoptions_cursor++;
 		if (gameoptions_cursor >= NUM_GAMEOPTIONS)
 			gameoptions_cursor = 0;
@@ -3824,7 +3881,7 @@ void M_GameOptions_Key (int key)
 	//case K_MOUSE2:
 		if (gameoptions_cursor == 0)
 			break;
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		M_NetStart_Change (-1);
 		break;
 
@@ -3832,7 +3889,7 @@ void M_GameOptions_Key (int key)
 	case K_MWHEELUP:
 		if (gameoptions_cursor == 0)
 			break;
-		S_LocalSound ("misc/menu3.wav");
+		M_ThrottledSound ("misc/menu3.wav");
 		M_NetStart_Change (1);
 		break;
 
@@ -3840,7 +3897,7 @@ void M_GameOptions_Key (int key)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		if (gameoptions_cursor == 0)
 		{
 			if (sv.active)
@@ -3867,7 +3924,10 @@ void M_GameOptions_Key (int key)
 
 void M_GameOptions_Mousemove (int cx, int cy)
 {
+	int prev = gameoptions_cursor;
 	M_UpdateCursorWithTable (cy, gameoptions_cursor_table, NUM_GAMEOPTIONS, &gameoptions_cursor);
+	if (gameoptions_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -3989,7 +4049,7 @@ void M_ServerList_Key (int k)
 
 	case K_UPARROW:
 	case K_LEFTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		slist_cursor--;
 		if (slist_cursor < 0)
 			slist_cursor = hostCacheCount - 1;
@@ -3997,7 +4057,7 @@ void M_ServerList_Key (int k)
 
 	case K_DOWNARROW:
 	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
+		M_ThrottledSound ("misc/menu1.wav");
 		slist_cursor++;
 		if (slist_cursor >= hostCacheCount)
 			slist_cursor = 0;
@@ -4007,7 +4067,7 @@ void M_ServerList_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		m_return_state = m_state;
 		m_return_onerror = true;
 		slist_sorted = false;
@@ -4026,7 +4086,10 @@ void M_ServerList_Key (int k)
 
 void M_ServerList_Mousemove (int cx, int cy)
 {
+	int prev = slist_cursor;
 	M_UpdateCursor (cy, 32, 8, hostCacheCount, &slist_cursor);
+	if (slist_cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
 }
 
 //=============================================================================
@@ -4416,7 +4479,7 @@ void M_Draw (void)
 
 	if (m_entersound)
 	{
-		S_LocalSound ("misc/menu2.wav");
+		M_ThrottledSound ("misc/menu2.wav");
 		m_entersound = false;
 	}
 
