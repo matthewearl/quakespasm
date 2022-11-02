@@ -1381,7 +1381,7 @@ const char *M_Maps_GetMessage (const mapitem_t *item)
 
 static qboolean M_Maps_IsActive (const char *map)
 {
-	return sv.active && !strcmp (sv.name, map);
+	return cls.state == ca_connected && cls.signon == SIGNONS && !strcmp (cl.mapname, map);
 }
 
 static void M_Maps_AddDecoration (const char *text)
