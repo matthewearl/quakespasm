@@ -1443,7 +1443,7 @@ static qboolean M_Maps_IsSelectable (int index)
 
 static void M_Maps_Init (void)
 {
-	int i, type, prev_type;
+	int i, active, type, prev_type;
 
 	mapsmenu.x = 8;
 	mapsmenu.y = 32;
@@ -1459,7 +1459,7 @@ static void M_Maps_Init (void)
 	mapsmenu.mapcount = 0;
 	VEC_CLEAR (mapsmenu.items);
 
-	for (i = 0, prev_type = -1; extralevels_sorted[i]; i++)
+	for (i = 0, active = -1, prev_type = -1; extralevels_sorted[i]; i++)
 	{
 		mapitem_t map;
 		filelist_item_t *item = extralevels_sorted[i];
@@ -1475,14 +1475,16 @@ static void M_Maps_Init (void)
 		map.active = M_Maps_IsActive (item->name);
 		map.source = item;
 		map.mapidx = mapsmenu.mapcount++;
-		if (map.active || (mapsmenu.list.cursor == -1 && ExtraMaps_IsStart (type)))
+		if (map.active && active == -1)
+			active = VEC_SIZE (mapsmenu.items);
+		if ((map.active && !cls.demoplayback) || (mapsmenu.list.cursor == -1 && ExtraMaps_IsStart (type)))
 			mapsmenu.list.cursor = VEC_SIZE (mapsmenu.items);
 		VEC_PUSH (mapsmenu.items, map);
 		mapsmenu.list.numitems++;
 	}
 
 	if (mapsmenu.list.cursor == -1)
-		mapsmenu.list.cursor = 0;
+		mapsmenu.list.cursor = (active != -1) ? active : 0;
 
 	M_List_CenterCursor (&mapsmenu.list);
 
