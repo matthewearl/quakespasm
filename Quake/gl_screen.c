@@ -917,6 +917,63 @@ enum
 
 /*
 ==================
+SCR_GetCleanMapTitle
+==================
+*/
+static void SCR_GetCleanMapTitle (char *buf, size_t maxchars)
+{
+	char clean[countof (cl.levelname)];
+	size_t i, j;
+
+	for (i = j = 0; i + 1 < countof (cl.levelname) && cl.levelname[i]; i++)
+	{
+		char c = cl.levelname[i] & 0x7f;
+		switch (c)
+		{
+		case '/':
+		case '|':
+		case ':':
+		case '\n':
+			c = '-';
+			break;
+		case '*':
+			c = '=';
+			break;
+		case '<':
+			c = '[';
+			break;
+		case '>':
+			c = ']';
+			break;
+		case '?':
+		case '!':
+			c = '.';
+			break;
+		case '"':
+			c = '\'';
+			break;
+		case '\t':
+			c = ' ';
+			break;
+		case '\\':
+			if (i + 1 < countof (cl.levelname) && cl.levelname[i] == 'n')
+				i++;
+			c = '-';
+			break;
+		default:
+			break;
+		}
+		// remove leading spaces, replace consecutive spaces with a single one
+		if (c != ' ' || (j > 0 && clean[j - 1] != c))
+			clean[j++] = c;
+	}
+	clean[j++] = '\0';
+
+	UTF8_FromQuake (buf, maxchars, clean);
+}
+
+/*
+==================
 SCR_ExpandVariables
 
 Returns true if format contains complete timestamp
@@ -964,6 +1021,15 @@ static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars
 		{
 			if (cls.state == ca_connected && cls.signon == SIGNONS)
 				q_strlcpy (var, cl.mapname, sizeof (var));
+			else if (key_dest == key_menu)
+				q_strlcpy (var, "menu", sizeof (var));
+			else
+				q_strlcpy (var, "console", sizeof (var));
+		}
+		else if (IS_VAR ("maptitle"))
+		{
+			if (cls.state == ca_connected && cls.signon == SIGNONS)
+				SCR_GetCleanMapTitle (var, sizeof (var));
 			else if (key_dest == key_menu)
 				q_strlcpy (var, "menu", sizeof (var));
 			else
