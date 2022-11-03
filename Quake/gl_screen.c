@@ -901,20 +901,6 @@ SCREEN SHOTS
 ==============================================================================
 */
 
-enum
-{
-	SVAR_SEC	= 1 << 0,
-	SVAR_MIN	= 1 << 1,
-	SVAR_HOUR	= 1 << 2,
-	SVAR_DAY	= 1 << 3,
-	SVAR_MONTH	= 1 << 4,
-	SVAR_YEAR	= 1 << 5,
-
-	SVAR_DATE	= SVAR_YEAR | SVAR_MONTH | SVAR_DAY,
-	SVAR_TIME	= SVAR_HOUR | SVAR_MIN | SVAR_SEC,
-	SVAR_TS		= SVAR_DATE | SVAR_TIME, 
-};
-
 /*
 ==================
 SCR_GetCleanMapTitle
@@ -976,7 +962,7 @@ static void SCR_GetCleanMapTitle (char *buf, size_t maxchars)
 ==================
 SCR_ExpandVariables
 
-Returns true if format contains complete timestamp
+Returns true if format contains any variables
 ==================
 */
 static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars)
@@ -984,7 +970,7 @@ static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars
 	time_t		now;
 	struct tm	*lt;
 	char		var[256];
-	size_t		i, j, k, mask;
+	size_t		i, j, k, numvars;
 
 	if (!maxchars)
 		return false;
@@ -993,7 +979,7 @@ static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars
 	time (&now);
 	lt = localtime (&now);
 
-	for (i = j = mask = 0; j < maxchars && fmt[i]; /**/)
+	for (i = j = numvars = 0; j < maxchars && fmt[i]; /**/)
 	{
 		if (fmt[i] != '%')
 		{
@@ -1036,49 +1022,23 @@ static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars
 				q_strlcpy (var, "console", sizeof (var));
 		}
 		else if (IS_VAR ("date"))
-		{
 			q_snprintf (var, sizeof (var), "%04d-%02d-%02d", lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday);
-			mask |= SVAR_DATE;
-		}
 		else if (IS_VAR ("time"))
-		{
 			q_snprintf (var, sizeof (var), "%02d-%02d-%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
-			mask |= SVAR_TIME;
-		}
 		else if (IS_VAR ("year"))
-		{
 			q_snprintf (var, sizeof (var), "%04d", lt->tm_year + 1900);
-			mask |= SVAR_YEAR;
-		}
 		else if (IS_VAR ("month"))
-		{
 			q_snprintf (var, sizeof (var), "%02d", lt->tm_mon + 1);
-			mask |= SVAR_MONTH;
-		}
 		else if (IS_VAR ("day"))
-		{
 			q_snprintf (var, sizeof (var), "%02d", lt->tm_mday);
-			mask |= SVAR_DAY;
-		}
 		else if (IS_VAR ("hour"))
-		{
 			q_snprintf (var, sizeof (var), "%02d", lt->tm_hour);
-			mask |= SVAR_HOUR;
-		}
 		else if (IS_VAR ("min"))
-		{
 			q_snprintf (var, sizeof (var), "%02d", lt->tm_min);
-			mask |= SVAR_MIN;
-		}
 		else if (IS_VAR ("sec"))
-		{
 			q_snprintf (var, sizeof (var), "%02d", lt->tm_sec);
-			mask |= SVAR_SEC;
-		}
 		else // unknown variable, write name and percentage signs
-		{
 			q_snprintf (var, sizeof (var), "%%%.*s%%", (int)k, fmt + i);
-		}
 
 		#undef IS_VAR
 
@@ -1093,11 +1053,12 @@ static qboolean SCR_ExpandVariables (const char *fmt, char *dst, size_t maxchars
 			k = maxchars - j;
 		memcpy (dst + j, var, k);
 		j += k;
+		numvars++;
 	}
 
 	dst[j++] = '\0';
 
-	return (mask & SVAR_TS) == SVAR_TS;
+	return numvars != 0;
 }
 
 static void SCR_ScreenShot_Usage (void)
@@ -1120,7 +1081,7 @@ void SCR_ScreenShot_f (void)
 	char	imagename[MAX_OSPATH];
 	char	checkname[MAX_OSPATH];
 	int		i, quality;
-	qboolean	ok, has_timestamp;
+	qboolean	ok, has_vars;
 
 	Q_strncpy (ext, "png", sizeof(ext));
 
@@ -1150,11 +1111,11 @@ void SCR_ScreenShot_f (void)
 	}
 
 // find a file name to save it to
-	has_timestamp = SCR_ExpandVariables (cl_screenshotname.string, basename, sizeof (basename));
+	has_vars = SCR_ExpandVariables (cl_screenshotname.string, basename, sizeof (basename));
 	if (!basename[0])
 		q_strlcpy (basename, SCREENSHOT_PREFIX, sizeof (basename));
 
-	if (!has_timestamp)
+	if (!has_vars)
 		goto append_index;
 
 	q_snprintf (imagename, sizeof (imagename), "%s.%s", basename, ext);
@@ -1170,7 +1131,7 @@ void SCR_ScreenShot_f (void)
 			basename[i + 1] = '\0';
 		}
 
-		for (i = has_timestamp; i < 10000; i++)
+		for (i = has_vars; i < 10000; i++)
 		{
 			q_snprintf (imagename, sizeof (imagename), "%s%04i.%s", basename, i, ext);
 			q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
