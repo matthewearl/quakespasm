@@ -1165,12 +1165,15 @@ char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t o
 	int l;
 	char *m;
 	q_strlcpy(out, in, outsize);
-	while ((m = q_strcasestr(out, substr)))
+	if (*substr)
 	{
-		l = strlen(substr);
-		while (l-->0)
-			if (*m >= ' ' && *m < 127)
-				*m++ |= 0x80;
+		while ((m = q_strcasestr(out, substr)))
+		{
+			l = strlen(substr);
+			while (l-->0)
+				if (*m >= ' ' && *m < 127)
+					*m++ |= 0x80;
+		}
 	}
 	return out;
 }
