@@ -1283,7 +1283,7 @@ static void R_ShowBoundingBoxes (void)
 	else
 		pvs = NULL;
 
-	for (i=0, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
+	for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
 		if (ed == sv_player)
 			continue;
