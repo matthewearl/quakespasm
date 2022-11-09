@@ -756,29 +756,40 @@ static qboolean	bash_singlematch;
 static void AddToTabList (const char *name, const char *partial, const char *type)
 {
 	tab_t	*t,*insert;
-	char	*i_bash;
-	const char *i_name;
-
-	i_name = q_strcasestr (name, partial);
-	SDL_assert (i_name);
+	char	*i_bash, *i_bash2;
+	const char *i_name, *i_name2;
 
 	if (!*bash_partial && bash_singlematch)
 	{
-		q_strlcpy (bash_partial, i_name ? i_name : partial, sizeof (bash_partial));
+		q_strlcpy (bash_partial, name, sizeof (bash_partial));
 	}
 	else
 	{
 		bash_singlematch = 0;
-		if (i_name)
+		i_bash = q_strcasestr (bash_partial, partial);
+		i_name = q_strcasestr (name, partial);
+		SDL_assert (i_bash);
+		SDL_assert (i_name);
+		if (i_name && i_bash)
 		{
-			// find max common between bash_partial and name
-			i_bash = bash_partial;
+			i_bash2 = i_bash;
+			i_name2 = i_name;
+			// find max common between bash_partial and name (right side)
 			while (*i_bash && q_toupper (*i_bash) == q_toupper (*i_name))
 			{
 				i_bash++;
 				i_name++;
 			}
 			*i_bash = 0;
+			// find max common between bash_partial and name (left side)
+			while (i_bash2 != bash_partial && i_name2 != name &&
+				q_toupper (i_bash2[-1]) == q_toupper (i_name2[-1]))
+			{
+				i_bash2--;
+				i_name2--;
+			}
+			if (i_bash2 != bash_partial)
+				memmove (bash_partial, i_bash2, strlen (i_bash2) + 1);
 		}
 	}
 
