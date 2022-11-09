@@ -231,14 +231,31 @@ skip_prefix:
 
 	if (q_isdigit (*s1) && q_isdigit (*s2))
 	{
-		unsigned int num1 = *s1++ - '0';
-		unsigned int num2 = *s2++ - '0';
+		const char *begin1 = s1++;
+		const char *begin2 = s2++;
+		int diff;
+
+		while (*begin1 == '0')
+			begin1++;
+		while (*begin2 == '0')
+			begin2++;
+
 		while (q_isdigit (*s1))
-			num1 = num1 * 10 + (*s1++ - '0');
+			s1++;
 		while (q_isdigit (*s2))
-			num2 = num2 * 10 + (*s2++ - '0');
-		if (num1 != num2)
-			return num1 < num2 ? -1 : 1;
+			s2++;
+
+		diff = (s1 - begin1) - (s2 - begin2);
+		if (diff)
+			return diff;
+
+		while (begin1 != s1)
+		{
+			diff = *begin1++ - *begin2++;
+			if (diff)
+				return diff;
+		}
+
 		goto skip_prefix;
 	}
 
