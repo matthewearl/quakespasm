@@ -216,6 +216,35 @@ void Vec_Free (void **pvec)
 ============================================================================
 */
 
+int q_strnaturalcmp (const char *s1, const char *s2)
+{
+	if (s1 == s2)
+		return 0;
+
+skip_prefix:
+	while (*s1 && !q_isdigit (*s1) && q_toupper (*s1) == q_toupper (*s2))
+	{
+		s1++;
+		s2++;
+		continue;
+	}
+
+	if (q_isdigit (*s1) && q_isdigit (*s2))
+	{
+		unsigned int num1 = *s1++ - '0';
+		unsigned int num2 = *s2++ - '0';
+		while (q_isdigit (*s1))
+			num1 = num1 * 10 + (*s1++ - '0');
+		while (q_isdigit (*s2))
+			num2 = num2 * 10 + (*s2++ - '0');
+		if (num1 != num2)
+			return num1 < num2 ? -1 : 1;
+		goto skip_prefix;
+	}
+
+	return q_toupper (*s1) - q_toupper (*s2);
+}
+
 int q_strcasecmp(const char * s1, const char * s2)
 {
 	const char * p1 = s1;

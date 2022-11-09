@@ -803,7 +803,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 		t->next = t;
 		t->prev = t;
 	}
-	else if (q_strcasecmp (name, tablist->name) < 0) //insert at front
+	else if (q_strnaturalcmp (name, tablist->name) < 0) //insert at front
 	{
 		t->next = tablist;
 		t->prev = tablist->prev;
@@ -816,7 +816,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 		insert = tablist;
 		do
 		{
-			if (q_strcasecmp (name, insert->name) < 0)
+			if (q_strnaturalcmp (name, insert->name) < 0)
 				break;
 			insert = insert->next;
 		} while (insert != tablist);

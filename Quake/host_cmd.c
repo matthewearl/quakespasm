@@ -55,43 +55,6 @@ void Host_Quit_f (void)
 
 /*
 ==================
-FileList_Compare
-
-Case-insensitive string comparison that also handles integer sequences
-(e.g. d1m9 comes before d1m10)
-==================
-*/
-static int FileList_Compare (const char *s1, const char *s2)
-{
-	if (s1 == s2)
-		return 0;
-
-skip_prefix:
-	while (*s1 && !q_isdigit (*s1) && q_toupper (*s1) == q_toupper (*s2))
-	{
-		s1++;
-		s2++;
-		continue;
-	}
-
-	if (q_isdigit (*s1) && q_isdigit (*s2))
-	{
-		unsigned int num1 = *s1++ - '0';
-		unsigned int num2 = *s2++ - '0';
-		while (q_isdigit (*s1))
-			num1 = num1 * 10 + (*s1++ - '0');
-		while (q_isdigit (*s2))
-			num2 = num2 * 10 + (*s2++ - '0');
-		if (num1 != num2)
-			return num1 < num2 ? -1 : 1;
-		goto skip_prefix;
-	}
-
-	return q_toupper (*s1) - q_toupper (*s2);
-}
-
-/*
-==================
 FileList_AddWithData
 ==================
 */
@@ -113,7 +76,7 @@ static void FileList_AddWithData (const char *name, const void *data, size_t dat
 
 	// insert each entry in alphabetical order
 	if (*list == NULL ||
-	    FileList_Compare (item->name, (*list)->name) < 0) //insert at front
+	    q_strnaturalcmp (item->name, (*list)->name) < 0) //insert at front
 	{
 		item->next = *list;
 		*list = item;
@@ -122,7 +85,7 @@ static void FileList_AddWithData (const char *name, const void *data, size_t dat
 	{
 		prev = *list;
 		cursor = (*list)->next;
-		while (cursor && (FileList_Compare (item->name, cursor->name) > 0))
+		while (cursor && (q_strnaturalcmp (item->name, cursor->name) > 0))
 		{
 			prev = cursor;
 			cursor = cursor->next;
