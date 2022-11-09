@@ -98,6 +98,7 @@ cvar_t	r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t	r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t	r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t	r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
+cvar_t	r_showbboxes_filter = {"r_showbboxes_filter", "", CVAR_NONE};
 cvar_t	r_lerpmodels = {"r_lerpmodels", "1", CVAR_ARCHIVE};
 cvar_t	r_lerpmove = {"r_lerpmove", "1", CVAR_ARCHIVE};
 cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/brazshrt.mdl,progs/longtrch.mdl,progs/flame_pyre.mdl,progs/v_saw.mdl,progs/v_xfist.mdl,progs/h2stuff/newfire.mdl", CVAR_NONE};
@@ -1213,6 +1214,38 @@ static void R_EmitWireBox (const vec3_t mins, const vec3_t maxs, uint32_t color)
 
 /*
 ================
+R_ShowBoundingBoxesFilter
+
+r_showbboxes_filter "artifact,=trigger_secret"
+================
+*/
+char *r_showbboxes_filter_strings = NULL;
+
+static qboolean R_ShowBoundingBoxesFilter (edict_t *ed)
+{
+	if (!r_showbboxes_filter_strings)
+		return true;
+
+	if (ed->v.classname)
+	{
+		const char *classname = PR_GetString (ed->v.classname);
+		char *str = r_showbboxes_filter_strings;
+		qboolean is_allowed = false;
+		while (*str && !is_allowed)
+		{
+			if (*str == '=')
+				is_allowed = !strcmp (classname, str + 1);
+			else
+				is_allowed = strstr (classname, str) != NULL;
+			str += strlen (str) + 1;
+		}
+		return is_allowed;
+	}
+	return false;
+}
+
+/*
+================
 R_ShowBoundingBoxes -- johnfitz
 
 draw bounding boxes -- the server-side boxes, not the renderer cullboxes
@@ -1252,6 +1285,9 @@ static void R_ShowBoundingBoxes (void)
 		if (ed == sv_player)
 			continue;
 
+		if (!R_ShowBoundingBoxesFilter(ed))
+			continue;
+
 		if (pvs)
 		{
 			qboolean inpvs =
@@ -1278,6 +1314,8 @@ static void R_ShowBoundingBoxes (void)
 						break;
 				}
 			}
+			if (ed->v.health > 0)
+				color = 0xff0000ff;
 		}
 		else
 			color = 0xffffffff;
