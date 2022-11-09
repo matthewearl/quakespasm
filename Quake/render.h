@@ -67,6 +67,8 @@ typedef struct entity_s
 	int						effects;		// light, particles, etc
 	int						skinnum;		// for Alias models
 
+	int						firstleaf;		// for sorting static entities
+
 // FIXME: could turn these into a union
 
 	byte					alpha;			//johnfitz -- alpha

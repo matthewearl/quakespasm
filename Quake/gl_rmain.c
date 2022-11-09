@@ -563,8 +563,8 @@ void GL_DepthRange (zrange_t range)
 //
 //==============================================================================
 
-static unsigned short visedict_keys[MAX_VISEDICTS];
-static unsigned short visedict_order[2][MAX_VISEDICTS];
+static uint32_t visedict_keys[MAX_VISEDICTS];
+static uint16_t visedict_order[2][MAX_VISEDICTS];
 static entity_t *cl_sorted_visedicts[MAX_VISEDICTS + 1]; // +1 for worldspawn
 static int cl_modtype_ofs[mod_numtypes*2 + 1]; // x2: opaque/translucent; +1: total in last slot
 
@@ -584,7 +584,7 @@ R_SortEntities
 static void R_SortEntities (void)
 {
 	int i, j, pass;
-	int bins[256];
+	int bins[1 << (MODSORT_BITS/2)];
 	int typebins[mod_numtypes*2];
 	qboolean alphasort = r_alphasort.value && !r_oit.value;
 
@@ -625,11 +625,13 @@ static void R_SortEntities (void)
 				dist += delta * delta;
 			}
 			dist = sqrt (dist);
-			visedict_keys[i] = ~CLAMP (0, (int)dist, 0xffff);
+			visedict_keys[i] = ~CLAMP (0, (int)dist, MODSORT_MASK);
 		}
 		else if (translucent && !r_oit.value)
 		{
-			visedict_keys[i] = i;
+			// Note: -1 (0xfffff) for non-static entities (firstleaf=0),
+			// so they are sorted after static ones
+			visedict_keys[i] = ent->firstleaf - 1;
 		}
 		else
 		{
@@ -655,22 +657,23 @@ static void R_SortEntities (void)
 	}
 	cl_modtype_ofs[i] = j;
 
-	// LSD-first radix sort: 2 passes x 8 bits
+	// LSD-first radix sort: 2 passes x MODSORT_BITS/2 bits
 	for (pass = 0; pass < 2; pass++)
 	{
-		unsigned short *src = visedict_order[pass];
-		unsigned short *dst = visedict_order[pass ^ 1];
-		int shift = pass * 8;
+		uint16_t *src = visedict_order[pass];
+		uint16_t *dst = visedict_order[pass ^ 1];
+		const int mask = countof (bins) - 1;
+		int shift = pass * (MODSORT_BITS/2);
 		int sum;
 
 		// count number of entries in each bin
 		memset (bins, 0, sizeof(bins));
 		for (i = 0; i < cl_numvisedicts; i++)
-			bins[(visedict_keys[i] >> shift) & 255]++;
+			bins[(visedict_keys[i] >> shift) & mask]++;
 
 		// turn bin counts into offsets
 		sum = 0;
-		for (i = 0; i < 256; i++)
+		for (i = 0; i < countof (bins); i++)
 		{
 			int tmp = bins[i];
 			bins[i] = sum;
@@ -679,7 +682,7 @@ static void R_SortEntities (void)
 
 		// reorder
 		for (i = 0; i < cl_numvisedicts; i++)
-			dst[bins[(visedict_keys[src[i]] >> shift) & 255]++] = src[i];
+			dst[bins[(visedict_keys[src[i]] >> shift) & mask]++] = src[i];
 	}
 
 	// write sorted list

@@ -2373,7 +2373,7 @@ visdone:
 		mod->nummodelsurfaces = mod->submodels[1].firstface;
 	else
 		mod->nummodelsurfaces = mod->numsurfaces;
-	mod->sortkey = CRC_Block (mod->name, strlen(mod->name)) & ~MODSORT_FRAMEMASK;
+	mod->sortkey = (CRC_Block (mod->name, strlen(mod->name)) & MODSORT_MODELMASK) << MODSORT_FRAMEBITS;
 	Mod_FindUsedTextures (mod);
 
 	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
@@ -3170,9 +3170,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 		return;
 	memcpy (mod->cache.data, pheader, total);
 
-	mod->sortkey = (CRC_Block (mod->name, strlen(mod->name)) >> 1) & ~(MODSORT_FRAMEMASK|MODSORT_ALIAS_ALPHATEST);
+	mod->sortkey = ((CRC_Block (mod->name, strlen(mod->name)) >> 1) & MODSORT_FRAMEMASK) << MODSORT_FRAMEBITS;
 	if (mod->flags & MF_HOLEY)
 		mod->sortkey |= MODSORT_ALIAS_ALPHATEST;
+	else
+		mod->sortkey &= ~MODSORT_ALIAS_ALPHATEST;
 
 	Hunk_FreeToLowMark (start);
 }
@@ -3352,7 +3354,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 	}
 
 	mod->type = mod_sprite;
-	mod->sortkey = CRC_Block (mod->name, strlen(mod->name)) & ~MODSORT_FRAMEMASK;
+	mod->sortkey = (CRC_Block (mod->name, strlen(mod->name)) & MODSORT_MODELMASK) << MODSORT_FRAMEBITS;
 }
 
 //=============================================================================

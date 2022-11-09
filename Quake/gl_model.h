@@ -397,17 +397,19 @@ typedef enum {mod_brush, mod_alias, mod_sprite, mod_numtypes} modtype_t;
 //johnfitz
 
 //
-// Entity sort keys (16 bits)
-// 15.....4 | 3....0
-// model:12 | anim:4
+// Entity sort keys (20 bits)
+// 19.....4 | 3....0
+// model:16 | anim:4
 //
 enum
 {
 	MODSORT_FRAMEBITS			= 4,
-	MODSORT_MODELBITS			= 12,
+	MODSORT_MODELBITS			= 16,
+	MODSORT_BITS				= MODSORT_FRAMEBITS + MODSORT_MODELBITS,
 	MODSORT_FRAMEMASK			= (1 << MODSORT_FRAMEBITS) - 1,
 	MODSORT_MODELMASK			= (1 << MODSORT_MODELBITS) - 1,
-	MODSORT_ALIAS_ALPHATEST		= 1 << 15,
+	MODSORT_MASK				= (1 << MODSORT_BITS) - 1,
+	MODSORT_ALIAS_ALPHATEST		= 1 << (MODSORT_BITS - 1),
 };
 
 typedef struct qmodel_s
@@ -422,7 +424,7 @@ typedef struct qmodel_s
 	synctype_t	synctype;
 
 	int			flags;
-	unsigned short	sortkey;
+	uint32_t	sortkey;
 
 //
 // volume occupied by the model graphics

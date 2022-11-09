@@ -156,10 +156,10 @@ R_AddStaticModels
 */
 void R_AddStaticModels (const byte *vis)
 {
-	int			i, j, start, leafidx, numleafs, *efrags;
+	int			i, j, start, leafidx, maxleaf, numleafs, *efrags;
 	entity_t	*ent;
 
-	for (i = 0, start = cl_numvisedicts, ent = cl_static_entities, efrags = cl_efrags; i < cl.num_statics; i++, ent++)
+	for (i = maxleaf = 0, start = cl_numvisedicts, ent = cl_static_entities, efrags = cl_efrags; i < cl.num_statics; i++, ent++)
 	{
 		if (!ent->model)
 			continue;
@@ -171,6 +171,8 @@ void R_AddStaticModels (const byte *vis)
 				if (cl_numvisedicts >= MAX_VISEDICTS)
 					return;
 				cl_visedicts[cl_numvisedicts++] = ent;
+				ent->firstleaf = leafidx + 1;
+				maxleaf = q_max (maxleaf, leafidx + 1);
 				break;
 			}
 		}
@@ -182,11 +184,21 @@ void R_AddStaticModels (const byte *vis)
 	{
 		int count = cl_numvisedicts - start;
 		int half = count / 2;
+		int shift = 0;
+
+		// make sure we don't overflow the sort key
+		while (maxleaf > MODSORT_BITS)
+		{
+			maxleaf >>= 1;
+			shift++;
+		}
+
 		for (i = 0, j = count - 1; i < half; i++, j--)
 		{
 			ent = cl_visedicts[start + i];
 			cl_visedicts[start + i] = cl_visedicts[start + j];
 			cl_visedicts[start + j] = ent;
+			ent->firstleaf >>= shift;
 		}
 	}
 }
