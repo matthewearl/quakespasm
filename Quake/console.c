@@ -753,29 +753,33 @@ tablist is a doubly-linked loop, alphabetized by name
 static char	bash_partial[80];
 static qboolean	bash_singlematch;
 
-void AddToTabList (const char *name, const char *type)
+static void AddToTabList (const char *name, const char *partial, const char *type)
 {
 	tab_t	*t,*insert;
 	char	*i_bash;
 	const char *i_name;
 
-	if (!*bash_partial)
+	i_name = q_strcasestr (name, partial);
+	SDL_assert (i_name);
+
+	if (!*bash_partial && bash_singlematch)
 	{
-		strncpy (bash_partial, name, 79);
-		bash_partial[79] = '\0';
+		q_strlcpy (bash_partial, i_name ? i_name : partial, sizeof (bash_partial));
 	}
 	else
 	{
 		bash_singlematch = 0;
-		// find max common between bash_partial and name
-		i_bash = bash_partial;
-		i_name = name;
-		while (*i_bash && (*i_bash == *i_name))
+		if (i_name)
 		{
-			i_bash++;
-			i_name++;
+			// find max common between bash_partial and name
+			i_bash = bash_partial;
+			while (*i_bash && q_toupper (*i_bash) == q_toupper (*i_name))
+			{
+				i_bash++;
+				i_name++;
+			}
+			*i_bash = 0;
 		}
-		*i_bash = 0;
 	}
 
 	t = (tab_t *) Hunk_Alloc(sizeof(tab_t));
@@ -788,7 +792,7 @@ void AddToTabList (const char *name, const char *type)
 		t->next = t;
 		t->prev = t;
 	}
-	else if (strcmp(name, tablist->name) < 0) //insert at front
+	else if (q_strcasecmp (name, tablist->name) < 0) //insert at front
 	{
 		t->next = tablist;
 		t->prev = tablist->prev;
@@ -801,7 +805,7 @@ void AddToTabList (const char *name, const char *type)
 		insert = tablist;
 		do
 		{
-			if (strcmp(name, insert->name) < 0)
+			if (q_strcasecmp (name, insert->name) < 0)
 				break;
 			insert = insert->next;
 		} while (insert != tablist);
@@ -837,90 +841,55 @@ static const int num_arg_completion_types =
 
 /*
 ============
-FindCompletion -- stevenaaus
-============
-*/
-const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
-{
-	static char matched[32];
-	char *i_matched, *i_name;
-	filelist_item_t	*file;
-	int   init, match, plen;
-
-	memset(matched, 0, sizeof(matched));
-	plen = strlen(partial);
-	match = 0;
-
-	for (file = filelist, init = 0; file; file = file->next)
-	{
-		if (!q_strncasecmp (file->name, partial, plen))
-		{
-			if (init == 0)
-			{
-				init = 1;
-				strncpy (matched, file->name, sizeof(matched)-1);
-				matched[sizeof(matched)-1] = '\0';
-			}
-			else
-			{ // find max common
-				i_matched = matched;
-				i_name = file->name;
-				while (*i_matched && (q_tolower(*i_matched) == q_tolower(*i_name)))
-				{
-					i_matched++;
-					i_name++;
-				}
-				*i_matched = 0;
-			}
-			match++;
-		}
-	}
-
-	*nummatches_out = match;
-
-	if (match > 1)
-	{
-		for (file = filelist; file; file = file->next)
-		{
-			if (!q_strncasecmp (file->name, partial, plen))
-				Con_SafePrintf ("   %s\n", file->name);
-		}
-		Con_SafePrintf ("\n");
-	}
-
-	return matched;
-}
-
-/*
-============
 BuildTabList -- johnfitz
 ============
 */
-void BuildTabList (const char *partial)
+static void BuildTabList (const char *partial)
 {
 	cmdalias_t		*alias;
 	cvar_t			*cvar;
-	cmd_function_t		*cmd;
-	int		len;
+	filelist_item_t	*file;
+	cmd_function_t	*cmd;
+	int				i;
 
 	tablist = NULL;
-	len = strlen(partial);
 
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
 
+// Map autocomplete function -- S.A
+// Since we don't have argument completion, this hack will do for now...
+	for (i=0; i<num_arg_completion_types; i++)
+	{
+	// arg_completion contains a command we can complete the arguments
+	// for (like "map ") and a list of all the maps.
+		arg_completion_type_t arg_completion = arg_completion_types[i];
+		const char *command_name = arg_completion.command;
+
+		if (!q_strncasecmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
+		{
+			for (file = *arg_completion.filelist; file; file = file->next)
+				if (q_strcasestr (file->name, partial))
+					AddToTabList (file->name, partial, NULL);
+			return;
+		}
+	}
+
+	if (!*partial)
+		return;
+
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for ( ; cvar ; cvar=cvar->next)
-		if (!q_strncasecmp (partial, cvar->name, len))
-			AddToTabList (cvar->name, "cvar");
+		if (q_strcasestr (cvar->name, partial))
+			AddToTabList (cvar->name, partial, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (cmd->srctype != src_server && !q_strncasecmp (partial,cmd->name, len))
-			AddToTabList (cmd->name, "command");
+		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial))
+			AddToTabList (cmd->name, partial, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)
-		if (!q_strncasecmp (partial, alias->name, len))
-			AddToTabList (alias->name, "alias");
+		if (q_strcasestr (alias->name, partial))
+			AddToTabList (alias->name, partial, "alias");
 }
 
 /*
@@ -934,7 +903,7 @@ void Con_TabComplete (void)
 	const char	*match;
 	static char	*c;
 	tab_t		*t;
-	int		mark, i, j;
+	int		mark, i;
 
 // if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -952,44 +921,6 @@ void Con_TabComplete (void)
 	for (i = 0; c + i < key_lines[edit_line] + key_linepos; i++)
 		partial[i] = c[i];
 	partial[i] = 0;
-
-// Map autocomplete function -- S.A
-// Since we don't have argument completion, this hack will do for now...
-	for (j=0; j<num_arg_completion_types; j++)
-	{
-	// arg_completion contains a command we can complete the arguments
-	// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[j];
-		const char *command_name = arg_completion.command;
-
-		if (!q_strncasecmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
-		{
-			int nummatches = 0;
-			const char *matched_map = FindCompletion(partial, *arg_completion.filelist, &nummatches);
-			if (!*matched_map)
-				return;
-			q_strlcpy (partial, matched_map, MAXCMDLINE);
-			*c = '\0';
-			q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
-			key_linepos = c - key_lines[edit_line] + Q_strlen(matched_map); //set new cursor position
-			if (key_linepos >= MAXCMDLINE)
-				key_linepos = MAXCMDLINE - 1;
-			// if only one match, append a space
-			if (key_linepos < MAXCMDLINE - 1 &&
-			    key_lines[edit_line][key_linepos] == 0 && (nummatches == 1))
-			{
-				key_lines[edit_line][key_linepos] = ' ';
-				key_linepos++;
-				key_lines[edit_line][key_linepos] = 0;
-			}
-			c = key_lines[edit_line] + key_linepos;
-			return;
-		}
-	}
-
-//if partial is empty, return
-	if (partial[0] == 0)
-		return;
 
 //trim trailing space becuase it screws up string comparisons
 	if (i > 0 && partial[i-1] == ' ')
@@ -1012,7 +943,12 @@ void Con_TabComplete (void)
 			Con_SafePrintf("\n");
 			do
 			{
-				Con_SafePrintf("   %s (%s)\n", t->name, t->type);
+				char tinted[MAXCMDLINE];
+				COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
+				if (t->type)
+					Con_SafePrintf("   %s (%s)\n", tinted, t->type);
+				else
+					Con_SafePrintf("   %s\n", tinted);
 				t = t->next;
 			} while (t != tablist);
 			Con_SafePrintf("\n");
@@ -1020,7 +956,7 @@ void Con_TabComplete (void)
 
 	//	match = tablist->name;
 	// First time, just show maximum matching chars -- S.A.
-		match = bash_partial;
+		match = bash_singlematch ? tablist->name : bash_partial;
 	}
 	else
 	{
@@ -1060,6 +996,7 @@ void Con_TabComplete (void)
 		key_lines[edit_line][key_linepos] = ' ';
 		key_linepos++;
 		key_lines[edit_line][key_linepos] = 0;
+		key_tabpartial[0] = 0; // restart cycle
 	// S.A.: the map argument completion (may be in combination with the bash-style
 	// display behavior changes, causes weirdness when completing the arguments for
 	// the changelevel command. the line below "fixes" it, although I'm not sure about
