@@ -828,6 +828,35 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 	}
 }
 
+/*
+============
+FindCommandStart
+============
+*/
+static const char *FindCommandStart (void)
+{
+	const char *str = key_lines[edit_line] + 1; 
+	const char *end = str + key_linepos - 1;
+	const char *ret = str;
+	qboolean quote = false;
+	
+	while (*str && str != end)
+	{
+		char c = *str++;
+		if (c == '\"')
+			quote ^= true;
+		else if (!quote && c == ';')
+			ret = str;
+		else if (!quote && c == '/' && *str == '/')
+			break;
+	}
+
+	while (*ret == ' ')
+		ret++;
+
+	return ret;
+}
+
 typedef struct arg_completion_type_s
 {
 	const char		*command;
@@ -861,12 +890,15 @@ static void BuildTabList (const char *partial)
 	cvar_t			*cvar;
 	filelist_item_t	*file;
 	cmd_function_t	*cmd;
+	const char		*str;
 	int				i;
 
 	tablist = NULL;
 
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
+
+	str = FindCommandStart ();
 
 // Map autocomplete function -- S.A
 // Since we don't have argument completion, this hack will do for now...
@@ -877,7 +909,7 @@ static void BuildTabList (const char *partial)
 		arg_completion_type_t arg_completion = arg_completion_types[i];
 		const char *command_name = arg_completion.command;
 
-		if (!q_strncasecmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
+		if (!q_strncasecmp (str, command_name, strlen(command_name)))
 		{
 			for (file = *arg_completion.filelist; file; file = file->next)
 				if (q_strcasestr (file->name, partial))
