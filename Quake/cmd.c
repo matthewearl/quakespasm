@@ -841,30 +841,6 @@ qboolean	Cmd_Exists (const char *cmd_name)
 }
 
 
-
-/*
-============
-Cmd_CompleteCommand
-============
-*/
-const char *Cmd_CompleteCommand (const char *partial)
-{
-	cmd_function_t	*cmd;
-	int		len;
-
-	len = Q_strlen(partial);
-
-	if (!len)
-		return NULL;
-
-// check functions
-	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (!Q_strncmp (partial,cmd->name, len))
-			return cmd->name;
-
-	return NULL;
-}
-
 /*
 ============
 Cmd_ExecuteString

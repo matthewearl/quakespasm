@@ -140,9 +140,5 @@ void	Cvar_UnlockAll (void);
 
 void	Cvar_Init (void);
 
-const char	*Cvar_CompleteVariable (const char *partial);
-// attempts to match a partial variable name for command line completion
-// returns NULL if nothing fits
-
 #endif	/* __CVAR_H__ */
 

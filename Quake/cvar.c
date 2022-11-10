@@ -345,30 +345,6 @@ const char *Cvar_VariableString (const char *var_name)
 
 /*
 ============
-Cvar_CompleteVariable
-============
-*/
-const char *Cvar_CompleteVariable (const char *partial)
-{
-	cvar_t	*cvar;
-	int	len;
-
-	len = Q_strlen(partial);
-	if (!len)
-		return NULL;
-
-// check functions
-	for (cvar = cvar_vars ; cvar ; cvar = cvar->next)
-	{
-		if (!Q_strncmp(partial, cvar->name, len))
-			return cvar->name;
-	}
-
-	return NULL;
-}
-
-/*
-============
 Cvar_Reset -- johnfitz
 ============
 */
