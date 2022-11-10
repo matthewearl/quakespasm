@@ -938,7 +938,7 @@ static void BuildTabList (const char *partial)
 			AddToTabList (cvar->name, partial, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial))
+		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial) && !Cmd_IsReservedName (cmd->name))
 			AddToTabList (cmd->name, partial, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)

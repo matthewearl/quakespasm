@@ -519,6 +519,18 @@ cmd_function_t	*cmd_functions;		// possible commands to execute
 
 /*
 ============
+Cmd_IsReservedName
+
+Returns true if name starts with 2 underscores
+============
+*/
+qboolean Cmd_IsReservedName (const char *name)
+{
+	return name[0] == '_' && name[1] == '_';
+}
+
+/*
+============
 Cmd_List_f -- johnfitz
 ============
 */
@@ -544,10 +556,10 @@ void Cmd_List_f (void)
 	{
 		if (cmd->srctype == src_server)
 			continue;
-		if (partial && Q_strncmp (partial,cmd->name, len))
-		{
+		if (Cmd_IsReservedName (cmd->name))
 			continue;
-		}
+		if (partial && Q_strncmp (partial,cmd->name, len))
+			continue;
 		Con_SafePrintf ("   %s\n", cmd->name);
 		count++;
 	}
@@ -578,7 +590,7 @@ static void Cmd_ListAllContaining (const char *substr)
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (cmd->srctype != src_server && q_strcasestr(cmd->name, substr))
+		if (cmd->srctype != src_server && q_strcasestr(cmd->name, substr) && !Cmd_IsReservedName(cmd->name))
 		{
 			hits++;
 			Con_SafePrintf ("   %s\n", COM_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
