@@ -838,14 +838,25 @@ static const char *FindCommandStart (void)
 	const char *str = key_lines[edit_line] + 1; 
 	const char *end = str + key_linepos - 1;
 	const char *ret = str;
-	qboolean quote = false;
-	
+	const char *quote = NULL;
+
 	while (*str && str != end)
 	{
 		char c = *str++;
 		if (c == '\"')
-			quote ^= true;
-		else if (!quote && c == ';')
+		{
+			if (!quote)
+			{
+				quote = ret; // save previous command boundary
+				ret = str; // new command
+			}
+			else
+			{
+				ret = quote; // restore saved cursor
+				quote = NULL;
+			}
+		}
+		else if (c == ';')
 			ret = str;
 		else if (!quote && c == '/' && *str == '/')
 			break;
