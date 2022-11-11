@@ -36,7 +36,6 @@ extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
 extern cvar_t r_showbboxes;
-extern cvar_t r_showbboxes_filter;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_nolerp_list;
@@ -55,42 +54,44 @@ extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 /*
 ====================
-R_SetShowbboxesFilter_f
+R_ShowbboxesFilter_f
 ====================
 */
-static void R_SetShowbboxesFilter_f (cvar_t *var)
+static void R_ShowbboxesFilter_f (void)
 {
-	extern char *r_showbboxes_filter_strings;
+	extern char r_showbboxes_filter_strings[MAXCMDLINE];
 
-	free (r_showbboxes_filter_strings);
-	r_showbboxes_filter_strings = NULL;
-
-	if (*var->string)
+	if (Cmd_Argc () >= 2)
 	{
-		char *filter, *p, *token;
-		const char *delim = ",";
-		int len = strlen (var->string);
-		int size = len + 2;
-
-		r_showbboxes_filter_strings = (char *) malloc(size);
-		if (!r_showbboxes_filter_strings)
-			Sys_Error ("R_SetShowbboxesFilter_f: malloc() failed on %d bytes", size);
-
-		filter = strdup(var->string);
-		if (!filter)
-			Sys_Error ("R_SetShowbboxesFilter_f: strdup() failed on %d bytes", len + 1);
-
-		p = r_showbboxes_filter_strings;
-		token = strtok (filter, delim);
-		while (token != NULL)
+		int i, len, ofs;
+		for (i = 1, ofs = 0; i < Cmd_Argc (); i++)
 		{
-			strcpy (p, token);
-			p += strlen (token) + 1;
-			token = strtok (NULL, delim);
+			const char *arg = Cmd_Argv (i);
+			if (!*arg)
+				continue;
+			len = strlen (arg) + 1;
+			if (ofs + len + 1 > (int) countof (r_showbboxes_filter_strings))
+			{
+				Con_Warning ("overflow at \"%s\"\n", arg);
+				break;
+			}
+			memcpy (&r_showbboxes_filter_strings[ofs], arg, len);
+			ofs += len;
 		}
-		*p = '\0';
-
-		free(filter);
+		r_showbboxes_filter_strings[ofs++] = '\0';
+	}
+	else
+	{
+		const char *p = r_showbboxes_filter_strings;
+		Con_SafePrintf ("\"r_showbboxes_filter\" is");
+		if (!*p)
+			Con_SafePrintf (" \"\"");
+		else do
+		{
+			Con_SafePrintf (" \"%s\"", p);
+			p += strlen (p) + 1;
+		} while (*p);
+		Con_SafePrintf ("\n");
 	}
 }
 
@@ -225,6 +226,7 @@ void R_Init (void)
 
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
+	Cmd_AddCommand ("r_showbboxes_filter", R_ShowbboxesFilter_f);
 
 	Cvar_RegisterVariable (&r_norefresh);
 	Cvar_RegisterVariable (&r_lightmap);
@@ -262,8 +264,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
 	Cvar_RegisterVariable (&r_showbboxes);
-	Cvar_RegisterVariable (&r_showbboxes_filter);
-	Cvar_SetCallback (&r_showbboxes_filter, R_SetShowbboxesFilter_f);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
