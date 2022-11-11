@@ -758,6 +758,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 	tab_t	*t,*insert;
 	char	*i_bash, *i_bash2;
 	const char *i_name, *i_name2;
+	int mark;
 
 	if (!*bash_partial && bash_singlematch)
 	{
@@ -793,6 +794,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 		}
 	}
 
+	mark = Hunk_LowMark ();
 	t = (tab_t *) Hunk_Alloc(sizeof(tab_t));
 	t->name = name;
 	t->type = type;
@@ -816,7 +818,13 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 		insert = tablist;
 		do
 		{
-			if (q_strnaturalcmp (name, insert->name) < 0)
+			int cmp = q_strnaturalcmp (name, insert->name);
+			if (!cmp && !strcmp (name, insert->name)) // avoid duplicates
+			{
+				Hunk_FreeToLowMark (mark);
+				return;
+			}
+			if (cmp < 0)
 				break;
 			insert = insert->next;
 		} while (insert != tablist);
@@ -868,23 +876,56 @@ static const char *FindCommandStart (void)
 	return ret;
 }
 
+static void CompleteFileList (const char *partial, void *param)
+{
+	filelist_item_t *file, **list = (filelist_item_t **) param;
+	for (file = *list; file; file = file->next)
+		if (q_strcasestr (file->name, partial))
+			AddToTabList (file->name, partial, NULL);
+}
+
+static void CompleteClassnames (const char *partial, void *unused)
+{
+	qcvm_t	*oldvm;
+	edict_t	*ed;
+	int		i;
+
+	if (!sv.active)
+		return;
+	PR_PushQCVM (&sv.qcvm, &oldvm);
+
+	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	{
+		const char *name;
+		if (!ed->v.classname)
+			continue;
+		name = PR_GetString (ed->v.classname);
+		if (*name && q_strcasestr (name, partial))
+			AddToTabList (name, partial, NULL);
+	}
+
+	PR_PopQCVM (oldvm);
+}
+
 typedef struct arg_completion_type_s
 {
 	const char		*command;
-	filelist_item_t	**filelist;
+	void			(*function) (const char *partial, void *param);
+	void			*param;
 } arg_completion_type_t;
 
 static const arg_completion_type_t arg_completion_types[] =
 {
-	{ "map ", &extralevels },
-	{ "changelevel ", &extralevels },
-	{ "game ", &modlist },
-	{ "record ", &demolist },
-	{ "playdemo ", &demolist },
-	{ "timedemo ", &demolist },
-	{ "load ", &savelist },
-	{ "save ", &savelist },
-	{ "sky ", &skylist },
+	{ "map ",					CompleteFileList,		&extralevels },
+	{ "changelevel ",			CompleteFileList,		&extralevels },
+	{ "game ",					CompleteFileList,		&modlist },
+	{ "record ",				CompleteFileList,		&demolist },
+	{ "playdemo ",				CompleteFileList,		&demolist },
+	{ "timedemo ",				CompleteFileList,		&demolist },
+	{ "load ",					CompleteFileList,		&savelist },
+	{ "save ",					CompleteFileList,		&savelist },
+	{ "sky ",					CompleteFileList,		&skylist },
+	{ "r_showbboxes_filter ",	CompleteClassnames,		NULL },
 };
 
 static const int num_arg_completion_types =
@@ -899,7 +940,6 @@ static void BuildTabList (const char *partial)
 {
 	cmdalias_t		*alias;
 	cvar_t			*cvar;
-	filelist_item_t	*file;
 	cmd_function_t	*cmd;
 	const char		*str;
 	int				i;
@@ -922,9 +962,7 @@ static void BuildTabList (const char *partial)
 
 		if (!q_strncasecmp (str, command_name, strlen(command_name)))
 		{
-			for (file = *arg_completion.filelist; file; file = file->next)
-				if (q_strcasestr (file->name, partial))
-					AddToTabList (file->name, partial, NULL);
+			arg_completion.function (partial, arg_completion.param);
 			return;
 		}
 	}
