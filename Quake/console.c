@@ -838,11 +838,12 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 
 /*
 ============
-FindCommandStart
+ParseCommand
 ============
 */
-static const char *FindCommandStart (void)
+static const char *ParseCommand (void)
 {
+	char buf[MAXCMDLINE];
 	const char *str = key_lines[edit_line] + 1; 
 	const char *end = str + key_linepos - 1;
 	const char *ret = str;
@@ -873,25 +874,37 @@ static const char *FindCommandStart (void)
 	while (*ret == ' ')
 		ret++;
 
+	q_strlcpy (buf, ret, sizeof (buf));
+	if ((uintptr_t) (end - ret) < sizeof (buf))
+		buf[end - ret] = '\0';
+	end = buf + strlen (buf);
+
+	Cmd_TokenizeString (buf);
+	// last arg should always be the one we're trying to complete,
+	// so we add a new empty one if the command ends with a space
+	if (end != buf && end[-1] == ' ')
+		Cmd_AddArg ("");
+
 	return ret;
 }
 
-static void CompleteFileList (const char *partial, void *param)
+static qboolean CompleteFileList (const char *partial, void *param)
 {
 	filelist_item_t *file, **list = (filelist_item_t **) param;
 	for (file = *list; file; file = file->next)
 		if (q_strcasestr (file->name, partial))
 			AddToTabList (file->name, partial, NULL);
+	return true;
 }
 
-static void CompleteClassnames (const char *partial, void *unused)
+static qboolean CompleteClassnames (const char *partial, void *unused)
 {
 	qcvm_t	*oldvm;
 	edict_t	*ed;
 	int		i;
 
 	if (!sv.active)
-		return;
+		return true;
 	PR_PushQCVM (&sv.qcvm, &oldvm);
 
 	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
@@ -905,12 +918,48 @@ static void CompleteClassnames (const char *partial, void *unused)
 	}
 
 	PR_PopQCVM (oldvm);
+
+	return true;
+}
+
+static qboolean CompleteBindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	if (Cmd_Argc () > 2)
+		return false;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		const char *name = Key_KeynumToString (i);
+		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && q_strcasestr (name, partial))
+			AddToTabList (name, partial, keybindings[i]);
+	}
+
+	return true;
+}
+
+static qboolean CompleteUnbindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		if (keybindings[i])
+		{
+			const char *name = Key_KeynumToString (i);
+			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && q_strcasestr (name, partial))
+				AddToTabList (name, partial, keybindings[i]);
+		}
+	}
+
+	return true;
 }
 
 typedef struct arg_completion_type_s
 {
 	const char		*command;
-	void			(*function) (const char *partial, void *param);
+	qboolean		(*function) (const char *partial, void *param);
 	void			*param;
 } arg_completion_type_t;
 
@@ -926,6 +975,8 @@ static const arg_completion_type_t arg_completion_types[] =
 	{ "save ",					CompleteFileList,		&savelist },
 	{ "sky ",					CompleteFileList,		&skylist },
 	{ "r_showbboxes_filter ",	CompleteClassnames,		NULL },
+	{ "bind ",					CompleteBindKeys,		NULL },
+	{ "unbind ",				CompleteUnbindKeys,		NULL },
 };
 
 static const int num_arg_completion_types =
@@ -949,7 +1000,7 @@ static void BuildTabList (const char *partial)
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
 
-	str = FindCommandStart ();
+	str = ParseCommand ();
 
 // Map autocomplete function -- S.A
 // Since we don't have argument completion, this hack will do for now...
@@ -962,8 +1013,9 @@ static void BuildTabList (const char *partial)
 
 		if (!q_strncasecmp (str, command_name, strlen(command_name)))
 		{
-			arg_completion.function (partial, arg_completion.param);
-			return;
+			if (arg_completion.function (partial, arg_completion.param))
+				return;
+			break;
 		}
 	}
 

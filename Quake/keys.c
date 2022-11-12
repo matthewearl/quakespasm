@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "arch_def.h"
+#include "q_ctype.h"
 
 /* key up events are sent even if in console mode */
 
@@ -606,7 +607,7 @@ int Key_StringToKeynum (const char *str)
 	if (!str || !str[0])
 		return -1;
 	if (!str[1])
-		return str[0];
+		return q_tolower (str[0]);
 
 	for (kn=keynames ; kn->name ; kn++)
 	{
@@ -627,16 +628,16 @@ FIXME: handle quote special (general escape sequence?)
 */
 const char *Key_KeynumToString (int keynum)
 {
-	static	char	tinystr[2];
+	static	char	tinystr[128][2];
 	keyname_t	*kn;
 
 	if (keynum == -1)
 		return "<KEY NOT FOUND>";
 	if (keynum > 32 && keynum < 127)
 	{	// printable ascii
-		tinystr[0] = keynum;
-		tinystr[1] = 0;
-		return tinystr;
+		tinystr[keynum][0] = q_tolower (keynum);
+		tinystr[keynum][1] = 0;
+		return tinystr[keynum];
 	}
 
 	for (kn = keynames; kn->name; kn++)

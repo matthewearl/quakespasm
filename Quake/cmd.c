@@ -685,6 +685,19 @@ const char	*Cmd_Args (void)
 	return cmd_args;
 }
 
+/*
+============
+Cmd_AddArg
+============
+*/
+void Cmd_AddArg (const char *arg)
+{
+	if (cmd_argc < MAX_ARGS)
+	{
+		cmd_argv[cmd_argc] = Z_Strdup (arg);
+		cmd_argc++;
+	}
+}
 
 /*
 ============
@@ -728,13 +741,8 @@ void Cmd_TokenizeString (const char *text)
 		if (!text)
 			return;
 
-		if (cmd_argc < MAX_ARGS)
-		{
-			cmd_argv[cmd_argc] = Z_Strdup (com_token);
-			cmd_argc++;
-		}
+		Cmd_AddArg (com_token);
 	}
-
 }
 
 /*
