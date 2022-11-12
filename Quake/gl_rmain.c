@@ -1218,7 +1218,7 @@ static void R_EmitWireBox (const vec3_t mins, const vec3_t maxs, uint32_t color)
 ================
 R_ShowBoundingBoxesFilter
 
-r_showbboxes_filter "artifact,=trigger_secret"
+r_showbboxes_filter artifact =trigger_secret
 ================
 */
 char r_showbboxes_filter_strings[MAXCMDLINE];
