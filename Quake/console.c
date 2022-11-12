@@ -725,6 +725,7 @@ typedef struct tab_s
 	const char	*type;
 	struct tab_s	*next;
 	struct tab_s	*prev;
+	int			count;
 } tab_t;
 tab_t	*tablist;
 
@@ -798,6 +799,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 	t = (tab_t *) Hunk_Alloc(sizeof(tab_t));
 	t->name = name;
 	t->type = type;
+	t->count = 1;
 
 	if (!tablist) //create list
 	{
@@ -822,6 +824,7 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 			if (!cmp && !strcmp (name, insert->name)) // avoid duplicates
 			{
 				Hunk_FreeToLowMark (mark);
+				insert->count++;
 				return;
 			}
 			if (cmp < 0)
@@ -914,7 +917,7 @@ static qboolean CompleteClassnames (const char *partial, void *unused)
 			continue;
 		name = PR_GetString (ed->v.classname);
 		if (*name && q_strcasestr (name, partial))
-			AddToTabList (name, partial, NULL);
+			AddToTabList (name, partial, "#");
 	}
 
 	PR_PopQCVM (oldvm);
@@ -1083,6 +1086,8 @@ void Con_TabComplete (void)
 		// print list if length > 1
 		if (tablist->next != tablist)
 		{
+			int matches = 0;
+			int total = 0;
 			t = tablist;
 			Con_SafePrintf("\n");
 			do
@@ -1090,11 +1095,22 @@ void Con_TabComplete (void)
 				char tinted[MAXCMDLINE];
 				COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
 				if (t->type)
-					Con_SafePrintf("   %s (%s)\n", tinted, t->type);
+				{
+					if (t->type[0] == '#' && !t->type[1])
+					{
+						Con_SafePrintf("   %s (%d)\n", tinted, t->count);
+						total += t->count;
+					}
+					else
+						Con_SafePrintf("   %s (%s)\n", tinted, t->type);
+				}
 				else
 					Con_SafePrintf("   %s\n", tinted);
 				t = t->next;
+				++matches;
 			} while (t != tablist);
+			if (total > 0)
+				Con_Printf ("   %d unique matches (%d total)\n", matches, total);
 			Con_SafePrintf("\n");
 		}
 
