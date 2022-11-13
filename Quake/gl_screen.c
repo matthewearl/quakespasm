@@ -85,6 +85,7 @@ cvar_t		scr_sbaralpha = {"scr_sbaralpha", "0.75", CVAR_ARCHIVE};
 cvar_t		scr_conwidth = {"scr_conwidth", "0", CVAR_ARCHIVE};
 cvar_t		scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t		scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
+cvar_t		scr_pixelaspect = {"scr_pixelaspect", "1", CVAR_ARCHIVE};
 cvar_t		scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t		scr_clock = {"scr_clock", "0", CVAR_ARCHIVE};
 //johnfitz
@@ -395,6 +396,7 @@ static void SCR_CalcRefdef (void)
 	//johnfitz -- rewrote this section
 	size = scr_viewsize.value;
 	scale = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+	scale *= (float) vid.height / vid.guiheight;
 
 	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || scr_hudstyle.value >= 1 || cl.qcvm.extfuncs.CSQC_DrawHud) //johnfitz -- scr_sbaralpha.value
 		sb_lines = 0;
@@ -461,10 +463,7 @@ SCR_Conwidth_f -- johnfitz -- called when scr_conwidth or scr_conscale changes
 void SCR_Conwidth_f (cvar_t *var)
 {
 	vid.recalc_refdef = 1;
-	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
-	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
-	vid.conwidth &= 0xFFFFFFF8;
-	vid.conheight = vid.conwidth * vid.height / vid.width;
+	VID_RecalcConsoleSize ();
 }
 
 /*
@@ -482,6 +481,17 @@ void SCR_AutoScale_f (void)
 	Cvar_SetValueQuick (&scr_menuscale, scale);
 	Cvar_SetValueQuick (&scr_sbarscale, scale);
 	Cvar_SetValueQuick (&scr_crosshairscale, scale);
+}
+
+/*
+==================
+SCR_PixelAspect_f
+==================
+*/
+void SCR_PixelAspect_f (cvar_t *cvar)
+{
+	vid.recalc_refdef = 1;
+	VID_RecalcInterfaceSize ();
 }
 
 //============================================================================

@@ -59,6 +59,9 @@ typedef struct
 	int			conrowbytes;
 	int			conwidth;
 	int			conheight;
+	float		guiaspect;
+	int			guiwidth;
+	int			guiheight;
 } viddef_t;
 
 extern	viddef_t	vid;				// global video state
@@ -79,6 +82,8 @@ qboolean	VID_HasMouseOrInputFocus (void);
 qboolean	VID_IsMinimized (void);
 void		VID_Lock (void);
 void		VID_SetWindowTitle (const char *title);
+void		VID_RecalcConsoleSize (void);
+void		VID_RecalcInterfaceSize (void);
 
 #endif	/* __VID_DEFS_H */
 

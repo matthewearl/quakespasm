@@ -860,6 +860,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 {
 	glpic_t	*gl;
 	guivertex_t *verts;
+	float scalex, scaley;
 
 	gl = (glpic_t *)draw_backtile->data;
 
@@ -868,10 +869,12 @@ void Draw_TileClear (int x, int y, int w, int h)
 	Draw_SetTexture (gl->gltexture);
 
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, x,   y,   x/64.0,     y/64.0);
-	Draw_SetVertex (verts++, x+w, y,   (x+w)/64.0, y/64.0);
-	Draw_SetVertex (verts++, x+w, y+h, (x+w)/64.0, (y+h)/64.0);
-	Draw_SetVertex (verts++, x,   y+h, x/64.0,     (y+h)/64.0);
+	scalex = vid.guiwidth / (float) vid.width;
+	scaley = vid.guiheight / (float) vid.height;
+	Draw_SetVertex (verts++, x*scalex,     y*scaley,     x*scalex/64.0,     y*scaley/64.0);
+	Draw_SetVertex (verts++, (x+w)*scalex, y*scaley,     (x+w)*scalex/64.0, y*scaley/64.0);
+	Draw_SetVertex (verts++, (x+w)*scalex, (y+h)*scaley, (x+w)*scalex/64.0, (y+h)*scaley/64.0);
+	Draw_SetVertex (verts++, x*scalex,     (y+h)*scaley, x*scalex/64.0,     (y+h)*scaley/64.0);
 }
 
 /*
@@ -927,17 +930,17 @@ void Draw_FadeScreen (void)
 		Draw_SetBlending (GLS_BLEND_MULTIPLY);
 		GL_SetCanvasColor (0.56f, 0.43f, 0.13f, 1.f);
 		verts = Draw_AllocQuad ();
-		Draw_SetVertex (verts++, 0,       0,        0.f,  0.f);
-		Draw_SetVertex (verts++, glwidth, 0,        smax, 0.f);
-		Draw_SetVertex (verts++, glwidth, glheight, smax, tmax);
-		Draw_SetVertex (verts++, 0,       glheight, 0.f,  tmax);
+		Draw_SetVertex (verts++, glcanvas.left,  glcanvas.bottom, 0.f,  0.f);
+		Draw_SetVertex (verts++, glcanvas.right, glcanvas.bottom, smax, 0.f);
+		Draw_SetVertex (verts++, glcanvas.right, glcanvas.top,    smax, tmax);
+		Draw_SetVertex (verts++, glcanvas.left,  glcanvas.top,    0.f,  tmax);
 		/* second pass */
 		Draw_SetBlending (GLS_BLEND_ALPHA);
 		GL_SetCanvasColor (0.095f, 0.08f, 0.045f, 0.6f);
 	}
 	else if (softemu == SOFTEMU_COARSE)
 	{
-		s = q_min ((float)glwidth / 320.0f, (float)glheight / 200.0f);
+		s = q_min ((float)vid.guiwidth / 320.0f, (float)vid.guiheight / 200.0f);
 		s = CLAMP (1.0f, scr_menuscale.value, s);
 		s = floor (s);
 		smax = glwidth / (winquakemenubg->width * s);
@@ -954,10 +957,10 @@ void Draw_FadeScreen (void)
 	}
 
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, 0,       0,        0.f,  0.f);
-	Draw_SetVertex (verts++, glwidth, 0,        smax, 0.f);
-	Draw_SetVertex (verts++, glwidth, glheight, smax, tmax);
-	Draw_SetVertex (verts++, 0,       glheight, 0.f,  tmax);
+	Draw_SetVertex (verts++, glcanvas.left,  glcanvas.bottom, 0.f,  0.f);
+	Draw_SetVertex (verts++, glcanvas.right, glcanvas.bottom, smax, 0.f);
+	Draw_SetVertex (verts++, glcanvas.right, glcanvas.top,    smax, tmax);
+	Draw_SetVertex (verts++, glcanvas.left,  glcanvas.top,    0.f,  tmax);
 
 	Draw_SetBlending (GLS_BLEND_ALPHA);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
@@ -1021,8 +1024,8 @@ Draw_Transform2
 */
 static void Draw_Transform2 (float width, float height, float scalex, float scaley, float alignx, float aligny, drawtransform_t *out)
 {
-	float scrwidth = glwidth;
-	float scrheight = glheight;
+	float scrwidth = vid.guiwidth;
+	float scrheight = vid.guiheight;
 	out->scale[0] = scalex * 2.f / scrwidth;
 	out->scale[1] = scaley * -2.f / scrheight;
 	out->offset[0] = (scrwidth - width*scalex) * alignx / scrwidth * 2.f - 1.f;
@@ -1052,50 +1055,51 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 	switch (type)
 	{
 	case CANVAS_DEFAULT:
-		Draw_Transform (glwidth, glheight, 1.f, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		Draw_Transform (vid.guiwidth, vid.guiheight, 1.f, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;
 	case CANVAS_CONSOLE:
-		s = (float)glwidth/vid.conwidth; //use console scale
-		s2 = (float)glheight/vid.conheight;
+		s = (float)vid.guiwidth/vid.conwidth; //use console scale
+		s2 = (float)vid.guiheight/vid.conheight;
 		Draw_Transform2 (vid.conwidth, vid.conheight, s, s2, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		transform->offset[1] += (1.f - scr_con_current/glheight) * 2.f;
 		break;
 	case CANVAS_MENU:
-		s = q_min((float)glwidth / 320.0f, (float)glheight / 200.0f);
+		s = q_min((float)vid.guiwidth / 320.0f, (float)vid.guiheight / 200.0f);
 		s = CLAMP (1.0f, scr_menuscale.value, s);
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;
 	case CANVAS_CSQC:
-		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
-		Draw_Transform (glwidth/s, glheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		s = CLAMP (1.0f, scr_sbarscale.value, vid.guiwidth / 320.0f);
+		Draw_Transform (vid.guiwidth/s, vid.guiheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;
 	case CANVAS_SBAR:
-		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+		s = CLAMP (1.0f, scr_sbarscale.value, (float)vid.guiwidth / 320.0f);
 		if (cl.gametype == GAME_DEATHMATCH && scr_hudstyle.value < 1)
 			Draw_Transform (320, 48, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
 		else
 			Draw_Transform (320, 48, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_BOTTOM, transform);
 		break;
 	case CANVAS_SBAR2:
-		s = q_min (glwidth / 400.0f, glheight / 225.0f);
+		s = q_min (vid.guiwidth / 400.0f, vid.guiheight / 225.0f);
 		s = CLAMP (1.0f, scr_sbarscale.value, s);
-		Draw_Transform (glwidth/s, glheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		Draw_Transform (vid.guiwidth/s, vid.guiheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;
 	case CANVAS_CROSSHAIR: //0,0 is center of viewport
 		s = CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
-		Draw_Transform (glwidth/s/2, glheight/s/2, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_BOTTOM, transform);
+		Draw_Transform (vid.guiwidth/s/2, vid.guiheight/s/2, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
+		transform->offset[0] += 1.f;
 		transform->offset[1] += 1.f - ((scr_vrect.y + scr_vrect.height / 2) * 2 / (float)glheight);
 		break;
 	case CANVAS_BOTTOMLEFT: //used by devstats
-		s = (float)glwidth/vid.conwidth; //use console scale
+		s = (float)vid.guiwidth/vid.conwidth; //use console scale
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
 		break;
 	case CANVAS_BOTTOMRIGHT: //used by fps/clock
-		s = (float)glwidth/vid.conwidth; //use console scale
+		s = (float)vid.guiwidth/vid.conwidth; //use console scale
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_BOTTOM, transform);
 		break;
 	case CANVAS_TOPRIGHT: //used by disc
-		s = (float)glwidth/vid.conwidth; //use console scale
+		s = (float)vid.guiwidth/vid.conwidth; //use console scale
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_TOP, transform);
 		break;
 	default:
@@ -1127,7 +1131,7 @@ void GL_SetCanvas (canvastype newcanvas)
 		return;
 
 	glcanvas.type = newcanvas;
-	Draw_GetCanvasTransform (newcanvas, &glcanvas.transform);
+	Draw_GetCanvasTransform (glcanvas.type, &glcanvas.transform);
 	Draw_GetTransformBounds (&glcanvas.transform, &glcanvas.left, &glcanvas.top, &glcanvas.right, &glcanvas.bottom);
 }
 

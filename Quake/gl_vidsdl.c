@@ -168,6 +168,9 @@ cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
 
 void TexMgr_Anisotropy_f (cvar_t *var);
 void TexMgr_CompressTextures_f (cvar_t *var);
+void SCR_PixelAspect_f (cvar_t *cvar);
+
+void VID_RecalcInterfaceSize (void);
 
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t gl_texturemode;
@@ -178,6 +181,7 @@ extern cvar_t r_particles;
 extern cvar_t r_dynamic;
 extern cvar_t host_maxfps;
 extern cvar_t scr_showfps;
+extern cvar_t scr_pixelaspect;
 
 //==========================================================================
 //
@@ -520,6 +524,8 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	vid.conheight = vid.conwidth * vid.height / vid.width;
 	vid.numpages = 2;
 
+	VID_RecalcInterfaceSize ();
+
 // read the obtained z-buffer depth
 	if (SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depthbits) == -1)
 		depthbits = 0;
@@ -633,10 +639,30 @@ void VID_Changed_f (cvar_t *var)
 
 void VID_RecalcConsoleSize (void)
 {
-	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
-	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
+	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.guiwidth/scr_conscale.value) : vid.guiwidth;
+	vid.conwidth = CLAMP (320, vid.conwidth, vid.guiwidth);
 	vid.conwidth &= 0xFFFFFFF8;
-	vid.conheight = vid.conwidth * vid.height / vid.width;
+	vid.conheight = vid.conwidth * vid.guiheight / vid.guiwidth;
+}
+
+void VID_RecalcInterfaceSize (void)
+{
+	vid.guiaspect = 1.f;
+	if (scr_pixelaspect.string && *scr_pixelaspect.string)
+	{
+		float num, denom;
+		if (sscanf (scr_pixelaspect.string, "%f:%f", &num, &denom) == 2)
+		{
+			if (num && denom)
+				vid.guiaspect = CLAMP (0.5f, num / denom, 2.f);
+		}
+		else if (scr_pixelaspect.value)
+			vid.guiaspect = CLAMP (0.5f, scr_pixelaspect.value, 2.f);
+	}
+	vid.guiwidth = vid.width / q_max (vid.guiaspect, 1.f);
+	vid.guiheight = vid.height * q_min (vid.guiaspect, 1.f);
+	if (vid.width && vid.height)
+		VID_RecalcConsoleSize ();
 }
 
 /*
@@ -676,7 +702,7 @@ static void VID_Restart (void)
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	//conwidth and conheight need to be recalculated
-	VID_RecalcConsoleSize ();
+	VID_RecalcInterfaceSize ();
 
 	GL_CreateFrameBuffers ();
 //
@@ -1270,7 +1296,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 			Cvar_SetValueQuick (&vid_height, vid.height);
 			vid_locked = was_locked;
 		}
-		VID_RecalcConsoleSize ();
+		VID_RecalcInterfaceSize ();
 		GL_DeleteFrameBuffers ();
 		GL_CreateFrameBuffers ();
 	}
@@ -1449,6 +1475,7 @@ void	VID_Init (void)
 		"gl_texture_anisotropy",
 		"gl_compress_textures",
 		"r_softemu_metric",
+		"scr_pixelaspect",
 	};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
@@ -1483,6 +1510,9 @@ void	VID_Init (void)
 	Cvar_SetCallback (&gl_compress_textures, TexMgr_CompressTextures_f);
 
 	Cvar_RegisterVariable (&r_softemu_metric);
+
+	Cvar_RegisterVariable (&scr_pixelaspect);
+	Cvar_SetCallback (&scr_pixelaspect, SCR_PixelAspect_f);
 
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz

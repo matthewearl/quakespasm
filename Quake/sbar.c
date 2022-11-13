@@ -1322,7 +1322,7 @@ void Sbar_Draw (void)
 {
 	qboolean invuln;
 	int armor;
-	float x, y, w; //johnfitz
+	float x, y, w, h; //johnfitz
 	qpic_t *pic;
 
 	if (scr_con_current == vid.height)
@@ -1331,7 +1331,6 @@ void Sbar_Draw (void)
 	if (cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
 	{
 		qboolean deathmatchoverlay = false;
-		float s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 		sb_updates++;
 		GL_SetCanvas (CANVAS_CSQC); //johnfitz
 		PR_SwitchQCVM(&cl.qcvm);
@@ -1344,12 +1343,14 @@ void Sbar_Draw (void)
 			*qcvm->extglobals.player_localentnum = cl.viewentity;
 		pr_global_struct->time = cl.time;
 		Sbar_SortFrags ();
-		G_VECTORSET(OFS_PARM0, glwidth/s, glheight/s, 0);
+		w = glcanvas.right - glcanvas.left;
+		h = glcanvas.bottom - glcanvas.top;
+		G_VECTORSET(OFS_PARM0, w, h, 0);
 		G_FLOAT(OFS_PARM1) = sb_showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawHud);
 		if (cl.qcvm.extfuncs.CSQC_DrawScores)
 		{
-			G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+			G_VECTORSET(OFS_PARM0, w, h, 0);
 			G_FLOAT(OFS_PARM1) = sb_showscores;
 			if (key_dest != key_menu)
 				PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
@@ -1756,7 +1757,7 @@ void Sbar_IntermissionOverlay (void)
 
 	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{
-		float s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+		float w, h;
 		GL_SetCanvas (CANVAS_CSQC);
 		PR_SwitchQCVM(&cl.qcvm);
 		if (qcvm->extglobals.cltime)
@@ -1772,7 +1773,9 @@ void Sbar_IntermissionOverlay (void)
 		pr_global_struct->time = cl.time;
 		pr_global_struct->frametime = host_frametime;
 		Sbar_SortFrags ();
-		G_VECTORSET(OFS_PARM0, glwidth/s, glheight/s, 0);
+		w = glcanvas.right - glcanvas.left;
+		h = glcanvas.bottom - glcanvas.top;
+		G_VECTORSET(OFS_PARM0, w, h, 0);
 		G_FLOAT(OFS_PARM1) = sb_showscores;
 		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
 		PR_SwitchQCVM(NULL);
