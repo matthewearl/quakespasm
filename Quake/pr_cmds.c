@@ -1786,11 +1786,6 @@ static void PF_checkextension(void)
 		G_FLOAT(OFS_RETURN) = false;
 }
 
-static float PR_GetVMScale(void)
-{	//sigh, this is horrible (divides glwidth)
-	return CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
-}
-
 #define ishex(c) ((c>='0' && c<= '9') || (c>='a' && c<='f') || (c>='A' && c<='F'))
 static int dehex(char c)
 {
