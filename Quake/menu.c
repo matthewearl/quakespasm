@@ -2760,6 +2760,7 @@ void M_Options_Mousemove (int cx, int cy)
 			return;
 		}
 		M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx - 220));
+		M_MouseSound ("misc/menu1.wav");
 		return;
 	}
 
