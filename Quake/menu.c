@@ -4586,14 +4586,20 @@ void M_Keydown (int key)
 
 void M_Mousemove (int x, int y)
 {
-	vrect_t bounds, viewport;
+	drawtransform_t transform;
+	float px, py;
 
 	if (!ui_mouse.value)
 		return;
 
-	Draw_GetMenuTransform (&bounds, &viewport);
-	m_mousex = x = bounds.x + (int)((x - viewport.x) * bounds.width / (float)viewport.width + 0.5f);
-	m_mousey = y = bounds.y + (int)((y - viewport.y) * bounds.height / (float)viewport.height + 0.5f);
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	px = (x - glx) * 2.f / (float) glwidth - 1.f;
+	py = (y - gly) * 2.f / (float) glheight - 1.f;
+	py = -py;
+	px = (px - transform.offset[0]) / transform.scale[0];
+	py = (py - transform.offset[1]) / transform.scale[1];
+	m_mousex = x = (int) (px + 0.5f);
+	m_mousey = y = (int) (py + 0.5f);
 
 	switch (m_state)
 	{

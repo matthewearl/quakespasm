@@ -48,7 +48,10 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags);
 void Draw_Flush (void);
 void Draw_NewGame (void);
 
-void Draw_GetMenuTransform (struct vrect_s *bounds, struct vrect_s *viewport);
+void Draw_SetClipRect (float x, float y, float width, float height);
+void Draw_ResetClipping (void);
+
+void Draw_GetCanvasTransform (canvastype canvas, drawtransform_t *transform);
 
 void GL_SetCanvas (canvastype newcanvas); //johnfitz
 void GL_SetCanvasColor (float r, float g, float b, float a);

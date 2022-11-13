@@ -67,11 +67,16 @@ typedef enum {
 	CANVAS_INVALID = -1
 } canvastype;
 
+typedef struct drawtransform_s
+{
+	float				scale[2];
+	float				offset[2];
+} drawtransform_t;
+
 typedef struct glcanvas_s {
 	canvastype			type;
 	float				left, right, bottom, top;
-	float				scale[2];
-	float				offset[2];
+	drawtransform_t		transform;
 	GLubyte				color[4];
 	unsigned			blendmode;
 	struct gltexture_s	*texture;

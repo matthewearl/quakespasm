@@ -639,8 +639,8 @@ Draw_SetVertex
 */
 static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 {
-	v->pos[0] = x * glcanvas.scale[0] + glcanvas.offset[0];
-	v->pos[1] = y * glcanvas.scale[1] + glcanvas.offset[1];
+	v->pos[0] = x * glcanvas.transform.scale[0] + glcanvas.transform.offset[0];
+	v->pos[1] = y * glcanvas.transform.scale[1] + glcanvas.transform.offset[1];
 	v->uv[0] = s;
 	v->uv[1] = t;
 	memcpy (v->color, glcanvas.color, 4 * sizeof(GLubyte));
@@ -688,7 +688,7 @@ Draw_CharacterEx
 */
 void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num)
 {
-	if (y <= -dimy)
+	if (y <= glcanvas.top - dimy)
 		return;			// totally off screen
 
 	num &= 255;
@@ -717,7 +717,7 @@ Draw_StringEx
 */
 void Draw_StringEx (int x, int y, int dim, const char *str)
 {
-	if (y <= -dim)
+	if (y <= glcanvas.top - dim)
 		return;			// totally off screen
 
 	Draw_SetTexture (char_texture);
@@ -966,43 +966,129 @@ void Draw_FadeScreen (void)
 
 /*
 ================
-Draw_SetTransform
+Draw_SetClipRect
 ================
 */
-static void Draw_SetTransform (float left, float right, float bottom, float top)
+void Draw_SetClipRect (float x, float y, float width, float height)
 {
-	float tx = -(right + left) / (right - left);
-	float ty = -(top + bottom) / (top - bottom);
+	float x2 = x + width;
+	float y2 = y + height;
 
-	glcanvas.left = left;
-	glcanvas.right = right;
-	glcanvas.bottom = bottom;
-	glcanvas.top = top;
-	glcanvas.scale[0] = 2.0f / (right - left);
-	glcanvas.scale[1] = 2.0f / (top - bottom);
-	glcanvas.offset[0] = tx;
-	glcanvas.offset[1] = ty;
+	// canvas to -1..1
+	x  = x  * glcanvas.transform.scale[0] + glcanvas.transform.offset[0];
+	x2 = x2 * glcanvas.transform.scale[0] + glcanvas.transform.offset[0];
+	y  = y  * glcanvas.transform.scale[1] + glcanvas.transform.offset[1];
+	y2 = y2 * glcanvas.transform.scale[1] + glcanvas.transform.offset[1];
+	// -1..1 to 0..1
+	x  = CLAMP (0.f, x  * 0.5f + 0.5f, 1.f);
+	x2 = CLAMP (0.f, x2 * 0.5f + 0.5f, 1.f);
+	y  = CLAMP (0.f, y  * 0.5f + 0.5f, 1.f);
+	y2 = CLAMP (0.f, y2 * 0.5f + 0.5f, 1.f);
+	// 0..1 to screen
+	x  = floor (glx + x  * glwidth  + 0.5f);
+	x2 = floor (glx + x2 * glwidth  + 0.5f);
+	y  = floor (gly + y  * glheight + 0.5f);
+	y2 = floor (gly + y2 * glheight + 0.5f);
+
+	Draw_Flush ();
+	glEnable (GL_SCISSOR_TEST);
+	glScissor (x, y2, x2 - x, y - y2);
 }
 
 /*
 ================
-Draw_GetMenuTransform
+Draw_ResetClipping
 ================
 */
-void Draw_GetMenuTransform (vrect_t *bounds, vrect_t *viewport)
+void Draw_ResetClipping (void)
 {
+	Draw_Flush ();
+	glDisable (GL_SCISSOR_TEST);
+}
+
+#define CANVAS_ALIGN_LEFT		0.f
+#define CANVAS_ALIGN_CENTERX	0.5f
+#define CANVAS_ALIGN_RIGHT		1.f
+#define CANVAS_ALIGN_TOP		0.f
+#define CANVAS_ALIGN_CENTERY	0.5f
+#define CANVAS_ALIGN_BOTTOM		1.f
+
+/*
+================
+Draw_Transform
+================
+*/
+static void Draw_Transform (float width, float height, float scale, float alignx, float aligny, drawtransform_t *out)
+{
+	float scrwidth = glwidth;
+	float scrheight = glheight;
+	out->scale[0] = scale * 2.f / scrwidth;
+	out->scale[1] = scale * -2.f / scrheight;
+	out->offset[0] = (scrwidth - width*scale) * alignx / scrwidth * 2.f - 1.f;
+	out->offset[1] = (scrheight - height*scale) * aligny / scrheight * -2.f + 1.f;
+}
+
+/*
+================
+Draw_GetCanvasTransform
+================
+*/
+void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
+{
+	extern vrect_t scr_vrect;
 	float s;
-	s = q_min((float)glwidth / 320.0f, (float)glheight / 200.0f);
-	s = CLAMP (1.0f, scr_menuscale.value, s);
-	// ericw -- doubled width to 640 to accommodate long keybindings
-	bounds->x = 0;
-	bounds->y = 0;
-	bounds->width = 640;
-	bounds->height = 200;
-	viewport->x = glx + (glwidth - 320*s) / 2;
-	viewport->y = gly + (glheight - 200*s) / 2;
-	viewport->width = 640*s;
-	viewport->height = 200*s;
+
+	switch (type)
+	{
+	case CANVAS_DEFAULT:
+		Draw_Transform (glwidth, glheight, 1.f, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		break;
+	case CANVAS_CONSOLE:
+		s = (float)glwidth/vid.conwidth; //use console scale
+		Draw_Transform (vid.conwidth, vid.conheight, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		transform->offset[1] += (1.f - scr_con_current/glheight) * 2.f;
+		break;
+	case CANVAS_MENU:
+		s = q_min((float)glwidth / 320.0f, (float)glheight / 200.0f);
+		s = CLAMP (1.0f, scr_menuscale.value, s);
+		Draw_Transform (320, 200, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		break;
+	case CANVAS_CSQC:
+		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+		Draw_Transform (glwidth/s, glheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		break;
+	case CANVAS_SBAR:
+		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
+		if (cl.gametype == GAME_DEATHMATCH && scr_hudstyle.value < 1)
+			Draw_Transform (320, 48, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
+		else
+			Draw_Transform (320, 48, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_BOTTOM, transform);
+		break;
+	case CANVAS_SBAR2:
+		s = q_min (glwidth / 400.0f, glheight / 225.0f);
+		s = CLAMP (1.0f, scr_sbarscale.value, s);
+		Draw_Transform (glwidth/s, glheight/s, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		break;
+	case CANVAS_CROSSHAIR: //0,0 is center of viewport
+		s = CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
+		Draw_Transform (glwidth/s/2, glheight/s/2, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_BOTTOM, transform);
+		transform->offset[1] += 1.f - ((scr_vrect.y + scr_vrect.height / 2) * 2 / (float)glheight);
+		break;
+	case CANVAS_BOTTOMLEFT: //used by devstats
+		s = (float)glwidth/vid.conwidth; //use console scale
+		Draw_Transform (320, 200, s, CANVAS_ALIGN_LEFT, CANVAS_ALIGN_BOTTOM, transform);
+		break;
+	case CANVAS_BOTTOMRIGHT: //used by fps/clock
+		s = (float)glwidth/vid.conwidth; //use console scale
+		Draw_Transform (320, 200, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_BOTTOM, transform);
+		break;
+	case CANVAS_TOPRIGHT: //used by disc
+		s = (float)glwidth/vid.conwidth; //use console scale
+		Draw_Transform (320, 200, s, CANVAS_ALIGN_RIGHT, CANVAS_ALIGN_TOP, transform);
+		break;
+	default:
+		Sys_Error ("Draw_GetCanvasTransform: bad canvas type");
+	}
 }
 
 /*
@@ -1012,81 +1098,15 @@ GL_SetCanvas -- johnfitz -- support various canvas types
 */
 void GL_SetCanvas (canvastype newcanvas)
 {
-	extern vrect_t scr_vrect;
-	vrect_t bounds, viewport;
-	float s;
-	int lines;
-
 	if (newcanvas == glcanvas.type)
 		return;
 
-	Draw_Flush ();
 	glcanvas.type = newcanvas;
-	glcanvas.texture = NULL;
-
-	switch(newcanvas)
-	{
-	case CANVAS_DEFAULT:
-		Draw_SetTransform (0, glwidth, glheight, 0);
-		glViewport (glx, gly, glwidth, glheight);
-		break;
-	case CANVAS_CONSOLE:
-		lines = vid.conheight - (scr_con_current * vid.conheight / glheight);
-		Draw_SetTransform (0, vid.conwidth, vid.conheight + lines, lines);
-		glViewport (glx, gly, glwidth, glheight);
-		break;
-	case CANVAS_MENU:
-		Draw_GetMenuTransform (&bounds, &viewport);
-		Draw_SetTransform (bounds.x, bounds.x+bounds.width, bounds.y+bounds.height, bounds.y);
-		glViewport (viewport.x, viewport.y, viewport.width, viewport.height);
-		break;
-	case CANVAS_CSQC:
-		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
-		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
-		glViewport (glx, gly, glwidth, glheight);
-		break;
-	case CANVAS_SBAR:
-		s = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
-		if (cl.gametype == GAME_DEATHMATCH && scr_hudstyle.value < 1)
-		{
-			Draw_SetTransform (0, glwidth / s, 48, 0);
-			glViewport (glx, gly, glwidth, 48*s);
-		}
-		else
-		{
-			Draw_SetTransform (0, 320, 48, 0);
-			glViewport (glx + (glwidth - 320*s) / 2, gly, 320*s, 48*s);
-		}
-		break;
-	case CANVAS_SBAR2:
-		s = q_min (glwidth / 400.0f, glheight / 225.0f);
-		s = CLAMP (1.0f, scr_sbarscale.value, s);
-		Draw_SetTransform (0, glwidth/s, glheight/s, 0);
-		glViewport (glx, gly, glwidth, glheight);
-		break;
-	case CANVAS_CROSSHAIR: //0,0 is center of viewport
-		s = CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
-		Draw_SetTransform (scr_vrect.width/-2/s, scr_vrect.width/2/s, scr_vrect.height/2/s, scr_vrect.height/-2/s);
-		glViewport (glx + scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1);
-		break;
-	case CANVAS_BOTTOMLEFT: //used by devstats
-		s = (float)glwidth/vid.conwidth; //use console scale
-		Draw_SetTransform (0, 320, 200, 0);
-		glViewport (glx, gly, 320*s, 200*s);
-		break;
-	case CANVAS_BOTTOMRIGHT: //used by fps/clock
-		s = (float)glwidth/vid.conwidth; //use console scale
-		Draw_SetTransform (0, 320, 200, 0);
-		glViewport (glx+glwidth-320*s, gly, 320*s, 200*s);
-		break;
-	case CANVAS_TOPRIGHT: //used by disc
-		s = (float)glwidth/vid.conwidth; //use console scale
-		Draw_SetTransform (0, 320, 200, 0);
-		glViewport (glx+glwidth-320*s, gly+glheight-200*s, 320*s, 200*s);
-		break;
-	default:
-		Sys_Error ("GL_SetCanvas: bad canvas type");
-	}
+	Draw_GetCanvasTransform (newcanvas, &glcanvas.transform);
+	glcanvas.left	= (-1.f - glcanvas.transform.offset[0]) / glcanvas.transform.scale[0];
+	glcanvas.right	= ( 1.f - glcanvas.transform.offset[0]) / glcanvas.transform.scale[0];
+	glcanvas.bottom	= (-1.f - glcanvas.transform.offset[1]) / glcanvas.transform.scale[1];
+	glcanvas.top	= ( 1.f - glcanvas.transform.offset[1]) / glcanvas.transform.scale[1];
 }
 
 /*
@@ -1099,6 +1119,7 @@ void GL_Set2D (void)
 	glcanvas.type = CANVAS_INVALID;
 	glcanvas.texture = NULL;
 	glcanvas.blendmode = GLS_BLEND_ALPHA;
+	glViewport (glx, gly, glwidth, glheight);
 	GL_SetCanvas (CANVAS_DEFAULT);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }

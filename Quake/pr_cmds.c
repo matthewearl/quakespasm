@@ -2235,21 +2235,15 @@ static void PF_cl_stringwidth(void)
 
 static void PF_cl_drawsetclip(void)
 {
-	float s = PR_GetVMScale();
-
-	float x = G_FLOAT(OFS_PARM0)*s;
-	float y = G_FLOAT(OFS_PARM1)*s;
-	float w = G_FLOAT(OFS_PARM2)*s;
-	float h = G_FLOAT(OFS_PARM3)*s;
-
-	Draw_Flush ();
-	glScissor(x, glheight-(y+h), w, h);
-	glEnable(GL_SCISSOR_TEST);
+	float x = G_FLOAT(OFS_PARM0);
+	float y = G_FLOAT(OFS_PARM1);
+	float w = G_FLOAT(OFS_PARM2);
+	float h = G_FLOAT(OFS_PARM3);
+	Draw_SetClipRect (x, y, w, h);
 }
 static void PF_cl_drawresetclip(void)
 {
-	Draw_Flush ();
-	glDisable(GL_SCISSOR_TEST);
+	Draw_ResetClipping ();
 }
 
 static void PF_cl_precachepic(void)

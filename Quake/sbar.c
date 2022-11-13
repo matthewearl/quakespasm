@@ -318,16 +318,9 @@ scroll the string inside a glscissor region
 */
 void Sbar_DrawScrollString (int x, int y, int width, const char *str)
 {
-	float scale;
-	int len, ofs, left;
+	int len, ofs;
 
-	scale = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
-	left = x * scale;
-	if (cl.gametype != GAME_DEATHMATCH)
-		left += (((float)glwidth - 320.0 * scale) / 2);
-
-	glEnable (GL_SCISSOR_TEST);
-	glScissor (left, 0, width * scale, glheight);
+	Draw_SetClipRect (x, glcanvas.top, width, glcanvas.bottom - glcanvas.top);
 
 	len = strlen(str)*8 + 40;
 	ofs = ((int)(realtime*30))%len;
@@ -337,7 +330,7 @@ void Sbar_DrawScrollString (int x, int y, int width, const char *str)
 	Sbar_DrawCharacter (x - ofs + len - 16, y, '/');
 	Sbar_DrawString (x - ofs + len, y, str);
 
-	glDisable (GL_SCISSOR_TEST);
+	Draw_ResetClipping ();
 }
 
 /*
