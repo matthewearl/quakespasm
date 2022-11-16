@@ -795,6 +795,40 @@ void SCR_DrawLoading (void)
 
 /*
 ==============
+SCR_DrawSaving
+==============
+*/
+void SCR_DrawSaving (void)
+{
+	int x, y;
+	const char *str;
+
+	if (!Host_IsSaving ())
+		return;
+
+	GL_SetCanvas (CANVAS_TOPRIGHT);
+
+	x = 320 - 16 - draw_disc->width;
+	y = 8;
+	if (scr_hudstyle.value >= 1 && scr_viewsize.value < 130)
+	{
+		if (scr_clock.value) y += 8;
+		if (scr_showfps.value) y += 8;
+		if (y != 8)
+			y += 8;
+	}
+
+	Draw_Pic (x, y, draw_disc);
+	y += draw_disc->height/2 - 8;
+
+	str = "Saving";
+	Draw_String (x - 4 - strlen (str)*8, y, str);
+	str = sv.lastsave;
+	Draw_String (x - 4 - strlen (str)*8, y+8, str);
+}
+
+/*
+==============
 SCR_DrawCrosshair -- johnfitz
 ==============
 */
@@ -1463,6 +1497,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawConsole ();
 		M_Draw ();
 		SCR_DrawFPS (); //johnfitz
+		SCR_DrawSaving ();
 	}
 
 	Draw_Flush ();

@@ -1440,7 +1440,12 @@ LOAD / SAVE GAME
 ===============================================================================
 */
 
-#define	SAVEGAME_VERSION	5
+static savedata_t		save_data;
+static qboolean			save_pending;
+static SDL_Thread		*save_thread;
+static SDL_mutex		*save_mutex;
+static SDL_cond			*save_finished_condition;
+static SDL_cond			*save_pending_condition;
 
 /*
 ===============
@@ -1449,7 +1454,7 @@ Host_SavegameComment
 Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 ===============
 */
-static void Host_SavegameComment (char *text)
+void Host_SavegameComment (char *text)
 {
 	int		i;
 	char	*levelname;
@@ -1489,6 +1494,105 @@ static void Host_InvalidateSave (const char *relname)
 		sv.lastsave[0] = '\0';
 }
 
+void Host_ShutdownSave (void)
+{
+	SDL_LockMutex (save_mutex);
+	while (save_pending)
+		SDL_CondWait (save_finished_condition, save_mutex);
+	save_pending = true;
+	save_data.file = NULL;
+	SDL_CondSignal (save_pending_condition);
+	SDL_UnlockMutex (save_mutex);
+
+	SDL_WaitThread (save_thread, NULL);
+	save_thread = NULL;
+
+	SDL_DestroyCond (save_finished_condition);
+	save_finished_condition = NULL;
+
+	SDL_DestroyCond (save_pending_condition);
+	save_pending_condition = NULL;
+
+	SaveData_Clear (&save_data);
+}
+
+void Host_WaitForSaveThread (void)
+{
+	SDL_LockMutex (save_mutex);
+	while (save_pending)
+		SDL_CondWait (save_finished_condition, save_mutex);
+	SDL_UnlockMutex (save_mutex);
+}
+
+qboolean Host_IsSaving (void)
+{
+	qboolean saving;
+	SDL_LockMutex (save_mutex);
+	saving = save_pending;
+	SDL_UnlockMutex (save_mutex);
+
+	if (saving)
+		return true;
+
+	if (save_data.abort && sv.lastsave[0])
+	{
+		sv.lastsave[0] = '\0';
+		Con_Printf ("Save error.\n");
+	}
+
+	return false;
+}
+
+static int Host_BackgroundSave (void *param)
+{
+	savedata_t	*save = (savedata_t *) param;
+
+	while (true)
+	{
+		edict_t		*ed;
+		int			i;
+
+		SDL_LockMutex (save_mutex);
+		while (!save_pending)
+			SDL_CondWait (save_pending_condition, save_mutex);
+		SDL_UnlockMutex (save_mutex);
+
+		if (!save->file)
+			break;
+
+		PR_SwitchQCVM (&sv.qcvm);
+		SaveData_WriteHeader (save);
+		for (i = 0, ed = save->edicts; i < save->num_edicts; i++, ed = NEXT_EDICT (ed))
+		{
+			if (save->abort)
+				break;
+			ED_Write (save, ed);
+			fflush (save->file);
+		}
+		PR_SwitchQCVM (NULL);
+
+		fclose (save->file);
+		save->file = NULL;
+		if (save->abort)
+			Sys_remove (save->path);
+
+		SDL_LockMutex (save_mutex);
+		save_pending = false;
+		SDL_CondSignal (save_finished_condition);
+		SDL_UnlockMutex (save_mutex);
+	}
+
+	return 0;
+}
+
+static void Host_InitSaveThread (void)
+{
+	save_mutex = SDL_CreateMutex ();
+	save_finished_condition = SDL_CreateCond ();
+	save_pending_condition = SDL_CreateCond ();
+	save_thread = SDL_CreateThread (Host_BackgroundSave, "SaveThread", &save_data);
+}
+
 /*
 ===============
 Host_Savegame_f
@@ -1499,8 +1603,7 @@ static void Host_Savegame_f (void)
 	char	relname[MAX_OSPATH];
 	char	name[MAX_OSPATH];
 	FILE	*f;
-	int	i;
-	char	comment[SAVEGAME_COMMENT_LENGTH+1];
+	int		i;
 
 	if (cmd_source != src_command)
 		return;
@@ -1563,39 +1666,25 @@ static void Host_Savegame_f (void)
 		return;
 	}
 
-	PR_SwitchQCVM(&sv.qcvm);
+	SDL_LockMutex (save_mutex);
+	while (save_pending)
+		SDL_CondWait (save_finished_condition, save_mutex);
 
-	fprintf (f, "%i\n", SAVEGAME_VERSION);
-	Host_SavegameComment (comment);
-	fprintf (f, "%s\n", comment);
-	for (i = 0; i < NUM_SPAWN_PARMS; i++)
-		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
-	fprintf (f, "%d\n", current_skill);
-	fprintf (f, "%s\n", sv.name);
-	fprintf (f, "%f\n",qcvm->time);
+	q_strlcpy (save_data.path, name, sizeof (save_data.path));
+	save_data.file = f;
+	save_data.abort = false;
 
-// write the light styles
-	for (i = 0; i < MAX_LIGHTSTYLES; i++)
-	{
-		if (sv.lightstyles[i])
-			fprintf (f, "%s\n", sv.lightstyles[i]);
-		else
-			fprintf (f,"m\n");
-	}
+	PR_SwitchQCVM (&sv.qcvm);
+	SaveData_Fill (&save_data);
+	PR_SwitchQCVM (NULL);
 
-	ED_WriteGlobals (f);
-	for (i = 0; i < qcvm->num_edicts; i++)
-	{
-		ED_Write (f, EDICT_NUM(i));
-		fflush (f);
-	}
-	fclose (f);
-	Con_Printf ("done.\n");
-	PR_SwitchQCVM(NULL);
-
-	SaveList_Rebuild ();
+	save_pending = true;
+	SDL_CondSignal (save_pending_condition);
+	SDL_UnlockMutex (save_mutex);
 
 	q_strlcpy (sv.lastsave, relname, sizeof (sv.lastsave));
+	COM_StripExtension (sv.lastsave, relname, sizeof (relname));
+	FileList_Add (relname, &savelist);
 }
 
 /*
@@ -2815,6 +2904,8 @@ Host_InitCommands
 */
 void Host_InitCommands (void)
 {
+	Host_InitSaveThread ();
+
 	Cmd_AddCommand ("maps", Host_Maps_f); //johnfitz
 	Cmd_AddCommand ("mods", Host_Mods_f); //johnfitz
 	Cmd_AddCommand ("games", Host_Mods_f); // as an alias to "mods" -- S.A. / QuakeSpasm

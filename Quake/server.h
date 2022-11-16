@@ -90,7 +90,6 @@ typedef struct
 
 
 #define	NUM_PING_TIMES		16
-#define	NUM_SPAWN_PARMS		16
 
 typedef struct client_s
 {

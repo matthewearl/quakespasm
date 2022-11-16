@@ -211,6 +211,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	SOUND_CHANNELS		8
 
+#define	NUM_SPAWN_PARMS		16
+
+
 typedef struct
 {
 	const char *basedir;
@@ -240,9 +243,6 @@ typedef struct
 #include "cmd.h"
 #include "crc.h"
 
-#include "progs.h"
-#include "server.h"
-
 #include "platform.h"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -254,6 +254,9 @@ typedef struct
 #ifndef APIENTRY
 #define	APIENTRY
 #endif
+
+#include "progs.h"
+#include "server.h"
 
 #include "console.h"
 #include "wad.h"
@@ -371,6 +374,11 @@ void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
 void Host_WriteConfiguration (void);
 void Host_Resetdemos (void);
+
+void Host_SavegameComment (char *text);
+void Host_WaitForSaveThread (void);
+void Host_ShutdownSave (void);
+qboolean Host_IsSaving (void);
 
 void ExtraMaps_Init (void);
 void Modlist_Init (void);

@@ -2294,6 +2294,8 @@ static void COM_Game_f (void)
 			return;
 		}
 
+		Host_WaitForSaveThread ();
+
 		com_modified = true;
 
 		//Kill the server

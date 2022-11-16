@@ -255,9 +255,30 @@ typedef struct qcvm_s
 									// be used to reference the world ent
 } qcvm_t;
 
-extern	globalvars_t	*pr_global_struct;
+typedef struct savedata_s
+{
+	FILE			*file;
+	qboolean		abort;
+	char			path[MAX_OSPATH];
+	char			comment[SAVEGAME_COMMENT_LENGTH+1];
+	char			mapname[64];
+	double			time;
+	float			spawn_parms[NUM_SPAWN_PARMS];
+	int				skill;
+	int				numknownstrings;
+	const char		**knownstrings;
+	char			*stringpool;
+	int				num_edicts;
+	edict_t			*edicts;
+	float			*globals;
+	const char		*lightstyles[MAX_LIGHTSTYLES];
+} savedata_t;
 
-extern qcvm_t *qcvm;
+#define	SAVEGAME_VERSION	5
+
+extern THREAD_LOCAL globalvars_t	*pr_global_struct;
+extern THREAD_LOCAL qcvm_t			*qcvm;
+
 void PR_SwitchQCVM(qcvm_t *nvm);
 void PR_PushQCVM(qcvm_t *newvm, qcvm_t **oldvm);
 void PR_PopQCVM(qcvm_t *oldvm);
@@ -285,10 +306,10 @@ void ED_Free (edict_t *ed);
 void ED_ClearEdict (edict_t *e);
 
 void ED_Print (edict_t *ed);
-void ED_Write (FILE *f, edict_t *ed);
+void ED_Write (savedata_t *save, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);
 
-void ED_WriteGlobals (FILE *f);
+void ED_WriteGlobals (savedata_t *save);
 const char *ED_ParseGlobals (const char *data);
 
 void ED_LoadFromFile (const char *data);
@@ -299,11 +320,13 @@ void ED_LoadFromFile (const char *data);
 */
 edict_t *EDICT_NUM(int);
 int NUM_FOR_EDICT(edict_t*);
+int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e);
 
 #define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
 
 #define	EDICT_TO_PROG(e)	((byte *)e - (byte *)qcvm->edicts)
 #define PROG_TO_EDICT(e)	((edict_t *)((byte *)qcvm->edicts + e))
+#define SAVE_PROG_TO_EDICT(s, e)	((edict_t *)((byte *)s->edicts + e))
 
 #define	G_FLOAT(o)		(qcvm->globals[o])
 #define	G_INT(o)		(*(int *)&qcvm->globals[o])
@@ -344,5 +367,9 @@ void ED_PrintNum (int ent);
 
 eval_t *GetEdictFieldValue(edict_t *ed, int fldofs);
 eval_t *GetEdictFieldValueByName(edict_t *ed, const char *name);
+
+void SaveData_Clear (savedata_t *save);
+void SaveData_Fill (savedata_t *save);
+void SaveData_WriteHeader (savedata_t *save);
 
 #endif	/* QUAKE_PROGS_H */
