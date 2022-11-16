@@ -640,7 +640,6 @@ void ED_Write (FILE *f, edict_t *ed)
 	ddef_t	*d;
 	int		*v;
 	int		i, j;
-	const char	*name;
 	int		type;
 
 	fprintf (f, "{\n");
@@ -654,11 +653,8 @@ void ED_Write (FILE *f, edict_t *ed)
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
-		name = PR_GetString(d->s_name);
-		j = strlen (name);
-		if (j > 1 && name[j - 2] == '_')
-			continue;	// skip _x, _y, _z vars
-
+		if (!(d->type & DEF_SAVEGLOBAL))
+			continue;
 		v = (int *)((char *)&ed->v + d->ofs*4);
 
 	// if the value is still all 0, skip the field
@@ -671,8 +667,7 @@ void ED_Write (FILE *f, edict_t *ed)
 		if (j == type_size[type])
 			continue;
 
-		fprintf (f, "\"%s\" ", name);
-		fprintf (f, "\"%s\"\n", PR_UglyValueString(d->type, (eval_t *)v));
+		fprintf (f, "\"%s\" \"%s\"\n", PR_GetString (d->s_name), PR_UglyValueString (d->type, (eval_t *)v));
 	}
 
 	//johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
@@ -1587,6 +1582,25 @@ static void PR_PatchRereleaseBuiltins (void)
 		f->first_statement = -24;
 }
 
+/*
+===============
+PR_FindSavegameFields
+
+Determines which fields should be stored in savefiles
+===============
+*/
+static void PR_FindSavegameFields (void)
+{
+	int i;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		ddef_t *field = &qcvm->fielddefs[i];
+		const char *name = PR_GetString (field->s_name);
+		size_t len = strlen (name);
+		if (len < 2 || name[len - 2] != '_') // skip _x, _y, _z vars
+			field->type |= DEF_SAVEGLOBAL;
+	}
+}
 
 /*
 ===============
@@ -1741,6 +1755,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	PR_InitBuiltins ();
 	PR_PatchRereleaseBuiltins ();
 	PR_EnableExtensions ();
+	PR_FindSavegameFields ();
 
 	qcvm->effects_mask = PR_FindSupportedEffects ();
 
