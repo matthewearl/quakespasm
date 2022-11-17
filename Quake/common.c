@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 #include "steam.h"
+#include <time.h>
 #include <errno.h>
 
 #include "miniz.h"
@@ -1584,6 +1585,64 @@ void COM_WriteFile (const char *filename, const void *data, int len)
 
 /*
 ============
+COM_WriteFile_OSPath
+============
+*/
+qboolean COM_WriteFile_OSPath (const char *filename, const void *data, size_t len)
+{
+	qboolean	ret = false;
+	FILE		*f = Sys_fopen (filename, "wb");
+
+	if (f)
+	{
+		ret = fwrite (data, len, 1, f) == 1;
+		fclose (f);
+		if (!ret)
+			Sys_remove (filename);
+	}
+
+	return ret;
+}
+
+/*
+============
+COM_TempSuffix
+============
+*/
+char *COM_TempSuffix (unsigned seq)
+{
+	static const char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789=#";
+	static char buf[64];
+	time_t		now = 0;
+	int			r, len = 0, maxlen = sizeof (buf) - 1;
+
+	time (&now);
+	while (now && len < maxlen)
+	{
+		buf[len++] = base64[now & 63];
+		now >>= 6;
+	}
+
+	r = rand ();
+	while (r && len < maxlen)
+	{
+		buf[len++] = base64[r & 63];
+		r >>= 6;
+	}
+
+	while (seq && len < maxlen)
+	{
+		buf[len++] = base64[seq & 63];
+		seq >>= 6;
+	}
+
+	buf[len] = '\0';
+
+	return buf;
+}
+
+/*
+============
 COM_CreatePath
 ============
 */
@@ -1942,6 +2001,39 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 		*len_out = actuallen;
 	fclose (f);
 	return data;
+}
+
+char *COM_NormalizeLineEndings (char *buffer)
+{
+	char *src, *dst;
+
+	src = dst = buffer;
+
+	while (*src)
+	{
+		if (src == dst)
+		{
+			while (*src && *src != '\r')
+				src++;
+			dst = src;
+		}
+		else
+		{
+			while (*src && *src != '\r')
+				*dst++ = *src++;
+		}
+
+		if (!*src)
+			break;
+
+		src++;
+		if (*src != '\n')
+			*dst++ = '\n';
+	}
+
+	*dst = '\0';
+
+	return buffer;
 }
 
 const char *COM_ParseIntNewline(const char *buffer, int *value)

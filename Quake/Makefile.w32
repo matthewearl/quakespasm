@@ -93,6 +93,10 @@ endif
 CFLAGS     += $(DEFWINSOCK)
 NET_LIBS   := $(LIBWINSOCK)
 
+NET_LIBS   += -lcurl
+CFLAGS     += -I../Windows/curl/include
+LDFLAGS    += -L../Windows/curl/lib/x86
+
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
 $(error Invalid VORBISLIB setting)

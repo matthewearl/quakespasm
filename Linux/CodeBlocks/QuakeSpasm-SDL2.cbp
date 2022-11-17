@@ -46,6 +46,7 @@
 			<Add option="-logg" />
 			<Add option="-lmad" />
 			<Add option="-lm" />
+			<Add option="-lcurl" />
 		</Linker>
 		<Unit filename="../../Quake/anorm_dots.h" />
 		<Unit filename="../../Quake/anorms.h" />

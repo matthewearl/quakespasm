@@ -628,6 +628,108 @@ void Host_ClearMemory (void)
 
 //==============================================================================
 //
+// Main thread APC queue
+//
+//==============================================================================
+
+typedef struct asyncproc_s
+{
+	void				(*func) (void *param);
+	void				*param;
+} asyncproc_t;
+
+typedef struct asyncqueue_s
+{
+	size_t				head;
+	size_t				tail;
+	size_t				capacity;
+	qboolean			teardown;
+	SDL_mutex			*mutex;
+	SDL_cond			*notfull;
+	asyncproc_t			*procs;
+} asyncqueue_t;
+
+static asyncqueue_t		async_queue;
+
+static void AsyncQueue_Init (asyncqueue_t *queue, size_t capacity)
+{
+	memset (queue, 0, sizeof (*queue));
+
+	if (!capacity)
+		capacity = 1024;
+	else
+		capacity = Q_nextPow2 (capacity);
+	queue->capacity = capacity;
+	capacity *= sizeof (queue->procs[0]);
+	queue->procs = (asyncproc_t *) malloc (capacity);
+	if (!queue->procs)
+		Sys_Error ("AsyncQueue_Init: malloc failed on %" SDL_PRIu64 " bytes", (uint64_t) capacity);
+
+	queue->mutex = SDL_CreateMutex ();
+	if (!queue->mutex)
+		Sys_Error ("AsyncQueue_Init: could not create mutex");
+
+	queue->notfull = SDL_CreateCond ();
+	if (!queue->notfull)
+		Sys_Error ("AsyncQueue_Init: could not create condition variable");
+}
+
+static void AsyncQueue_Push (asyncqueue_t *queue, void (*func) (void *param), void *param)
+{
+	asyncproc_t *proc;
+
+	if (!queue->mutex)
+		return;
+	SDL_LockMutex (queue->mutex);
+	while (!queue->teardown && queue->tail - queue->head >= queue->capacity)
+		SDL_CondWait (queue->notfull, queue->mutex);
+
+	if (!queue->teardown)
+	{
+		proc = &queue->procs[(queue->tail++) & (queue->capacity - 1)];
+		proc->func = func;
+		proc->param = param;
+	}
+
+	SDL_UnlockMutex (queue->mutex);
+}
+
+static void AsyncQueue_Drain (asyncqueue_t *queue)
+{
+	SDL_LockMutex (queue->mutex);
+	while (queue->head != queue->tail)
+	{
+		asyncproc_t *proc = &queue->procs[(queue->head++) & (queue->capacity - 1)];
+		proc->func (proc->param);
+		SDL_CondSignal (queue->notfull);
+	}
+	SDL_UnlockMutex (queue->mutex);
+}
+
+static void AsyncQueue_Destroy (asyncqueue_t *queue)
+{
+	if (!queue->mutex)
+		return;
+
+	SDL_LockMutex (queue->mutex);
+	queue->teardown = true;
+	SDL_UnlockMutex (queue->mutex);
+	SDL_CondBroadcast (queue->notfull);
+
+	AsyncQueue_Drain (queue);
+
+	SDL_DestroyCond (queue->notfull);
+	SDL_DestroyMutex (queue->mutex);
+	memset (queue, 0, sizeof (*queue));
+}
+
+void Host_InvokeOnMainThread (void (*func) (void *param), void *param)
+{
+	AsyncQueue_Push (&async_queue, func, param);
+}
+
+//==============================================================================
+//
 // Host Frame
 //
 //==============================================================================
@@ -914,6 +1016,9 @@ void _Host_Frame (double time)
 	accumtime += host_netinterval?CLAMP(0.0, time, 0.2):0.0;	//for renderer/server isolation
 	Host_AdvanceTime (time);
 
+// run async procs
+	AsyncQueue_Drain (&async_queue);
+
 // get new key events
 	Key_UpdateForDest ();
 	IN_UpdateInputMode ();
@@ -1113,6 +1218,7 @@ void Host_Init (void)
 	Mod_Init ();
 	NET_Init ();
 	SV_Init ();
+	AsyncQueue_Init (&async_queue, 1024);
 
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
@@ -1126,12 +1232,6 @@ void Host_Init (void)
 		V_Init ();
 		Chase_Init ();
 		M_Init ();
-		ExtraMaps_Init (); //johnfitz
-		Modlist_Init (); //johnfitz
-		DemoList_Init (); //ericw
-		SaveList_Init ();
-		SkyList_Init ();
-		M_CheckMods ();
 		VID_Init ();
 		IN_Init ();
 		TexMgr_Init (); //johnfitz
@@ -1143,6 +1243,12 @@ void Host_Init (void)
 		BGM_Init();
 		Sbar_Init ();
 		CL_Init ();
+		Modlist_Init (); //johnfitz
+		ExtraMaps_Init (); //johnfitz
+		DemoList_Init (); //ericw
+		SaveList_Init ();
+		SkyList_Init ();
+		M_CheckMods ();
 	}
 
 	LOC_Init (); // for 2021 rerelease support.
@@ -1194,8 +1300,13 @@ void Host_Shutdown(void)
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;
 
+	AsyncQueue_Destroy (&async_queue);
+
 	Host_ShutdownSave ();
 	Host_WriteConfiguration ();
+
+// stop downloads before shutting down networking
+	Modlist_ShutDown ();
 
 	NET_Shutdown ();
 

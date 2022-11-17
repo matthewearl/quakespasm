@@ -447,8 +447,19 @@ void M_List_AutoScroll (menulist_t *list)
 {
 	if (list->numitems <= list->viewsize)
 		return;
-	if (list->cursor < list->scroll + 1)
+	if (list->cursor < list->scroll)
+	{
 		list->scroll = list->cursor;
+		if (list->isactive_fn)
+		{
+			while (list->scroll > 0 &&
+				list->scroll > list->cursor - list->viewsize + 1 &&
+				!list->isactive_fn (list->scroll - 1))
+			{
+				--list->scroll;
+			}
+		}
+	}
 	else if (list->cursor >= list->scroll + list->viewsize)
 		list->scroll = list->cursor - list->viewsize + 1;
 }
@@ -654,6 +665,8 @@ qboolean M_List_Key (menulist_t *list, int key)
 		else
 		{
 			M_List_SelectNextActive (list, 0, 1, false);
+			list->scroll = 0;
+			M_List_AutoScroll (list);
 		}
 		return true;
 
@@ -1612,12 +1625,12 @@ void M_Maps_Draw (void)
 			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
 	}
 
+	str = va("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
+	M_Print (x + (cols - strlen (str))*8, y - 24, str);
+
 	if (M_List_GetOverflow (&mapsmenu.list) > 0)
 	{
 		M_List_DrawScrollbar (&mapsmenu.list, x + cols*8 - 8, y);
-
-		str = va("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
-		M_Print (x + (cols - strlen (str))*8, y - 24, str);
 
 		if (mapsmenu.list.scroll > 0)
 			M_DrawEllipsisBar (x, y - 8, cols);
@@ -4140,22 +4153,27 @@ void M_ServerList_Mousemove (int cx, int cy)
 //=============================================================================
 /* Mods menu */
 
-#define MAX_MODS		4096
-#define MAX_VIS_MODS	19
+#define MODLIST_OFS		28
 
 typedef struct
 {
-	const char	*name;
-	qboolean	active;
+	const char				*name;
+	const filelist_item_t	*source;
+	int						modidx;
+	qboolean				active;
 } moditem_t;
 
 static struct
 {
 	menulist_t			list;
 	int					x, y, cols;
+	int					modcount;
+	int					prev_cursor;
+	double				scroll_time;
+	double				scroll_wait_time;
 	enum m_state_e		prev;
 	qboolean			scrollbar_grab;
-	moditem_t			items[MAX_MODS];
+	moditem_t			*items;
 } modsmenu;
 
 static qboolean M_Mods_IsActive (const char *game)
@@ -4191,13 +4209,46 @@ static qboolean M_Mods_IsActive (const char *game)
 	return false;
 }
 
-static void M_Mods_Add (const char *name)
+static void M_Mods_AddDecoration (const char *text)
 {
-	moditem_t *mod = &modsmenu.items[modsmenu.list.numitems];
-	mod->name = name;
-	mod->active = M_Mods_IsActive (name);
-	if (mod->active && modsmenu.list.cursor == -1)
+	moditem_t item;
+	memset (&item, 0, sizeof (item));
+	item.name = text;
+	VEC_PUSH (modsmenu.items, item);
+	modsmenu.list.numitems++;
+}
+
+static void M_Mods_AddSeparator (qboolean installed)
+{
+	#define QBAR "\35\36\37"
+
+	if (installed && !modsmenu.list.numitems)
+		return;
+
+	if (modsmenu.list.numitems)
+		M_Mods_AddDecoration ("");
+
+	if (installed)
+		M_Mods_AddDecoration (QBAR " Installed " QBAR);
+	else
+		M_Mods_AddDecoration (QBAR " Available for download " QBAR);
+
+	M_Mods_AddDecoration ("");
+
+	#undef QBAR
+}
+
+static void M_Mods_Add (const filelist_item_t *item)
+{
+	moditem_t mod;
+	memset (&mod, 0, sizeof (mod));
+	mod.name = item->name;
+	mod.source = item;
+	mod.active = M_Mods_IsActive (item->name);
+	mod.modidx = modsmenu.modcount++;
+	if (mod.active && modsmenu.list.cursor == -1)
 		modsmenu.list.cursor = modsmenu.list.numitems;
+	VEC_PUSH (modsmenu.items, mod);
 	modsmenu.list.numitems++;
 }
 
@@ -4206,26 +4257,65 @@ static qboolean M_Mods_Match (int index)
 	return !q_strncasecmp (modsmenu.items[index].name, modsmenu.list.search.text, modsmenu.list.search.len);
 }
 
+static qboolean M_Mods_IsSelectable (int index)
+{
+	return modsmenu.items[index].source != NULL;
+}
+
+static void M_Mods_UpdateLayout (void)
+{
+	int height;
+
+	M_UpdateBounds ();
+
+	height = modsmenu.list.numitems * 8 + MODLIST_OFS + 8;
+	height = q_min (height, m_height);
+	modsmenu.cols = m_width / 8 - 2;
+	modsmenu.cols = q_min (modsmenu.cols, 44);
+	modsmenu.x = m_left + (m_width - modsmenu.cols * 8) / 2;
+	modsmenu.y = m_top + (((m_height - height) / 2) & ~7);
+	modsmenu.list.viewsize = (height - MODLIST_OFS - 8) / 8;
+}
+
 static void M_Mods_Init (void)
 {
+	int pass, count;
 	filelist_item_t *item;
 
-	modsmenu.x = 64;
-	modsmenu.y = 32;
-	modsmenu.cols = 28;
 	modsmenu.scrollbar_grab = false;
 	memset (&modsmenu.list.search, 0, sizeof (modsmenu.list.search));
 	modsmenu.list.search.match_fn = M_Mods_Match;
-	modsmenu.list.viewsize = MAX_VIS_MODS;
+	modsmenu.list.isactive_fn = M_Mods_IsSelectable;
 	modsmenu.list.cursor = -1;
 	modsmenu.list.scroll = 0;
 	modsmenu.list.numitems = 0;
+	modsmenu.modcount = 0;
+	VEC_CLEAR (modsmenu.items);
 
-	for (item = modlist; item && modsmenu.list.numitems < MAX_MODS; item = item->next)
-		M_Mods_Add (item->name);
+	for (pass = 0; pass < 2; pass++)
+	{
+		count = 0;
+		for (item = modlist; item; item = item->next)
+		{
+			modstatus_t status = Modlist_GetStatus (item);
+			qboolean installed = status == MODSTATUS_INSTALLED;
+			if (installed != pass)
+				continue;
+			if (!count++)
+				M_Mods_AddSeparator (pass);
+			M_Mods_Add (item);
+
+			// always focus the add-on being downloaded, if any,
+			// since it will be activated automatically afterwards
+			if (status == MODSTATUS_INSTALLING)
+				modsmenu.list.cursor = modsmenu.list.numitems - 1;
+		}
+	}
 
 	if (modsmenu.list.cursor == -1)
-		modsmenu.list.cursor = 0;
+		M_List_SelectNextActive (&modsmenu.list, 0, 1, false);
+
+	M_Mods_UpdateLayout ();
 
 	M_List_CenterCursor (&modsmenu.list);
 }
@@ -4245,47 +4335,110 @@ void M_Mods_Draw (void)
 	const char *str;
 	int x, y, i, j, cols;
 	int firstvis, numvis;
+	int firstvismod, numvismods;
+	int namecols, desccols;
 
 	if (!keydown[K_MOUSE1])
 		modsmenu.scrollbar_grab = false;
 
+	M_Mods_UpdateLayout ();
 	M_List_Update (&modsmenu.list);
+
+	namecols = CLAMP (16, modsmenu.cols * 0.4375f, 24);
+	desccols = modsmenu.cols - 1 - namecols;
+
+	if (modsmenu.prev_cursor != modsmenu.list.cursor)
+	{
+		modsmenu.prev_cursor = modsmenu.list.cursor;
+		modsmenu.scroll_time = 0.0;
+		modsmenu.scroll_wait_time = 1.0;
+	}
+	else
+	{
+		if (modsmenu.scroll_wait_time <= 0.0)
+			modsmenu.scroll_time += host_rawframetime;
+		else
+			modsmenu.scroll_wait_time = q_max (0.0, modsmenu.scroll_wait_time - host_rawframetime);
+	}
 
 	x = modsmenu.x;
 	y = modsmenu.y;
 	cols = modsmenu.cols;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
-	Draw_StringEx (x, y - 28, 12, "Mods");
-	M_DrawQuakeBar (x - 8, y - 16, cols + 2);
+	Draw_StringEx (x, y, 12, "Mods");
+	M_DrawQuakeBar (x - 8, y + 12, namecols + 1);
+	M_DrawQuakeBar (x + namecols * 8, y + 12, cols + 1 - namecols);
 
+	y += MODLIST_OFS;
+
+	firstvismod = -1;
+	numvismods = 0;
 	M_List_GetVisibleRange (&modsmenu.list, &firstvis, &numvis);
 	for (i = 0; i < numvis; i++)
 	{
 		int idx = i + firstvis;
 		const moditem_t *item = &modsmenu.items[idx];
-		int mask = item->active ? 0 : 128;
-		qboolean match = modsmenu.list.search.len > 0 &&
-			!q_strncasecmp (item->name, modsmenu.list.search.text, modsmenu.list.search.len);
+		int mask = item->active ? 128 : 0;
+		const char *message = item->source ? Modlist_GetFullName (item->source) : NULL;
+		qboolean selected = (idx == modsmenu.list.cursor);
 
-		for (j = 0; j < cols - 1 && item->name[j]; j++)
+		if (!item->source)
 		{
-			char c = item->name[j] ^ mask;
-			if (match && j < modsmenu.list.search.len)
-				c ^= 128;
-			M_DrawCharacter (x + j*8, y + i*8, c);
+			M_PrintWhite (x + (cols - strlen (item->name))/2*8, y + i*8, item->name);
+		}
+		else
+		{
+			char tinted[256], buf[256];
+			if (modsmenu.list.search.len > 0)
+				COM_TintSubstring (item->name, modsmenu.list.search.text, tinted, sizeof (tinted));
+			else
+				q_strlcpy (tinted, item->name, sizeof (tinted));
+			if (Modlist_GetStatus (item->source) == MODSTATUS_INSTALLING)
+			{
+				double progress = Modlist_GetDownloadProgress (item->source);
+				q_snprintf (buf, sizeof (buf), "\20%3.0f%%\21 %s", 100.0 * progress, item->name);
+			}
+			else
+				q_strlcpy (buf, tinted, sizeof (buf));
+
+			if (firstvismod == -1)
+				firstvismod = item->modidx;
+			numvismods++;
+
+			for (j = 0; j < namecols - 2 && buf[j]; j++)
+				M_DrawCharacter (x + j*8, y + i*8, buf[j] ^ mask);
+
+			if (message && message[0])
+			{
+				if (mapsmenu.list.search.len > 0)
+					COM_TintSubstring (message, modsmenu.list.search.text, buf, sizeof (buf));
+				else
+					q_strlcpy (buf, message, sizeof (buf));
+
+				GL_SetCanvasColor (1, 1, 1, 0.375f);
+				for (/**/; j < namecols; j++)
+					M_DrawCharacter (x + j*8, y + i*8, '.' | mask);
+				if (message)
+					GL_SetCanvasColor (1, 1, 1, 1);
+
+				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
+					selected ? modsmenu.scroll_time : 0.0, true);
+
+				if (!message)
+					GL_SetCanvasColor (1, 1, 1, 1);
+			}
 		}
 
 		if (idx == modsmenu.list.cursor)
 			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
 	}
 
+	str = va("%d-%d of %d", firstvismod + 1, firstvismod + numvismods, modsmenu.modcount);
+	M_Print (x + (cols - strlen (str))*8, y - 24, str);
+
 	if (M_List_GetOverflow (&modsmenu.list) > 0)
 	{
 		M_List_DrawScrollbar (&modsmenu.list, x + cols*8 - 8, y);
-
-		str = va("%d-%d of %d", firstvis + 1, firstvis + numvis, modsmenu.list.numitems);
-		M_Print (x + (cols - strlen (str))*8, y - 24, str);
 
 		if (modsmenu.list.scroll > 0)
 			M_DrawEllipsisBar (x, y - 8, cols);
@@ -4293,7 +4446,8 @@ void M_Mods_Draw (void)
 			M_DrawEllipsisBar (x, y + modsmenu.list.viewsize*8, cols);
 	}
 
-	M_List_DrawSearch (&modsmenu.list, x, y + modsmenu.list.viewsize*8 + 4, 14);
+	i = q_min (modsmenu.list.viewsize, modsmenu.list.numitems);
+	M_List_DrawSearch (&modsmenu.list, x, y + i*8 + 4, 14);
 }
 
 void M_Mods_Char (int key)
@@ -4308,6 +4462,7 @@ qboolean M_Mods_TextEntry (void)
 
 void M_Mods_Key (int key)
 {
+	const filelist_item_t *item;
 	int x, y;
 
 	if (modsmenu.scrollbar_grab)
@@ -4343,17 +4498,39 @@ void M_Mods_Key (int key)
 	case K_ABUTTON:
 	enter:
 		M_List_ClearSearch (&modsmenu.list);
-		Cbuf_AddText (va ("game %s\n", modsmenu.items[modsmenu.list.cursor].name));
-		M_Menu_Main_f ();
+		item = modsmenu.items[modsmenu.list.cursor].source;
+		if (Modlist_GetStatus (item) == MODSTATUS_INSTALLED)
+		{
+			Cbuf_AddText (va ("game %s\n", item->name));
+			M_Menu_Main_f ();
+		}
+		else
+		{
+			M_ThrottledSound ("misc/menu2.wav");
+			Modlist_StartInstalling (item);
+		}
 		break;
 
 	case K_MOUSE1:
 		x = m_mousex - modsmenu.x - (modsmenu.cols - 1) * 8;
-		y = m_mousey - modsmenu.y;
+		y = m_mousey - modsmenu.y - MODLIST_OFS;
 		if (x < -8 || !M_List_UseScrollbar (&modsmenu.list, y))
 			goto enter;
 		modsmenu.scrollbar_grab = true;
 		M_Mods_Mousemove (m_mousex, m_mousey);
+		break;
+
+	case K_RIGHTARROW:
+		modsmenu.scroll_time += 0.25;
+		modsmenu.scroll_wait_time = 1.5;
+		M_List_KeepSearchVisible (&modsmenu.list, 1.0);
+		M_ThrottledSound ("misc/menu3.wav");
+		break;
+	case K_LEFTARROW:
+		modsmenu.scroll_time -= 0.25;
+		modsmenu.scroll_wait_time = 1.5;
+		M_List_KeepSearchVisible (&modsmenu.list, 1.0);
+		M_ThrottledSound ("misc/menu3.wav");
 		break;
 
 	default:
@@ -4364,7 +4541,7 @@ void M_Mods_Key (int key)
 
 void M_Mods_Mousemove (int cx, int cy)
 {
-	cy -= modsmenu.y;
+	cy -= modsmenu.y + MODLIST_OFS;
 
 	if (modsmenu.scrollbar_grab)
 	{
@@ -4379,6 +4556,22 @@ void M_Mods_Mousemove (int cx, int cy)
 
 	M_List_Mousemove (&modsmenu.list, cy);
 }
+
+void M_OnModInstall (const char *name)
+{
+	if (key_dest != key_menu || m_state != m_mods)
+		return;
+	Cbuf_AddText (va ("game \"%s\"\n", name));
+	M_Menu_Main_f ();
+}
+
+void M_RefreshMods (void)
+{
+	if (key_dest != key_menu || m_state != m_mods)
+		return;
+	M_Mods_Init ();
+}
+
 
 //=============================================================================
 /* Credits menu -- used by the 2021 re-release */

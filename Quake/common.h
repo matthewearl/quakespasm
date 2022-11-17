@@ -263,6 +263,8 @@ extern char *q_strupr (char *str);
 extern int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF(3,4);
 extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args) FUNC_PRINTF(3,0);
 
+#define PLURAL(count)	(&"s"[(count)==1])
+
 //============================================================================
 
 extern	THREAD_LOCAL char		com_token[1024];
@@ -296,6 +298,7 @@ void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
 const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
 void COM_ExtractExtension (const char *in, char *out, size_t outsize);
+char *COM_TempSuffix (unsigned seq);
 void COM_CreatePath (char *path);
 
 char *va (const char *format, ...) FUNC_PRINTF(1,2);
@@ -356,6 +359,7 @@ extern	char	com_gamedir[MAX_OSPATH];
 extern	THREAD_LOCAL int	file_from_pak;	// global indicating that file came from a pak
 
 void COM_WriteFile (const char *filename, const void *data, int len);
+qboolean COM_WriteFile_OSPath (const char *filename, const void *data, size_t len);
 int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
 qboolean COM_FileExists (const char *filename, unsigned int *path_id);
@@ -385,6 +389,9 @@ byte *COM_LoadMallocFile (const char *path, unsigned int *path_id);
 // Returns NULL on failure, or else a '\0'-terminated malloc'ed buffer.
 // Loads in "t" mode so CRLF to LF translation is performed on Windows.
 byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out);
+
+// Replaces CR/CRLF with LF.
+char *COM_NormalizeLineEndings (char *buffer);
 
 // Attempts to parse an int, followed by a newline.
 // Returns advanced buffer position.

@@ -101,6 +101,11 @@ int Sys_remove (const char *path)
 	return remove (path);
 }
 
+int Sys_rename (const char *oldname, const char *newname)
+{
+	return rename (oldname, newname);
+}
+
 long Sys_filelength (FILE *f)
 {
 	long		pos, end;
@@ -177,6 +182,14 @@ qboolean Sys_FileExists (const char *path)
 	return access (path, F_OK) == 0;
 }
 
+qboolean Sys_GetFileTime (const char *path, time_t *out)
+{
+	struct stat st;
+	if (stat (path, &st) != 0)
+		return false;
+	*out = (time_t) st.st_mtim.tv_sec;
+	return true;
+}
 
 #if defined(__linux__) || defined(__sun) || defined(sun) || defined(_AIX)
 static int Sys_NumCPUs (void)

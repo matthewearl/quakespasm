@@ -348,6 +348,22 @@ maptype_t			ExtraMaps_GetType (const filelist_item_t *item);
 qboolean			ExtraMaps_IsStart (maptype_t type);
 const char			*ExtraMaps_GetMessage (const filelist_item_t *item);
 
+typedef enum
+{
+	MODSTATUS_DOWNLOADABLE,
+	MODSTATUS_INSTALLING,
+	MODSTATUS_INSTALLED,
+} modstatus_t;
+
+modstatus_t			Modlist_GetStatus (const filelist_item_t *item);
+float				Modlist_GetDownloadProgress (const filelist_item_t *item);
+double				Modlist_GetDownloadSize (const filelist_item_t *item);
+const char			*Modlist_GetFullName (const filelist_item_t *item);
+const char			*Modlist_GetDescription (const filelist_item_t *item);
+const char			*Modlist_GetAuthor (const filelist_item_t *item);
+const char			*Modlist_GetDate (const filelist_item_t *item);
+qboolean			Modlist_StartInstalling (const filelist_item_t *item);
+
 extern filelist_item_t **extralevels_sorted;
 extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
@@ -393,6 +409,8 @@ void DemoList_Rebuild (void);
 void SaveList_Rebuild (void);
 void SkyList_Rebuild (void);
 
+void Modlist_ShutDown (void);
+
 
 void M_CheckMods (void);
 
@@ -403,6 +421,8 @@ extern int		current_skill;	// skill level for currently loaded level (in case
 extern qboolean		isDedicated;
 
 extern int		minimum_memory;
+
+void Host_InvokeOnMainThread (void (*func) (void *param), void *param);
 
 #endif /* RC_INVOKED */
 

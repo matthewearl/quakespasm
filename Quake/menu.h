@@ -62,6 +62,9 @@ qboolean M_TextEntry (void);
 qboolean M_KeyBinding (void);
 void M_ToggleMenu_f (void);
 
+void M_RefreshMods (void);
+void M_OnModInstall (const char *name);
+
 void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);

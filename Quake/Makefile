@@ -114,6 +114,9 @@ else
 NET_LIBS   :=
 endif
 
+NET_LIBS   += -lcurl
+CFLAGS     += $(shell $(PKG_CONFIG) --cflags libcurl)
+
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
 $(error Invalid VORBISLIB setting)

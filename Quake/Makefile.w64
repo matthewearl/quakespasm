@@ -86,6 +86,10 @@ LIBWINSOCK := -lws2_32
 CFLAGS     += $(DEFWINSOCK)
 NET_LIBS   := $(LIBWINSOCK)
 
+NET_LIBS   += -lcurl
+CFLAGS     += -I../Windows/curl/include
+LDFLAGS    += -L../Windows/curl/lib/x64
+
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
 $(error Invalid VORBISLIB setting)

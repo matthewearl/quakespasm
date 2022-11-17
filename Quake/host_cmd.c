@@ -23,6 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "q_ctype.h"
+#include "json.h"
+
+#include <curl/curl.h>
+#define MAX_URL	2048
 
 extern cvar_t	pausable;
 extern cvar_t	nomonsters;
@@ -59,7 +63,7 @@ void Host_Quit_f (void)
 FileList_AddWithData
 ==================
 */
-static void FileList_AddWithData (const char *name, const void *data, size_t datasize, filelist_item_t **list)
+static filelist_item_t *FileList_AddWithData (const char *name, const void *data, size_t datasize, filelist_item_t **list)
 {
 	filelist_item_t	*item,*cursor,*prev;
 
@@ -67,13 +71,18 @@ static void FileList_AddWithData (const char *name, const void *data, size_t dat
 	for (item = *list; item; item = item->next)
 	{
 		if (!Q_strcmp (name, item->name))
-			return;
+			return item;
 	}
 
 	item = (filelist_item_t *) Z_Malloc(sizeof(filelist_item_t) + datasize);
 	q_strlcpy (item->name, name, sizeof(item->name));
 	if (datasize)
-		memcpy (item + 1, data, datasize);
+	{
+		if (data)
+			memcpy (item + 1, data, datasize);
+		else
+			memset (item + 1, 0, datasize);
+	}
 
 	// insert each entry in alphabetical order
 	if (*list == NULL ||
@@ -94,6 +103,8 @@ static void FileList_AddWithData (const char *name, const void *data, size_t dat
 		item->next = prev->next;
 		prev->next = item;
 	}
+
+	return item;
 }
 
 /*
@@ -526,11 +537,550 @@ static void Host_Maps_f (void)
 //johnfitz -- modlist management
 //==============================================================================
 
-filelist_item_t	*modlist;
+#define DEFAULT_ADDON_SERVER		"https://kexquake.s3.amazonaws.com"
+#define ADDON_MANIFEST_FILE			"content.json"
+#define MANIFEST_RETENTION			(24 * 60 * 60)
+
+static const char *const knownmods[][2] =
+{
+	{"id1",			"Quake"},
+	{"hipnotic",	"Scourge of Armagon"},
+	{"rogue",		"Dissolution of Eternity"},
+	{"dopa",		"Dimension of the Past"},
+	{"mg1",			"Dimension of the Machine"},
+	{"q64",			"Quake (Nintendo 64)"},
+	{"ctf",			"Capture The Flag"},
+	{"udob",		"Underdark Overbright"},
+	{"ad",			"Arcane Dimensions"},
+};
+
+typedef struct download_s
+{
+	const char		**headers;
+	int				num_headers;
+
+	size_t			(*write_fn) (void *buffer, size_t size, size_t nmemb, void *stream);
+	void			*write_data;
+
+	SDL_atomic_t	*abort;
+	int				response;
+	const char		*error;
+} download_t;
+
+static qboolean Download (const char *url, download_t *download)
+{
+	CURL				*curl;
+	CURLM				*multi_handle;
+	CURLMcode			mc;
+	struct curl_slist	*header = NULL;
+	int					i, still_running = 0;
+	long				response_code = 0;
+
+	download->response = 0;
+	download->error = NULL;
+
+	multi_handle = curl_multi_init ();
+	if (!multi_handle)
+	{
+		download->error = "curl_multi_init failed";
+		return false;
+	}
+
+	curl = curl_easy_init ();
+	if (!curl)
+	{
+		download->error = "curl_easy_init failed";
+		curl_multi_cleanup (multi_handle);
+		return false;
+	}
+
+	curl_easy_setopt (curl, CURLOPT_URL, url);
+	for (i = 0; i < download->num_headers; i++)
+		header = curl_slist_append (header, download->headers[i]);
+	curl_easy_setopt (curl, CURLOPT_HTTPHEADER, header);
+	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, download->write_fn);
+	curl_easy_setopt (curl, CURLOPT_WRITEDATA, download->write_data);
+	curl_easy_setopt (curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
+	curl_easy_setopt (curl, CURLOPT_ACCEPT_ENCODING, "");
+	//curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
+
+	mc = curl_multi_add_handle (multi_handle, curl);
+	if (mc != CURLM_OK)
+		goto done;
+
+	do
+	{
+		mc = curl_multi_perform (multi_handle, &still_running);
+		if (mc == CURLM_OK && still_running)
+			mc = curl_multi_poll (multi_handle, NULL, 0, 1000, NULL);
+
+		if (mc != CURLM_OK)
+		{
+			download->error = curl_multi_strerror (mc);
+			break;
+		}
+
+		if (download->abort && SDL_AtomicGet (download->abort))
+			break;
+	} while (still_running);
+
+	if (mc == CURLM_OK)
+	{
+		CURLcode code = curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &response_code);
+		if (code != CURLE_OK)
+			download->error = curl_easy_strerror (code);
+		else
+			download->response = response_code;
+	}
+
+	mc = curl_multi_remove_handle (multi_handle, curl);
+
+done:
+	if (mc != CURLM_OK && !download->error)
+		download->error = curl_multi_strerror (mc);
+
+	if (header)
+		curl_slist_free_all (header);
+	curl_easy_cleanup (curl);
+	curl_multi_cleanup (curl);
+
+	return !download->error && !still_running && download->response == 200;
+}
+
+typedef struct
+{
+	const char			*full_name;
+	const char			*author;
+	const char			*description;
+	const char			*date;
+	const char			*download;
+	double				bytes_total;
+	SDL_atomic_t		bytes_downloaded;
+	SDL_atomic_t		status;
+} modinfo_t;
+
+filelist_item_t			*modlist;
+static char				extramods_addons_url[MAX_URL];
+static json_t			*extramods_json;
+static SDL_atomic_t		extramods_json_cancel;
+static SDL_Thread*		extramods_json_downloader;
+static SDL_atomic_t		extramods_install_cancel;
+static SDL_Thread*		extramods_install_thread;
+
+const char *Modlist_GetFullName (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return info->full_name;
+}
+
+const char *Modlist_GetDescription (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return info->description;
+}
+
+const char *Modlist_GetAuthor (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return info->author;
+}
+
+const char *Modlist_GetDate (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return info->date;
+}
+
+modstatus_t Modlist_GetStatus (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return (modstatus_t) SDL_AtomicGet ((SDL_atomic_t *) &info->status);
+}
+
+float Modlist_GetDownloadProgress (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	if (info->bytes_total <= 0.0)
+		return 0.f;
+	return CLAMP (0.0, SDL_AtomicGet ((SDL_atomic_t *) &info->bytes_downloaded) / info->bytes_total, 1.0);
+}
+
+double Modlist_GetDownloadSize (const filelist_item_t *item)
+{
+	const modinfo_t *info = (const modinfo_t *) (item + 1);
+	return info->bytes_total;
+}
+
+static size_t WriteManifestChunk (void *buffer, size_t size, size_t nmemb, void *stream)
+{
+	if (SDL_AtomicGet (&extramods_json_cancel))
+		return 0;
+	Vec_Append ((void **) stream, 1, buffer, nmemb);
+	return nmemb;
+}
+
+static void Modlist_RegisterAddons (void *param)
+{
+	json_t				*json = (json_t *) param;
+	const jsonentry_t	*addons, *entry;
+	int					total, installed;
+
+	addons = JSON_Find (json->root, "addons", JSON_ARRAY);
+	if (!addons)
+	{
+		JSON_Free (json);
+		return;
+	}
+
+	extramods_json = json;
+	total = 0;
+	installed = 0;
+
+	for (entry = addons->firstchild; entry; entry = entry->next)
+	{
+		const char		*download, *gamedir, *name, *author, *date, *description, *version;
+		const double	*size;
+		modinfo_t		*info;
+		filelist_item_t	*item;
+
+		if (entry->type != JSON_OBJECT)
+			continue;
+
+		download	= JSON_FindString (entry, "download");
+		gamedir		= JSON_FindString (entry, "gamedir");
+		if (!download || !gamedir)
+			continue;
+
+		name		= JSON_FindString (entry, "name");
+		author		= JSON_FindString (entry, "author");
+		date		= JSON_FindString (entry, "date");
+		version		= JSON_FindString (entry, "version");
+		size		= JSON_FindNumber (entry, "size");
+		description	= JSON_FindString (JSON_Find (entry, "description", JSON_OBJECT), "en");
+
+		item = FileList_AddWithData (gamedir, NULL, sizeof (*info), &modlist);
+		info = (modinfo_t *) (item + 1);
+
+		if (!info->full_name && name && *name)
+			info->full_name = name;
+		if (!info->download)
+			info->download = download;
+		if (!info->bytes_total && size)
+			info->bytes_total = *size;
+
+		if (!info->description && description && *description)
+			info->description = description;
+
+		if (!info->author && author && *author)
+			info->author = author;
+
+		if (!info->date && date && *date)
+			info->date = date;
+
+		total++;
+		if (Modlist_GetStatus (item) == MODSTATUS_INSTALLED)
+			installed++;
+	}
+
+	Con_SafePrintf (
+		"\n"
+		"Add-on server status:\n"
+		"%3d add-on%s available for download\n"
+		"%3d add-on%s already installed\n\n",
+		total - installed, PLURAL (total - installed),
+		installed, PLURAL (installed)
+	);
+
+	extramods_json = json;
+
+	M_RefreshMods ();
+}
+
+static void Modlist_PrintJSONHTTPError (void *param)
+{
+	uintptr_t status = (uintptr_t) param;
+	Con_Printf ("Couldn't fetch add-on list (HTTP status %d)\n", (int) status);
+}
+
+static void Modlist_PrintJSONCurlError (void *param)
+{
+	Con_Printf ("Failed to download add-on list (%s)\n", (const char *) param);
+}
+
+static const char *Modlist_GetInstallDir (void)
+{
+	return host_parms->userdir != host_parms->basedir ? host_parms->userdir : com_basedir;
+}
+
+static int Modlist_DownloadJSON (void *unused)
+{
+	const char	*accept = "Accept: application/json";
+	const char	*basedir;
+	char		cachepath[MAX_OSPATH];
+	char		cacheurlpath[MAX_OSPATH];
+	char		url[MAX_URL];
+	qboolean	urlchanged = true;
+	download_t	download;
+	char		*manifest = NULL;
+	json_t		*json;
+	time_t		filetime;
+	time_t		now;
+
+	// URL too long?
+	if ((size_t) q_snprintf (url, sizeof (url), "%s/" ADDON_MANIFEST_FILE, extramods_addons_url) >= sizeof (url))
+		return 1;
+
+	time (&now);
+	basedir = Modlist_GetInstallDir ();
+
+	// check cached URL
+	if ((size_t) q_snprintf (cacheurlpath, sizeof (cacheurlpath), "%s/addons.url.dat", basedir) >= sizeof (cacheurlpath))
+		cacheurlpath[0] = '\0';
+	else
+	{
+		char *cachedurl = (char *) COM_LoadMallocFile_TextMode_OSPath (cacheurlpath, NULL);
+		if (cachedurl && !strcmp (cachedurl, url))
+			urlchanged = false;
+		free (cachedurl);
+	}
+
+	// check cached manifest
+	if ((size_t) q_snprintf (cachepath, sizeof (cachepath), "%s/addons.json", basedir) >= sizeof (cachepath))
+		cachepath[0] = '\0';
+	else if (!urlchanged && Sys_GetFileTime (cachepath, &filetime) && difftime (now, filetime) < MANIFEST_RETENTION)
+	{
+		manifest = COM_LoadMallocFile_TextMode_OSPath (cachepath, NULL);
+		if (manifest)
+		{
+			json = JSON_Parse (manifest);
+			free (manifest);
+			manifest = NULL;
+			if (json)
+				goto done;
+		}
+	}
+
+	// set up download
+	memset (&download, 0, sizeof (download));
+	download.write_fn		= WriteManifestChunk;
+	download.write_data		= &manifest;
+	download.headers		= &accept;
+	download.num_headers	= 1;
+	download.abort			= &extramods_json_cancel;
+
+	if (!Download (url, &download))
+	{
+		if (download.error)
+			Host_InvokeOnMainThread (Modlist_PrintJSONCurlError, (void *) download.error);
+		else if (download.response && download.response != 200)
+			Host_InvokeOnMainThread (Modlist_PrintJSONHTTPError, (void *) (uintptr_t) download.response);
+		VEC_FREE (manifest);
+		return 1;
+	}
+
+	if (SDL_AtomicGet (&extramods_json_cancel))
+	{
+		VEC_FREE (manifest);
+		return 1;
+	}
+
+	VEC_PUSH (manifest, '\0');
+	COM_NormalizeLineEndings (manifest);
+	json = JSON_Parse (manifest);
+
+	// cache manifest and URL
+	if (json && cachepath[0] && cacheurlpath[0])
+	{
+		COM_WriteFile_OSPath (cachepath, manifest, strlen (manifest));
+		COM_WriteFile_OSPath (cacheurlpath, url, strlen (url));
+	}
+
+	VEC_FREE (manifest);
+	if (!json)
+		return 1;
+
+done:
+	Host_InvokeOnMainThread (Modlist_RegisterAddons, json);
+
+	return 0;
+}
+
+typedef struct
+{
+	FILE			*file;
+	SDL_atomic_t	*progress;
+} moddownload_t;
+
+static size_t WriteModChunk (void *buffer, size_t size, size_t nmemb, void *stream)
+{
+	moddownload_t *dl = (moddownload_t *) stream;
+	size_t ret = fwrite (buffer, size, nmemb, dl->file);
+	SDL_AtomicAdd (dl->progress, (int) ret);
+	return ret;
+}
+
+static void Modlist_FinishInstalling (void *param)
+{
+	if (extramods_install_thread)
+	{
+		SDL_WaitThread (extramods_install_thread, NULL);
+		extramods_install_thread = NULL;
+	}
+	if (param)
+	{
+		filelist_item_t *item = (filelist_item_t *) param;
+		const char *desc = Modlist_GetFullName (item);
+		if (!desc)
+			desc = item->name;
+
+		Con_Printf (
+			"\n"
+			"Add-on \"%s\" is ready,\n"
+			"type \"game %s\" to activate.\n"
+			"\n",
+			desc, item->name
+		);
+
+		M_OnModInstall (item->name);
+	}
+}
+
+static void Modlist_OnInstallHTTPError (void *param)
+{
+	uintptr_t status = (uintptr_t) param;
+	Modlist_FinishInstalling (NULL);
+	Con_Printf ("Couldn't download add-on (HTTP status %d)\n", (int) status);
+}
+
+static void Modlist_OnInstallCurlError (void *param)
+{
+	Modlist_FinishInstalling (NULL);
+	Con_Printf ("Couldn't download add-on (%s)\n", (const char *) param);
+}
+
+static void Modlist_OnInstallRenameError (void *param)
+{
+	Modlist_FinishInstalling (NULL);
+	Con_Printf ("Couldn't download add-on (rename error)\n");
+}
+
+static int Modlist_InstallerThread (void *param)
+{
+	char			url[MAX_URL];
+	char			tmp[MAX_OSPATH];
+	char			path[MAX_OSPATH];
+	const char		*basedir;
+	FILE			*file;
+	filelist_item_t	*item = (filelist_item_t *) param;
+	modinfo_t		*info = (modinfo_t *) (item + 1);
+	download_t		download;
+	moddownload_t	mod;
+	qboolean		ok;
+	int				i;
+
+	basedir = Modlist_GetInstallDir ();
+	for (i = 0; i < 1000; i++)
+	{
+		q_snprintf (tmp, sizeof (tmp), "%s/%s/pak0.%s.tmp", basedir, item->name, COM_TempSuffix (i));
+		file = Sys_fopen (tmp, "wb");
+		if (file)
+			break;
+	}
+
+	if (!file)
+	{
+		Host_InvokeOnMainThread (Modlist_FinishInstalling, NULL);
+		return 1;
+	}
+
+	SDL_AtomicSet (&info->bytes_downloaded, 0);
+	SDL_AtomicSet (&info->status, MODSTATUS_INSTALLING);
+
+	mod.file = file;
+	mod.progress = &info->bytes_downloaded;
+
+	memset (&download, 0, sizeof (download));
+	download.write_fn		= WriteModChunk;
+	download.write_data		= &mod;
+	download.abort			= &extramods_install_cancel;
+
+	q_snprintf (url, sizeof (url), "%s/%s", extramods_addons_url, info->download);
+	ok = Download (url, &download);
+	fclose (file);
+
+	if (!ok)
+	{
+		Sys_remove (tmp);
+		SDL_AtomicSet (&info->status, MODSTATUS_DOWNLOADABLE);
+		if (download.error)
+			Host_InvokeOnMainThread (Modlist_OnInstallCurlError, (void *) download.error);
+		else if (download.response && download.response != 200)
+			Host_InvokeOnMainThread (Modlist_OnInstallHTTPError, (void *) (uintptr_t) download.response);
+		return 1;
+	}
+
+	q_snprintf (path, sizeof (path), "%s/%s/pak0.pak", basedir, item->name);
+	if (Sys_rename (tmp, path) != 0)
+	{
+		Sys_remove (tmp);
+		SDL_AtomicSet (&info->status, MODSTATUS_DOWNLOADABLE);
+		Host_InvokeOnMainThread (Modlist_OnInstallRenameError, NULL);
+		return 1;
+	}
+
+	SDL_AtomicSet (&info->status, MODSTATUS_INSTALLED);
+	Host_InvokeOnMainThread (Modlist_FinishInstalling, item);
+
+	return 0;
+}
+
+qboolean Modlist_StartInstalling (const filelist_item_t *item)
+{
+	const char	*desc;
+	double		size;
+
+	if (extramods_install_thread)
+		return false;
+
+	size = Modlist_GetDownloadSize (item);
+	desc = Modlist_GetFullName (item);
+	if (!desc)
+		desc = item->name;
+
+	if (size)
+		Con_Printf ("\nDownloading \"%s\" (%.1f MB)...\n\n", desc, size / (double) 0x100000);
+	else
+		Con_Printf ("\nDownloading \"%s\"...\n\n", desc);
+
+	SDL_AtomicSet (&extramods_install_cancel, 0);
+	extramods_install_thread = 	SDL_CreateThread (Modlist_InstallerThread, "Mod install", (void *) item);
+
+	return extramods_install_thread != NULL;
+}
 
 static void Modlist_Add (const char *name)
 {
-	FileList_Add(name, &modlist);
+	filelist_item_t	*item;
+	modinfo_t		*info;
+	size_t			i;
+
+	memset (&info, 0, sizeof (info));
+	item = FileList_AddWithData (name, NULL, sizeof (*info), &modlist);
+
+	info = (modinfo_t *) (item + 1);
+	info->status.value = MODSTATUS_INSTALLED;
+
+	if (!info->full_name)
+	{
+		for (i = 0; i < countof (knownmods); i++)
+		{
+			if (!q_strcasecmp (name, knownmods[i][0]))
+			{
+				info->full_name = strdup (knownmods[i][1]);
+				break;
+			}
+		}
+	}
 }
 
 static qboolean Modlist_Check (const char *modname, const char *base)
@@ -570,7 +1120,7 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 	return false;
 }
 
-void Modlist_Init (void)
+static void Modlist_FindLocal (void)
 {
 	const char	*basedirs[2];
 	int			i, numbasedirs;
@@ -596,6 +1146,65 @@ void Modlist_Init (void)
 			if (Modlist_Check (find->name, basedirs[i]))
 				Modlist_Add (find->name);
 		}
+	}
+}
+
+static void Modlist_FindOnline (void)
+{
+	const char *suffixes[] = {ADDON_MANIFEST_FILE, "index.htm", "index.html"};
+	int i, p, l;
+
+	if (COM_CheckParm ("-noaddons"))
+	{
+		Con_SafePrintf ("\nAdd-on server disabled\n");
+		return;
+	}
+
+	p = COM_CheckParm ("-addons");
+	if (p && p < com_argc - 1)
+		q_strlcpy (extramods_addons_url, com_argv[p + 1], sizeof (extramods_addons_url));
+	else
+		q_strlcpy (extramods_addons_url, DEFAULT_ADDON_SERVER, sizeof (extramods_addons_url));
+
+	// clean up URL
+	p = strlen (extramods_addons_url);
+	while (p > 0 && extramods_addons_url[p - 1] == '/')
+		--p;
+	for (i = 0; i < countof (suffixes); i++)
+	{
+		const char *suffix = suffixes[i];
+		l = strlen (suffix);
+		if (p >= l && !q_strcasecmp (extramods_addons_url + p - l, suffix))
+			p -= l;
+	}
+	while (p > 0 && extramods_addons_url[p - 1] == '/')
+		--p;
+	extramods_addons_url[p] = '\0';
+
+	Con_SafePrintf ("\nUsing add-on server \"%s\"\n", extramods_addons_url);
+
+	extramods_json_downloader = SDL_CreateThread (Modlist_DownloadJSON, "JSON dl", NULL);
+}
+
+void Modlist_Init (void)
+{
+	Modlist_FindOnline ();
+	Modlist_FindLocal ();
+}
+
+void Modlist_ShutDown (void)
+{
+	if (extramods_json_downloader)
+	{
+		SDL_AtomicSet (&extramods_json_cancel, 1);
+		SDL_WaitThread (extramods_json_downloader, NULL);
+		extramods_json_downloader = NULL;
+	}
+	if (extramods_install_thread)
+	{
+		SDL_AtomicSet (&extramods_install_cancel, 1);
+		SDL_WaitThread (extramods_install_thread, NULL);
+		extramods_install_thread = NULL;
 	}
 }
 

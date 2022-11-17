@@ -140,6 +140,15 @@ int Sys_remove (const char *path)
 	return _wremove (wpath);
 }
 
+int Sys_rename (const char *oldname, const char *newname)
+{
+	wchar_t	oldnamew[MAX_PATH];
+	wchar_t	newnamew[MAX_PATH];
+	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
+	UTF8ToWideString (newname, newnamew, countof (newnamew));
+	return _wrename (oldnamew, newnamew);
+}
+
 long Sys_filelength (FILE *f)
 {
 	long		pos, end;
@@ -218,6 +227,32 @@ qboolean Sys_FileExists (const char *path)
 	UTF8ToWideString (path, wpath, countof (wpath));
 	attr = GetFileAttributesW (wpath);
 	return attr != INVALID_FILE_ATTRIBUTES && !(attr & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_DEVICE));
+}
+
+qboolean Sys_GetFileTime (const char *path, time_t *out)
+{
+	wchar_t		wpath[MAX_PATH];
+	HANDLE		handle;
+	FILETIME	filetime;
+	qboolean	ret;
+
+	UTF8ToWideString (path, wpath, countof (wpath));
+	handle = CreateFileW (wpath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	if (handle == INVALID_HANDLE_VALUE)
+		return false;
+
+	ret = (GetFileTime (handle, NULL, NULL, &filetime) != FALSE);
+	CloseHandle (handle);
+
+	if (ret)
+	{
+		LARGE_INTEGER li;
+		li.LowPart = filetime.dwLowDateTime;
+		li.HighPart = filetime.dwHighDateTime;
+		*out = li.QuadPart / 10000000LL - 11644473600LL;
+	}
+
+	return ret;
 }
 
 static qboolean Sys_GetRegistryString (HKEY root, const wchar_t *dir, const wchar_t *keyname, char *out, size_t maxchars)
