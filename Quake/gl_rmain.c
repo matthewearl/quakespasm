@@ -1284,8 +1284,8 @@ static void R_ShowBoundingBoxes (void)
 
 	for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
-		if (ed == sv_player)
-			continue;
+		if (ed == sv_player || ed->free)
+			continue; // don't draw player's own bbox or freed edicts
 
 		if (!R_ShowBoundingBoxesFilter(ed))
 			continue;
