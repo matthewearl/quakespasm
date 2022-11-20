@@ -1307,7 +1307,7 @@ static qboolean Host_AutoLoad (void)
 
 	sv.autoloading = true;
 	Con_Printf ("Autoloading...\n");
-	Cbuf_AddText (va ("load %s\n", sv.lastsave));
+	Cbuf_AddText (va ("load \"%s\"\n", sv.lastsave));
 	Cbuf_Execute ();
 
 	if (sv.autoloading)
