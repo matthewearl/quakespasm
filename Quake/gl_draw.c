@@ -1015,17 +1015,27 @@ void Draw_ResetClipping (void)
 
 /*
 ================
+Draw_Transform2
+================
+*/
+static void Draw_Transform2 (float width, float height, float scalex, float scaley, float alignx, float aligny, drawtransform_t *out)
+{
+	float scrwidth = glwidth;
+	float scrheight = glheight;
+	out->scale[0] = scalex * 2.f / scrwidth;
+	out->scale[1] = scaley * -2.f / scrheight;
+	out->offset[0] = (scrwidth - width*scalex) * alignx / scrwidth * 2.f - 1.f;
+	out->offset[1] = (scrheight - height*scaley) * aligny / scrheight * -2.f + 1.f;
+}
+
+/*
+================
 Draw_Transform
 ================
 */
 static void Draw_Transform (float width, float height, float scale, float alignx, float aligny, drawtransform_t *out)
 {
-	float scrwidth = glwidth;
-	float scrheight = glheight;
-	out->scale[0] = scale * 2.f / scrwidth;
-	out->scale[1] = scale * -2.f / scrheight;
-	out->offset[0] = (scrwidth - width*scale) * alignx / scrwidth * 2.f - 1.f;
-	out->offset[1] = (scrheight - height*scale) * aligny / scrheight * -2.f + 1.f;
+	Draw_Transform2 (width, height, scale, scale, alignx, aligny, out);
 }
 
 /*
@@ -1036,7 +1046,7 @@ Draw_GetCanvasTransform
 void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 {
 	extern vrect_t scr_vrect;
-	float s;
+	float s, s2;
 
 	switch (type)
 	{
@@ -1045,7 +1055,8 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 		break;
 	case CANVAS_CONSOLE:
 		s = (float)glwidth/vid.conwidth; //use console scale
-		Draw_Transform (vid.conwidth, vid.conheight, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+		s2 = (float)glheight/vid.conheight;
+		Draw_Transform2 (vid.conwidth, vid.conheight, s, s2, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		transform->offset[1] += (1.f - scr_con_current/glheight) * 2.f;
 		break;
 	case CANVAS_MENU:
