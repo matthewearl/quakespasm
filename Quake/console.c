@@ -902,6 +902,7 @@ static qboolean CompleteFileList (const char *partial, void *param)
 
 static qboolean CompleteClassnames (const char *partial, void *unused)
 {
+	extern edict_t *sv_player;
 	qcvm_t	*oldvm;
 	edict_t	*ed;
 	int		i;
@@ -913,7 +914,7 @@ static qboolean CompleteClassnames (const char *partial, void *unused)
 	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
 	{
 		const char *name;
-		if (!ed->v.classname)
+		if (ed == sv_player || ed->free || !ed->v.classname)
 			continue;
 		name = PR_GetString (ed->v.classname);
 		if (*name && q_strcasestr (name, partial))
