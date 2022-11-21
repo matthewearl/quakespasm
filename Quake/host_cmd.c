@@ -27,7 +27,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t	pausable;
 extern cvar_t	nomonsters;
 
-cvar_t			sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE}; // 0 = no, 1 = ask, 2 = always
+// 0 = no, 1 = ask, 2 = always
+cvar_t sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE};
+
+// 0 = ignore save when another one is already in progress
+// 1 = wait for previous save (blocking)
+cvar_t sv_savespam = {"sv_savespam", "0", CVAR_ARCHIVE};
 
 int	current_skill;
 
@@ -1651,6 +1656,12 @@ static void Host_Savegame_f (void)
 			Con_Printf ("Can't savegame with a dead player\n");
 			return;
 		}
+	}
+
+	if (!sv_savespam.value && Host_IsSaving ())
+	{
+		Con_Printf ("Save already in progress!\n");
+		return;
 	}
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
