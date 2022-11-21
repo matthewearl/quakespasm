@@ -267,11 +267,12 @@ typedef struct savedata_s
 	int				skill;
 	int				numknownstrings;
 	const char		**knownstrings;
-	char			*stringpool;
 	int				num_edicts;
 	edict_t			*edicts;
 	float			*globals;
 	const char		*lightstyles[MAX_LIGHTSTYLES];
+	byte			*buffer;
+	int				buffersize;
 } savedata_t;
 
 #define	SAVEGAME_VERSION	5
@@ -368,6 +369,7 @@ void ED_PrintNum (int ent);
 eval_t *GetEdictFieldValue(edict_t *ed, int fldofs);
 eval_t *GetEdictFieldValueByName(edict_t *ed, const char *name);
 
+void SaveData_Init (savedata_t *save);
 void SaveData_Clear (savedata_t *save);
 void SaveData_Fill (savedata_t *save);
 void SaveData_WriteHeader (savedata_t *save);

@@ -2025,16 +2025,20 @@ int PR_AllocString (int size, char **ptr)
 
 //===========================================================================
 
+void SaveData_Init (savedata_t *save)
+{
+	memset (save, 0, sizeof (save));
+	save->buffersize = 48 * 1024 * 1024; // ad_sepulcher needs ~32 MB
+	save->buffer = (byte *) malloc (save->buffersize);
+	if (!save->buffer)
+		Sys_Error ("SaveData_Init: couldn't allocate %d bytes", save->buffersize);
+}
+
 void SaveData_Clear (savedata_t *save)
 {
 	if (save->file)
 		fclose (save->file);
-
-	free (save->globals);
-	free (save->edicts);
-	free ((void *) save->knownstrings);
-	free (save->stringpool);
-
+	free (save->buffer);
 	memset (save, 0, sizeof (*save));
 }
 
@@ -2050,7 +2054,11 @@ void SaveData_Fill (savedata_t *save)
 	save->skill = current_skill;
 	save->time = qcvm->time;
 
-	size = 0;
+	/* determine buffer size */
+	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
+	size += sizeof (*save->globals) * qcvm->progs->numglobals;
+	size += qcvm->edict_size * qcvm->num_edicts;
+
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 		if (sv.lightstyles[i])
 			size += strlen (sv.lightstyles[i]) + 1;
@@ -2062,53 +2070,61 @@ void SaveData_Fill (savedata_t *save)
 			size += strlen (str) + 1;
 	}
 
-	save->stringpool = (char *) realloc (save->stringpool, size);
-	if (!save->stringpool)
-		Sys_Error ("SaveData_Fill: failed to allocate %d bytes", size);
+	/* allocate memory */
+	if (size > save->buffersize)
+	{
+		save->buffersize = size + size/2;
+		save->buffer = (byte *) realloc (save->buffer, save->buffersize);
+		if (!save->buffer)
+			Sys_Error ("SaveData_Fill: failed to allocate %d bytes", save->buffersize);
+	}
 
 	ofs = 0;
+
+	/* known strings (pointers only) */
+	save->knownstrings = (const char **) (save->buffer + ofs);
+	ofs += sizeof (*save->knownstrings) * qcvm->numknownstrings;
+	save->numknownstrings = qcvm->numknownstrings;
+
+	/* globals */
+	save->globals = (float *) (save->buffer + ofs);
+	ofs += sizeof (*save->globals) * qcvm->progs->numglobals;
+	memcpy (save->globals, qcvm->globals, sizeof (*save->globals) * qcvm->progs->numglobals);
+
+	/* edicts */
+	save->edicts = (edict_t *) (save->buffer + ofs);
+	ofs += qcvm->num_edicts * qcvm->edict_size;
+	memcpy (save->edicts, qcvm->edicts, qcvm->num_edicts * qcvm->edict_size);
+	save->num_edicts = qcvm->num_edicts;
+
+	/* lightstyles */
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 	{
 		if (sv.lightstyles[i])
 		{
 			int len = strlen (sv.lightstyles[i]) + 1;
-			save->lightstyles[i] = save->stringpool + ofs;
-			memcpy (save->stringpool + ofs, sv.lightstyles[i], len);
+			save->lightstyles[i] = (const char *) (save->buffer + ofs);
+			memcpy (save->buffer + ofs, sv.lightstyles[i], len);
 			ofs += len;
 		}
 		else
 			save->lightstyles[i] = "m";
 	}
 
-	save->knownstrings = (const char **) realloc ((void *) save->knownstrings, qcvm->numknownstrings * sizeof (*save->knownstrings));
-	if (!save->knownstrings)
-		Sys_Error ("SaveData_Fill: failed to allocate %d pointers", qcvm->numknownstrings);
-
+	/* known strings (contents) */
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
 		const char *str = qcvm->knownstrings[i];
 		if (PR_IsValidString (str))
 		{
 			int len = strlen (str) + 1;
-			save->knownstrings[i] = save->stringpool + ofs;
-			memcpy (save->stringpool + ofs, str, len);
+			save->knownstrings[i] = (const char *) (save->buffer + ofs);
+			memcpy (save->buffer + ofs, str, len);
 			ofs += len;
 		}
 		else
 			save->knownstrings[i] = NULL;
 	}
-	save->numknownstrings = qcvm->numknownstrings;
-
-	save->globals = (float *) realloc (save->globals, sizeof (*save->globals) * qcvm->progs->numglobals);
-	if (!save->globals)
-		Sys_Error ("SaveData_Fill: failed to allocate %d globals", qcvm->progs->numglobals);
-	memcpy (save->globals, qcvm->globals, sizeof (*save->globals) * qcvm->progs->numglobals);
-
-	save->edicts = (edict_t *) realloc (save->edicts, qcvm->num_edicts * qcvm->edict_size);
-	if (!save->edicts)
-		Sys_Error ("SaveData_Fill: failed to allocate %d edicts", qcvm->num_edicts);
-	memcpy (save->edicts, qcvm->edicts, qcvm->num_edicts * qcvm->edict_size);
-	save->num_edicts = qcvm->num_edicts;
 }
 
 void SaveData_WriteHeader (savedata_t *save)

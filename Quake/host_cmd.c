@@ -1596,6 +1596,7 @@ static void Host_InitSaveThread (void)
 	save_finished_condition = SDL_CreateCond ();
 	save_pending_condition = SDL_CreateCond ();
 	save_thread = SDL_CreateThread (Host_BackgroundSave, "SaveThread", &save_data);
+	SaveData_Init (&save_data);
 }
 
 /*
