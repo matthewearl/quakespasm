@@ -527,14 +527,14 @@ static const char *PR_GetSaveString (savedata_t *save, int num)
 	{
 		if (!save->knownstrings[-1 - num])
 		{
-			save->abort = true;
+			SDL_AtomicCAS (&save->abort, 0, -1);
 			return "";
 		}
 		return save->knownstrings[-1 - num];
 	}
 	else
 	{
-		save->abort = true;
+		SDL_AtomicCAS (&save->abort, 0, -1);
 		return "";
 	}
 }
@@ -1908,7 +1908,7 @@ int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e)
 
 	if (b < 0 || b >= save->num_edicts)
 	{
-		save->abort = true;
+		SDL_AtomicCAS (&save->abort, 0, -1);
 		return 0;
 	}
 

@@ -258,7 +258,7 @@ typedef struct qcvm_s
 typedef struct savedata_s
 {
 	FILE			*file;
-	qboolean		abort;
+	SDL_atomic_t	abort;			// < 0 = error, > 0 = aborted by user
 	char			path[MAX_OSPATH];
 	char			comment[SAVEGAME_COMMENT_LENGTH+1];
 	char			mapname[64];

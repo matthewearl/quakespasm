@@ -30,10 +30,6 @@ extern cvar_t	nomonsters;
 // 0 = no, 1 = ask, 2 = always
 cvar_t sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE};
 
-// 0 = ignore save when another one is already in progress
-// 1 = wait for previous save (blocking)
-cvar_t sv_savespam = {"sv_savespam", "0", CVAR_ARCHIVE};
-
 int	current_skill;
 
 /*
@@ -1539,10 +1535,11 @@ qboolean Host_IsSaving (void)
 	if (saving)
 		return true;
 
-	if (save_data.abort && sv.lastsave[0])
+	if (save_data.abort.value && sv.lastsave[0])
 	{
 		sv.lastsave[0] = '\0';
-		Con_Printf ("Save error.\n");
+		if (save_data.abort.value < 0)
+			Con_Printf ("Save error.\n");
 	}
 
 	return false;
@@ -1556,6 +1553,7 @@ static int Host_BackgroundSave (void *param)
 	{
 		edict_t		*ed;
 		int			i;
+		qboolean	abort = false;
 
 		SDL_LockMutex (save_mutex);
 		while (!save_pending)
@@ -1569,8 +1567,11 @@ static int Host_BackgroundSave (void *param)
 		SaveData_WriteHeader (save);
 		for (i = 0, ed = save->edicts; i < save->num_edicts; i++, ed = NEXT_EDICT (ed))
 		{
-			if (save->abort)
+			if (SDL_AtomicGet(&save->abort))
+			{
+				abort = true;
 				break;
+			}
 			ED_Write (save, ed);
 			fflush (save->file);
 		}
@@ -1578,7 +1579,7 @@ static int Host_BackgroundSave (void *param)
 
 		fclose (save->file);
 		save->file = NULL;
-		if (save->abort)
+		if (abort)
 			Sys_remove (save->path);
 
 		SDL_LockMutex (save_mutex);
@@ -1659,15 +1660,18 @@ static void Host_Savegame_f (void)
 		}
 	}
 
-	if (!sv_savespam.value && Host_IsSaving ())
-	{
-		Con_Printf ("Save already in progress!\n");
-		return;
-	}
-
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 	Con_Printf ("Saving game to %s...\n", relname);
+
+	if (!strcmp (relname, sv.lastsave) && Host_IsSaving ())
+	{
+		SDL_AtomicCAS (&save_data.abort, 0, 1);
+		SDL_LockMutex (save_mutex);
+		while (save_pending)
+			SDL_CondWait (save_finished_condition, save_mutex);
+		SDL_UnlockMutex (save_mutex);
+	}
 
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 
@@ -1684,7 +1688,7 @@ static void Host_Savegame_f (void)
 
 	q_strlcpy (save_data.path, name, sizeof (save_data.path));
 	save_data.file = f;
-	save_data.abort = false;
+	save_data.abort.value = 0;
 
 	PR_SwitchQCVM (&sv.qcvm);
 	SaveData_Fill (&save_data);
