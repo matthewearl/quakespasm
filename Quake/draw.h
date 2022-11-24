@@ -52,6 +52,7 @@ void Draw_SetClipRect (float x, float y, float width, float height);
 void Draw_ResetClipping (void);
 
 void Draw_GetCanvasTransform (canvastype canvas, drawtransform_t *transform);
+void Draw_GetTransformBounds (const drawtransform_t *transform, float *left, float *top, float *right, float *bottom);
 
 void GL_SetCanvas (canvastype newcanvas); //johnfitz
 void GL_SetCanvasColor (float r, float g, float b, float a);

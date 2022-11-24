@@ -1104,6 +1104,19 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 
 /*
 ================
+Draw_GetTransformBounds
+================
+*/
+void Draw_GetTransformBounds (const drawtransform_t *transform, float *left, float *top, float *right, float *bottom)
+{
+	*left	= (-1.f - transform->offset[0]) / transform->scale[0];
+	*right	= ( 1.f - transform->offset[0]) / transform->scale[0];
+	*bottom	= (-1.f - transform->offset[1]) / transform->scale[1];
+	*top	= ( 1.f - transform->offset[1]) / transform->scale[1];
+}
+
+/*
+================
 GL_SetCanvas -- johnfitz -- support various canvas types
 ================
 */
@@ -1114,10 +1127,7 @@ void GL_SetCanvas (canvastype newcanvas)
 
 	glcanvas.type = newcanvas;
 	Draw_GetCanvasTransform (newcanvas, &glcanvas.transform);
-	glcanvas.left	= (-1.f - glcanvas.transform.offset[0]) / glcanvas.transform.scale[0];
-	glcanvas.right	= ( 1.f - glcanvas.transform.offset[0]) / glcanvas.transform.scale[0];
-	glcanvas.bottom	= (-1.f - glcanvas.transform.offset[1]) / glcanvas.transform.scale[1];
-	glcanvas.top	= ( 1.f - glcanvas.transform.offset[1]) / glcanvas.transform.scale[1];
+	Draw_GetTransformBounds (&glcanvas.transform, &glcanvas.left, &glcanvas.top, &glcanvas.right, &glcanvas.bottom);
 }
 
 /*

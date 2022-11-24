@@ -39,6 +39,9 @@ extern qboolean quake64;
 enum m_state_e m_state;
 extern qboolean	keydown[256];
 int m_mousex, m_mousey;
+static int m_left, m_top, m_width, m_height;
+
+static void M_UpdateBounds (void);
 
 void M_Menu_Main_f (void);
 	void M_Menu_SinglePlayer_f (void);
@@ -1349,9 +1352,6 @@ void M_Save_Mousemove (int cx, int cy)
 //=============================================================================
 /* Maps menu */
 
-#define MAP_NAME_LEN	14
-#define MAX_VIS_MAPS	19
-
 typedef struct
 {
 	const char				*name;
@@ -1441,18 +1441,26 @@ static qboolean M_Maps_IsSelectable (int index)
 	return mapsmenu.items[index].source != NULL;
 }
 
+static void M_Maps_UpdateLayout (void)
+{
+	M_UpdateBounds ();
+
+	mapsmenu.x = m_left + 8;
+	mapsmenu.y = m_top + 32;
+	mapsmenu.cols = m_width / 8 - 2;
+	mapsmenu.list.viewsize = m_height / 8 - 6;
+}
+
 static void M_Maps_Init (void)
 {
 	int i, active, type, prev_type;
 
-	mapsmenu.x = 8;
-	mapsmenu.y = 32;
-	mapsmenu.cols = 38;
+	M_Maps_UpdateLayout ();
+
 	mapsmenu.scrollbar_grab = false;
 	memset (&mapsmenu.list.search, 0, sizeof (mapsmenu.list.search));
 	mapsmenu.list.search.match_fn = M_Maps_Match;
 	mapsmenu.list.isactive_fn = M_Maps_IsSelectable;
-	mapsmenu.list.viewsize = MAX_VIS_MAPS;
 	mapsmenu.list.cursor = -1;
 	mapsmenu.list.scroll = 0;
 	mapsmenu.list.numitems = 0;
@@ -1506,8 +1514,12 @@ void M_Maps_Draw (void)
 	int x, y, i, j, cols;
 	int firstvis, numvis;
 	int firstvismap, numvismaps;
-	int namecols = MAP_NAME_LEN;
-	int desccols = mapsmenu.cols - 1 - namecols;
+	int namecols, desccols;
+
+	M_Maps_UpdateLayout ();
+
+	namecols = CLAMP (14, mapsmenu.cols * 0.375f, 56);
+	desccols = mapsmenu.cols - 1 - namecols;
 
 	if (!keydown[K_MOUSE1])
 		mapsmenu.scrollbar_grab = false;
@@ -4375,11 +4387,35 @@ void M_Init (void)
 	Cvar_RegisterVariable (&ui_search_timeout);
 }
 
+static void M_UpdateBounds (void)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+	float width, height;
+	float xfrac = 0.5f;
+	float yfrac = 0.5f;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	width = right - left;
+	height = bottom - top;
+
+	m_height = 200 + q_max (0, height - 200) * yfrac;
+	m_height &= ~7;
+	m_width = 320 + q_max (0, width - 320) * xfrac;
+	m_width = q_min (m_width, m_height * 2);
+	m_width = q_min (m_width, 960);
+	m_width &= ~15;
+	m_left = left + (width - m_width) / 2;
+	m_top = top + (height - m_height) / 2;
+}
 
 void M_Draw (void)
 {
 	if (m_state == m_none || key_dest != key_menu)
 		return;
+
+	M_UpdateBounds ();
 
 	if (!m_recursiveDraw)
 	{
