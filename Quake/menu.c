@@ -2820,14 +2820,27 @@ static const char* const bindnames[][2] =
 	{"impulse 226",		"Mjolnir"},
 };
 
-#define	NUMCOMMANDS	(sizeof(bindnames)/sizeof(bindnames[0]))
+#define	NUMCOMMANDS		(sizeof(bindnames)/sizeof(bindnames[0]))
+#define KEYLIST_OFS		56
 
 static struct
 {
-	menulist_t list;
+	menulist_t			list;
+	int					y;
 } keysmenu;
 
 static qboolean	bind_grab;
+
+static void M_Keys_UpdateLayout (void)
+{
+	int height;
+
+	M_UpdateBounds ();
+	height = keysmenu.list.numitems * 8 + KEYLIST_OFS;
+	height = q_min (height, m_height);
+	keysmenu.y = m_top + (((m_height - height) / 2) & ~7);
+	keysmenu.list.viewsize = (height - KEYLIST_OFS - 8) / 8;
+}
 
 void M_Menu_Keys_f (void)
 {
@@ -2838,7 +2851,8 @@ void M_Menu_Keys_f (void)
 	keysmenu.list.cursor = 0;
 	keysmenu.list.scroll = 0;
 	keysmenu.list.numitems = hipnotic ? NUMCOMMANDS : NUMCOMMANDS - 2;
-	keysmenu.list.viewsize = 17;
+
+	M_Keys_UpdateLayout ();
 }
 
 
@@ -2872,17 +2886,21 @@ void M_Keys_Draw (void)
 	const char	*name;
 	qpic_t	*p;
 
-	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-
-	if (bind_grab)
-		M_Print (12, 32, "Press a key or button for this action");
-	else
-		M_Print (18, 32, "Enter to change, backspace to clear");
+	M_Keys_UpdateLayout ();
 
 	x = 0;
-	y = 56;
+	y = keysmenu.y;
 	cols = 40;
+
+	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
+	M_DrawPic ( (320-p->width)/2, y + 4, p);
+
+	if (bind_grab)
+		M_Print (12, y + 32, "Press a key or button for this action");
+	else
+		M_Print (18, y + 32, "Enter to change, backspace to clear");
+
+	y += KEYLIST_OFS;
 
 	if (M_List_GetOverflow (&keysmenu.list) > 0)
 	{
@@ -3003,7 +3021,7 @@ void M_Keys_Key (int k)
 
 void M_Keys_Mousemove (int cx, int cy)
 {
-	M_List_Mousemove (&keysmenu.list, cy - 56);
+	M_List_Mousemove (&keysmenu.list, cy - keysmenu.y - KEYLIST_OFS);
 }
 
 //=============================================================================
