@@ -401,7 +401,7 @@ typedef struct
 	qboolean		(*match_fn) (int index);
 	double			timeout;
 	double			errtimeout;
-	char			text[32];
+	char			text[256];
 } listsearch_t;
 
 typedef struct
