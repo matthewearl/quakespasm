@@ -1575,6 +1575,8 @@ static int Host_BackgroundSave (void *param)
 			ED_Write (save, ed);
 			fflush (save->file);
 		}
+		if (!abort)
+			fprintf (save->file, "// %d edicts\n", save->num_edicts);
 		PR_SwitchQCVM (NULL);
 
 		fclose (save->file);

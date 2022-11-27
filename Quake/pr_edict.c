@@ -717,7 +717,7 @@ void ED_Write (savedata_t *save, edict_t *ed)
 	int		i, j;
 	int		type;
 
-	fprintf (save->file, "{\n");
+	fprintf (save->file, "{ // #%d\n", SAVE_NUM_FOR_EDICT (save, ed));
 
 	if (ed->free)
 	{
