@@ -90,6 +90,9 @@ cvar_t	campaign = {"campaign","0",CVAR_NONE}; // for the 2021 rerelease
 cvar_t	horde = {"horde","0",CVAR_NONE}; // for the 2021 rerelease
 cvar_t	sv_cheats = {"sv_cheats","0",CVAR_NONE}; // for the 2021 rerelease
 
+cvar_t	sv_autosave = {"sv_autosave", "1", CVAR_ARCHIVE};
+cvar_t	sv_autosave_interval = {"sv_autosave_interval", "30", CVAR_ARCHIVE};
+
 devstats_t dev_stats, dev_peakstats;
 overflowtimes_t dev_overflows; //this stores the last time overflow messages were displayed, not the last time overflows occured
 
@@ -808,6 +811,72 @@ void Host_GetConsoleCommands (void)
 
 /*
 ==================
+Host_CheckAutosave
+==================
+*/
+static void Host_CheckAutosave (void)
+{
+	float health_change, speed, elapsed, score;
+
+	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f)
+		return;
+
+	if (cls.signon == SIGNONS)
+	{
+		if (pr_global_struct->found_secrets != sv.autosave.prev_secrets)
+		{
+			sv.autosave.prev_secrets = pr_global_struct->found_secrets;
+			sv.autosave.secret_boost = 1.f;
+		}
+		else
+			sv.autosave.secret_boost = q_max (0.f, sv.autosave.secret_boost - host_frametime / 1.5f);
+	}
+
+	if (!sv.autosave.prev_health)
+		sv.autosave.prev_health = sv_player->v.health;
+	health_change = sv_player->v.health - sv.autosave.prev_health;
+	if (health_change < 0.f && sv_player->v.health < 100.f) // megahealth decay doesn't count as getting hurt
+		sv.autosave.hurt_time = qcvm->time;
+	sv.autosave.prev_health = sv_player->v.health;
+
+	if (sv_player->v.button0)
+		sv.autosave.shoot_time = qcvm->time;
+
+	if (sv_player->v.movetype == MOVETYPE_NOCLIP || (int)sv_player->v.flags & (FL_GODMODE|FL_NOTARGET))
+	{
+		sv.autosave.cheat += host_frametime;
+		return;
+	}
+
+	if (qcvm->time - sv.autosave.hurt_time < 3.f)
+		return;
+	if (qcvm->time - sv.autosave.shoot_time < 3.f)
+		return;
+
+	speed = VectorLength (sv_player->v.velocity);
+	if (speed > 100.f)
+		return;
+
+	elapsed = qcvm->time - sv.autosave.time - sv.autosave.cheat;
+	if (elapsed < 3.f)
+		return;
+
+	score = elapsed / sv_autosave_interval.value;
+	score *= q_min (100.f, (sv_player->v.health + sv_player->v.armortype * sv_player->v.armorvalue)) / 100.f;
+	score += q_max (0.f, health_change) / 100.f;
+	score -= (speed / 100.f) * 0.25f;
+	score += sv.autosave.secret_boost * 0.25f;
+	score += CLAMP (0.f, 1.f - (qcvm->time - sv_player->v.teleport_time) / 1.5f, 1.f) * 0.5f;
+	if (score < 1.f)
+		return;
+
+	sv.autosave.time = qcvm->time;
+	sv.autosave.cheat = 0;
+	Cbuf_AddText (va ("save \"autosave/%s\"\n", sv.name));
+}
+
+/*
+==================
 Host_ServerFrame
 ==================
 */
@@ -851,6 +920,8 @@ void Host_ServerFrame (void)
 
 // send all messages to the clients
 	SV_SendClientMessages ();
+
+	Host_CheckAutosave ();
 }
 
 typedef struct summary_s {

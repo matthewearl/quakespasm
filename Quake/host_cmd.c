@@ -1292,7 +1292,8 @@ void SaveList_Rebuild (void)
 
 void SaveList_Init (void)
 {
-	char		savename[32];
+	char		dirname[MAX_OSPATH];
+	char		savename[MAX_QPATH];
 	findfile_t *find;
 
 	for (find = Sys_FindFirst (com_gamedir, "sav"); find; find = Sys_FindNext (find))
@@ -1301,6 +1302,19 @@ void SaveList_Init (void)
 			continue;
 		COM_StripExtension (find->name, savename, sizeof (savename));
 		FileList_Add (savename, &savelist);
+	}
+
+	if ((size_t) q_snprintf (dirname, sizeof (dirname), "%s/autosave", com_gamedir) < sizeof (dirname))
+	{
+		for (find = Sys_FindFirst (dirname, "sav"); find; find = Sys_FindNext (find))
+		{
+			char filename[MAX_QPATH];
+			if (find->attribs & FA_DIRECTORY)
+				continue;
+			COM_StripExtension (find->name, filename, sizeof (filename));
+			if ((size_t) q_snprintf (savename, sizeof (savename), "autosave/%s", filename) < sizeof (savename))
+				FileList_Add (savename, &savelist);
+		}
 	}
 }
 
@@ -2262,7 +2276,7 @@ static void Host_Savegame_f (void)
 		return;
 	}
 
-	if (Cmd_Argc() != 2)
+	if (Cmd_Argc() < 2)
 	{
 		Con_Printf ("save <savename> : save a game\n");
 		return;
@@ -2285,7 +2299,8 @@ static void Host_Savegame_f (void)
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
-	Con_Printf ("Saving game to %s...\n", relname);
+	if (Cmd_Argc () < 3)
+		Con_Printf ("Saving game to %s...\n", relname);
 
 	if (!strcmp (relname, sv.lastsave) && Host_IsSaving ())
 	{
@@ -2487,6 +2502,7 @@ static void Host_Loadgame_f (void)
 
 	qcvm->num_edicts = entnum;
 	qcvm->time = time;
+	sv.autosave.time = time;
 
 	free (start);
 	start = NULL;

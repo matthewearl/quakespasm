@@ -86,6 +86,18 @@ typedef struct
 
 	char		lastsave[MAX_OSPATH];
 	qboolean	autoloading;
+
+	struct
+	{
+		float	secret_boost;
+		float	teleport_boost;
+		float	prev_health;
+		int		prev_secrets;
+		double	time;					// last autosave time
+		double	hurt_time;				// last time the player was hurt
+		double	shoot_time;				// last time the player attacked
+		double	cheat;					// time spent with cheats active since last autosave
+	}			autosave;
 } server_t;
 
 
