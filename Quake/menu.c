@@ -2836,7 +2836,7 @@ static void M_Keys_UpdateLayout (void)
 	int height;
 
 	M_UpdateBounds ();
-	height = keysmenu.list.numitems * 8 + KEYLIST_OFS;
+	height = keysmenu.list.numitems * 8 + KEYLIST_OFS + 8;
 	height = q_min (height, m_height);
 	keysmenu.y = m_top + (((m_height - height) / 2) & ~7);
 	keysmenu.list.viewsize = (height - KEYLIST_OFS - 8) / 8;
