@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ////////////////////////////////////////////////////////////////
 
 static const char gui_vertex_shader[] =
+"layout(location=0) uniform vec4 Resolution;\n"
+"\n"
 "layout(location=0) in vec2 in_pos;\n"
 "layout(location=1) in vec2 in_uv;\n"
 "layout(location=2) in vec4 in_color;\n"
@@ -46,7 +48,14 @@ static const char gui_vertex_shader[] =
 "\n"
 "void main()\n"
 "{\n"
-"	gl_Position = vec4(in_pos, 0.0, 1.0);\n"
+"	vec2 pos = in_pos;\n"
+"	// snap to pixel edges\n"
+"	pos = pos * 0.5 + 0.5;\n"
+"	pos *= Resolution.xy;\n"
+"	pos = round(pos);\n"
+"	pos *= Resolution.zw;\n"
+"	pos = pos * 2.0 - 1.0;\n"
+"	gl_Position = vec4(pos, 0.0, 1.0);\n"
 "	out_uv = in_uv;\n"
 "	out_color = in_color;\n"
 "}\n";
