@@ -2513,10 +2513,14 @@ qboolean M_SetSliderValue (int option, float f)
 	}
 }
 
+float M_MouseToRawSliderFraction (int cx)
+{
+	return (cx - 4) / (float)((SLIDER_RANGE - 1) * 8);
+}
+
 float M_MouseToSliderFraction (int cx)
 {
-	float f;
-	f = (cx - 4) / (float)((SLIDER_RANGE - 1) * 8);
+	float f = M_MouseToRawSliderFraction (cx);
 	return CLAMP (0.f, f, 1.f);
 }
 
@@ -2766,13 +2770,16 @@ void M_Options_Mousemove (int cx, int cy)
 	int prev;
 	if (slider_grab)
 	{
+		float frac;
 		if (!keydown[K_MOUSE1])
 		{
 			M_ReleaseSliderGrab ();
 			return;
 		}
-		M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx - 220));
-		M_MouseSound ("misc/menu1.wav");
+		frac = M_MouseToRawSliderFraction (cx - 220);
+		M_SetSliderValue (options_cursor, frac);
+		if (frac >= 0.f && frac <= 1.f)
+			M_MouseSound ("misc/menu1.wav");
 		return;
 	}
 
