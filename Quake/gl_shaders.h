@@ -1006,7 +1006,7 @@ NOISE_FUNCTIONS
 #define ALIAS_INSTANCE_BUFFER \
 "struct InstanceData\n"\
 "{\n"\
-"	mat4	WorldMatrix;\n"\
+"	vec4	WorldMatrix[3];\n"\
 "	vec4	LightColor; // xyz=LightColor w=Alpha\n"\
 "	float	ShadeAngle;\n"\
 "	float	Blend;\n"\
@@ -1073,7 +1073,8 @@ ALIAS_INSTANCE_BUFFER
 "	out_texcoord = TexCoords[gl_VertexID];\n"
 "	Pose pose1 = GetPose(inst.Pose1);\n"
 "	Pose pose2 = GetPose(inst.Pose2);\n"
-"	vec3 lerpedVert = (inst.WorldMatrix * vec4(mix(pose1.pos, pose2.pos, inst.Blend), 1.0)).xyz;\n"
+"	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"\
+"	vec3 lerpedVert = (worldmatrix * vec4(mix(pose1.pos, pose2.pos, inst.Blend), 1.0)).xyz;\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
 "	vec3 shadevector;\n"

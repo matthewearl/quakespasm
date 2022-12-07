@@ -774,3 +774,18 @@ void ApplyTranslation(float matrix[16], float x, float y, float z)
 	matrix[3*4 + 3] += z*matrix[2*4 + 3];
 #endif
 }
+
+void MatrixTranspose4x3(const float src[16], float dst[12])
+{
+	#define COPY_ROW(row)					\
+		dst[row*4+0] = src[row+0],	\
+		dst[row*4+1] = src[row+4],	\
+		dst[row*4+2] = src[row+8],	\
+		dst[row*4+3] = src[row+12]
+
+	COPY_ROW (0);
+	COPY_ROW (1);
+	COPY_ROW (2);
+
+	#undef COPY_ROW
+}

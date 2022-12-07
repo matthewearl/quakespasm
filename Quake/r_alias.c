@@ -62,7 +62,7 @@ typedef struct {
 #define MAX_ALIAS_INSTANCES 256
 
 typedef struct aliasinstance_s {
-	float		worldmatrix[16];
+	float		worldmatrix[12];
 	vec3_t		lightcolor;
 	float		alpha;
 	float		shadeangle;
@@ -505,7 +505,7 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 
 	instance = &ibuf.inst[ibuf.count++];
 
-	memcpy (instance->worldmatrix, model_matrix, 16 * sizeof(float));
+	MatrixTranspose4x3 (model_matrix, instance->worldmatrix);
 
 	quantizedangle = ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
 	radiansangle = quantizedangle * (-2.0f * M_PI / SHADEDOT_QUANT);

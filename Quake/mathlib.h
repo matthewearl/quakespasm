@@ -116,6 +116,7 @@ void ScaleMatrix(float matrix[16], float x, float y, float z);
 void IdentityMatrix(float matrix[16]);
 void ApplyScale(float matrix[16], float x, float y, float z);
 void ApplyTranslation(float matrix[16], float x, float y, float z);
+void MatrixTranspose4x3(const float src[16], float dst[12]);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\
