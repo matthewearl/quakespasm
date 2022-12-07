@@ -711,7 +711,7 @@ void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num)
 
 	num &= 255;
 
-	if (num == 32)
+	if ((num & 0x7f) == 32)
 		return; //don't waste verts on spaces
 
 	Draw_SetTexture (char_texture);
@@ -742,7 +742,7 @@ void Draw_StringEx (int x, int y, int dim, const char *str)
 
 	while (*str)
 	{
-		if (*str != 32) //don't waste verts on spaces
+		if ((*str & 0x7f) != 32) //don't waste verts on spaces
 			Draw_CharacterQuadEx (x, y, dim, dim, *str);
 		str++;
 		x += dim;
