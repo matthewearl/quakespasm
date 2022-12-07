@@ -40,8 +40,6 @@ float	r_avertexnormals[NUMVERTEXNORMALS][3] =
 
 extern vec3_t	lightcolor; //johnfitz -- replaces "float shadelight" for lit support
 
-#define SHADEDOT_QUANT 16
-
 float	entalpha; //johnfitz
 
 //johnfitz -- struct for passing lerp information to drawing functions
@@ -60,10 +58,10 @@ typedef struct aliasinstance_s {
 	float		worldmatrix[12];
 	vec3_t		lightcolor;
 	float		alpha;
-	float		shadeangle;
-	float		blend;
 	int32_t		pose1;
 	int32_t		pose2;
+	float		blend;
+	int32_t		padding;
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -383,8 +381,6 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 	int			anim, skinnum;
 	gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
-	int			quantizedangle;
-	float		radiansangle;
 	float		fovscale = 1.0f;
 	float		model_matrix[16];
 	aliasinstance_t	*instance;
@@ -502,17 +498,13 @@ static void R_DrawAliasModel_Real (entity_t *e, qboolean showtris)
 
 	MatrixTranspose4x3 (model_matrix, instance->worldmatrix);
 
-	quantizedangle = ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
-	radiansangle = quantizedangle * (-2.0f * M_PI / SHADEDOT_QUANT);
-
 	instance->lightcolor[0] = lightcolor[0];
 	instance->lightcolor[1] = lightcolor[1];
 	instance->lightcolor[2] = lightcolor[2];
 	instance->alpha = entalpha;
-	instance->shadeangle = radiansangle;
-	instance->blend = lerpdata.blend;
 	instance->pose1 = lerpdata.pose1 * paliashdr->numverts_vbo;
 	instance->pose2 = lerpdata.pose2 * paliashdr->numverts_vbo;
+	instance->blend = lerpdata.blend;
 }
 
 /*

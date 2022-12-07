@@ -1008,10 +1008,10 @@ NOISE_FUNCTIONS
 "{\n"\
 "	vec4	WorldMatrix[3];\n"\
 "	vec4	LightColor; // xyz=LightColor w=Alpha\n"\
-"	float	ShadeAngle;\n"\
-"	float	Blend;\n"\
 "	int		Pose1;\n"\
 "	int		Pose2;\n"\
+"	float	Blend;\n"\
+"	int		Padding;\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1078,10 +1078,9 @@ ALIAS_INSTANCE_BUFFER
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
 "	vec3 shadevector;\n"
-"	shadevector[0] = cos(inst.ShadeAngle);\n"
-"	shadevector[1] = sin(inst.ShadeAngle);\n"
-"	shadevector[2] = 1.0;\n"
-"	shadevector = normalize(shadevector);\n"
+"	shadevector.x = normalize(worldmatrix[0].xyz).x;\n"
+"	shadevector.y = normalize(worldmatrix[1].xyz).x;\n"
+"	shadevector.z = normalize(worldmatrix[2].xyz).x;\n"
 "	float dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
 "	float dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
 "	out_color = clamp(inst.LightColor * vec4(vec3(mix(dot1, dot2, inst.Blend)), 1.0), 0.0, 1.0);\n"
