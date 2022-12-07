@@ -860,7 +860,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 {
 	glpic_t	*gl;
 	guivertex_t *verts;
-	float scalex, scaley;
+	float scalex, scaley, uvscale, uvbias;
 
 	gl = (glpic_t *)draw_backtile->data;
 
@@ -868,13 +868,16 @@ void Draw_TileClear (int x, int y, int w, int h)
 
 	Draw_SetTexture (gl->gltexture);
 
-	verts = Draw_AllocQuad ();
 	scalex = vid.guiwidth / (float) vid.width;
 	scaley = vid.guiheight / (float) vid.height;
-	Draw_SetVertex (verts++, x*scalex,     y*scaley,     x*scalex/64.0,     y*scaley/64.0);
-	Draw_SetVertex (verts++, (x+w)*scalex, y*scaley,     (x+w)*scalex/64.0, y*scaley/64.0);
-	Draw_SetVertex (verts++, (x+w)*scalex, (y+h)*scaley, (x+w)*scalex/64.0, (y+h)*scaley/64.0);
-	Draw_SetVertex (verts++, x*scalex,     (y+h)*scaley, x*scalex/64.0,     (y+h)*scaley/64.0);
+	uvscale = 1.f / 64.f / CLAMP (1.0f, scr_sbarscale.value, (float)vid.guiwidth / 320.0f); // use sbar scale
+	uvbias = -vid.guiheight*uvscale; // bottom-aligned tiles
+
+	verts = Draw_AllocQuad ();
+	Draw_SetVertex (verts++, x*scalex,     y*scaley,     x*scalex*uvscale,     y*scaley*uvscale + uvbias);
+	Draw_SetVertex (verts++, (x+w)*scalex, y*scaley,     (x+w)*scalex*uvscale, y*scaley*uvscale + uvbias);
+	Draw_SetVertex (verts++, (x+w)*scalex, (y+h)*scaley, (x+w)*scalex*uvscale, (y+h)*scaley*uvscale + uvbias);
+	Draw_SetVertex (verts++, x*scalex,     (y+h)*scaley, x*scalex*uvscale,     (y+h)*scaley*uvscale + uvbias);
 }
 
 /*
