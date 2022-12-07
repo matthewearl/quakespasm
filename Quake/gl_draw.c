@@ -33,6 +33,7 @@ qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
 
 gltexture_t *char_texture; //johnfitz
+byte		char_texture_data[256 * 10 * 10];
 qpic_t		*pic_ovr, *pic_ins; //johnfitz -- new cursor handling
 qpic_t		*pic_nul; //johnfitz -- for missing gfx, don't crash
 
@@ -226,23 +227,33 @@ void Scrap_Upload (void)
 
 /*
 ================
-Scrap_FillTexels
+Draw_FillClampTexels
 
 Fills the given rectangle *and* a 1-pixel border around it
 with the closest pixels from the source image (emulating UV clamping)
 ================
 */
-void Scrap_FillTexels (int x, int y, int w, int h, const byte *data)
+void Draw_FillClampTexels (const byte *src, int w, int h, int srcpitch, byte *dst, int dstpitch)
 {
 	int i;
-	byte *dst = &scrap_texels[(y - 1) * SCRAP_ATLAS_WIDTH + x - 1];
-	for (i = -1; i <= h; i++, dst += SCRAP_ATLAS_WIDTH)
+	for (i = -1; i <= h; i++, dst += dstpitch)
 	{
-		const byte *src = data + CLAMP (0, i, h - 1) * w;
-		dst[0] = src[0];
-		memcpy (dst + 1, src, w);
-		dst[w + 1] = src[w - 1];
+		const byte *rowsrc = src + CLAMP (0, i, h - 1) * srcpitch;
+		dst[0] = rowsrc[0];
+		memcpy (dst + 1, rowsrc, w);
+		dst[w + 1] = rowsrc[w - 1];
 	}
+}
+
+/*
+================
+Scrap_FillTexels
+================
+*/
+void Scrap_FillTexels (int x, int y, int w, int h, const byte *data)
+{
+	byte *dst = &scrap_texels[(y - 1) * SCRAP_ATLAS_WIDTH + x - 1];
+	Draw_FillClampTexels (data, w, h, w, dst, SCRAP_ATLAS_WIDTH);
 	scrap_dirty = true;
 }
 
@@ -443,13 +454,20 @@ void Draw_LoadPics (void)
 {
 	lumpinfo_t	*info;
 	byte		*data;
-	src_offset_t	offset;
+	int			i, row, col;
 
 	data = (byte *) W_GetLumpName ("conchars", &info);
 	if (!data) Sys_Error ("Draw_LoadPics: couldn't load conchars");
-	offset = (src_offset_t)data - (src_offset_t)wad_base;
-	char_texture = TexMgr_LoadImage (NULL, WADFILENAME":conchars", 128, 128, SRC_INDEXED, data,
-		WADFILENAME, offset, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS);
+
+	for (i = 0; i < 256; i++)
+	{
+		row = i / 16;
+		col = i % 16;
+		Draw_FillClampTexels (data + row*(16*8*8) + col*8, 8, 8, 16*8,
+			char_texture_data + row*(16*10*10) + col*10, 16*10);
+	}
+	char_texture = TexMgr_LoadImage (NULL, WADFILENAME":conchars", 16*10, 16*10, SRC_INDEXED, char_texture_data,
+		"", (src_offset_t) char_texture_data, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS);
 
 	draw_disc = Draw_PicFromWad ("disc");
 	draw_backtile = Draw_PicFromWad2 ("backtile", TEXPREF_ALPHA | TEXPREF_NOPICMIP); // no pad flag to force separate allocation
@@ -660,9 +678,9 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 	row = num>>4;
 	col = num&15;
 
-	frow = row*0.0625;
-	fcol = col*0.0625;
-	fsize = 0.0625;
+	frow = row * 0.0625f + 1.f / (16.f * 10.f);
+	fcol = col * 0.0625f + 1.f / (16.f * 10.f);
+	fsize = 8.f / (16.f * 10.f);
 
 	verts = Draw_AllocQuad ();
 	Draw_SetVertex (verts++, x,      y,      fcol,         frow);
