@@ -333,11 +333,12 @@ void IN_Init (void)
 
 	IN_Activate();
 	IN_StartupJoystick();
+	Sys_ActivateKeyFilter(true);
 }
 
 void IN_Shutdown (void)
 {
-	Sys_RemoveKeyFilter();
+	Sys_ActivateKeyFilter(false);
 	IN_Deactivate(true);
 	IN_ShutdownJoystick();
 }
@@ -887,9 +888,15 @@ void IN_SendKeyEvents (void)
 		{
 		case SDL_WINDOWEVENT:
 			if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+			{
+				Sys_ActivateKeyFilter(true);
 				S_UnblockSound();
+			}
 			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+			{
 				S_BlockSound();
+				Sys_ActivateKeyFilter(false);
+			}
 			else if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
 			{
 				vid.width = event.window.data1;

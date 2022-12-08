@@ -635,6 +635,6 @@ void Sys_SendKeyEvents (void)
 	IN_SendKeyEvents();
 }
 
-void Sys_RemoveKeyFilter (void)
+void Sys_ActivateKeyFilter (qboolean active)
 {
 }
