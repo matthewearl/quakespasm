@@ -3178,7 +3178,7 @@ void M_Menu_Quit_f (void)
 	m_quit_prevstate = m_state;
 	m_state = m_quit;
 	m_entersound = true;
-	msgNumber = (cl_confirmquit.value >= 2.f) ? rand()&7 : 8;
+	msgNumber = (cl_confirmquit.value >= 2.f) ? (int)(realtime*(5.0*1.61803399))&7 : 8;
 }
 
 
