@@ -1767,7 +1767,7 @@ void TexMgr_ReloadNobrightImages (void)
 ================================================================================
 */
 
-static GLuint	currenttexture[4] = {GL_UNUSED_TEXTURE, GL_UNUSED_TEXTURE, GL_UNUSED_TEXTURE, GL_UNUSED_TEXTURE}; // to avoid unnecessary texture sets
+static GLuint	currenttexture[4]; // to avoid unnecessary texture sets
 static GLenum	currenttexunit = GL_TEXTURE0_ARB;
 
 /*
@@ -1869,7 +1869,7 @@ void GL_DeleteNativeTexture (GLuint texnum)
 	int i;
 	for (i = 0; i < countof(currenttexture); i++)
 		if (texnum == currenttexture[i])
-			currenttexture[i] = GL_UNUSED_TEXTURE;
+			currenttexture[i] = 0;
 	glDeleteTextures (1, &texnum);
 }
 
@@ -1894,17 +1894,21 @@ static void GL_DeleteTexture (gltexture_t *texture)
 /*
 ================
 GL_ClearBindings -- ericw
-
-Invalidates cached bindings, so the next GL_Bind calls for each TMU will
-make real glBindTexture calls.
-Call this after changing the binding outside of GL_Bind.
 ================
 */
 void GL_ClearBindings(void)
 {
 	int i;
-	for (i = 0; i < countof(currenttexture); i++)
-		currenttexture[i] = GL_UNUSED_TEXTURE;
+
+	memset (&currenttexture, 0, sizeof (currenttexture));
+	if (gl_multi_bind_able)
+		GL_BindTexturesFunc (0, countof (currenttexture), NULL);
+	else
+		for (i = 0; i < countof (currenttexture); i++)
+		{
+			GL_SelectTexture (GL_TEXTURE0 + i);
+			glBindTexture (GL_TEXTURE_2D, 0);
+		}
 }
 
 /*
