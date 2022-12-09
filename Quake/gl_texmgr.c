@@ -1902,12 +1902,16 @@ void GL_ClearBindings(void)
 
 	memset (&currenttexture, 0, sizeof (currenttexture));
 	if (gl_multi_bind_able)
+	{
 		GL_BindTexturesFunc (0, countof (currenttexture), NULL);
+		GL_BindSamplersFunc (0, countof (currenttexture), NULL);
+	}
 	else
 		for (i = 0; i < countof (currenttexture); i++)
 		{
 			GL_SelectTexture (GL_TEXTURE0 + i);
 			glBindTexture (GL_TEXTURE_2D, 0);
+			GL_BindSamplerFunc (i, 0);
 		}
 }
 
