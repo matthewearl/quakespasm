@@ -59,9 +59,9 @@ typedef struct
 	int			conrowbytes;
 	int			conwidth;
 	int			conheight;
-	float		guiaspect;
-	int			guiwidth;
-	int			guiheight;
+	float		guipixelaspect;	// 2D pixel aspect ratio (1 = square)
+	int			guiwidth;		// 2D width
+	int			guiheight;		// 2D height
 } viddef_t;
 
 extern	viddef_t	vid;				// global video state

@@ -647,20 +647,20 @@ void VID_RecalcConsoleSize (void)
 
 void VID_RecalcInterfaceSize (void)
 {
-	vid.guiaspect = 1.f;
+	vid.guipixelaspect = 1.f;
 	if (scr_pixelaspect.string && *scr_pixelaspect.string)
 	{
 		float num, denom;
 		if (sscanf (scr_pixelaspect.string, "%f:%f", &num, &denom) == 2)
 		{
 			if (num && denom)
-				vid.guiaspect = CLAMP (0.5f, num / denom, 2.f);
+				vid.guipixelaspect = CLAMP (0.5f, num / denom, 2.f);
 		}
 		else if (scr_pixelaspect.value)
-			vid.guiaspect = CLAMP (0.5f, scr_pixelaspect.value, 2.f);
+			vid.guipixelaspect = CLAMP (0.5f, scr_pixelaspect.value, 2.f);
 	}
-	vid.guiwidth = vid.width / q_max (vid.guiaspect, 1.f);
-	vid.guiheight = vid.height * q_min (vid.guiaspect, 1.f);
+	vid.guiwidth = vid.width / q_max (vid.guipixelaspect, 1.f);
+	vid.guiheight = vid.height * q_min (vid.guipixelaspect, 1.f);
 	if (vid.width && vid.height)
 		VID_RecalcConsoleSize ();
 }
