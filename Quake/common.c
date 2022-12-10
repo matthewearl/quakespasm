@@ -2844,6 +2844,17 @@ void LOC_LoadFile (const char *file)
 			rw = SDL_RWFromFile(path, "rb");
 		}
 		#endif
+		if (!rw)
+		{
+			steamgame_t steamquake;
+			char steampath[MAX_OSPATH];
+			if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
+				Steam_ResolvePath (steampath, sizeof (steampath), &steamquake))
+			{
+				q_snprintf(path, sizeof(path), "%s/rerelease/QuakeEX.kpf", steampath);
+				rw = SDL_RWFromFile(path, "rb");
+			}
+		}
 		if (!rw) goto fail;
 		sz = SDL_RWsize(rw);
 		if (sz <= 0) goto fail;
