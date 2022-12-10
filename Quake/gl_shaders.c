@@ -23,11 +23,51 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "gl_shaders.h"
+#include "q_ctype.h"
 
 glprogs_t glprogs;
 static GLuint gl_programs[128];
 static GLuint gl_current_program;
 static int gl_num_programs;
+
+/*
+=============
+GL_Error
+=============
+*/
+static void GL_Error (const char *message, ...)
+{
+	char buf[4096];
+	size_t len;
+	va_list argptr;
+
+	va_start (argptr, message);
+	q_vsnprintf (buf, sizeof (buf), message, argptr);
+	va_end (argptr);
+
+	len = strlen (buf);
+	while (len && q_isspace (buf[len - 1]))
+		buf[--len] = '\0';
+
+	Sys_Error (
+		"%s\n"
+		"\n"
+		"Engine:	Ironwail " IRONWAIL_VER_STRING " (%d-bit)\n"
+		"OpenGL:	%s\n"
+		"GPU:	%s\n"
+		"Vendor:	%s\n"
+#if defined(_WIN32)
+		"\n"
+		"(Note: you can press Ctrl+C to copy this text to clipboard)"
+#endif
+		,
+		buf,
+		(int) sizeof (void *) * 8,
+		gl_version,
+		gl_renderer,
+		gl_vendor
+	);
+}
 
 /*
 =============
@@ -102,7 +142,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
-		Sys_Error ("Error compiling %s %s shader :\n%s", name, typestr, infolog);
+		GL_Error ("Error compiling %s %s shader:\n\n%s", name, typestr, infolog);
 	}
 
 	return shader;
@@ -136,7 +176,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
-		Sys_Error ("Error linking %s program: %s", name, infolog);
+		GL_Error ("Error linking %s program:\n\n%s", name, infolog);
 	}
 
 	if (gl_num_programs == countof(gl_programs))

@@ -114,6 +114,10 @@ extern	qboolean	gl_multi_bind_able;
 extern	qboolean	gl_bindless_able;
 extern	qboolean	gl_clipcontrol_able;
 
+extern	const char	*gl_vendor;
+extern	const char	*gl_renderer;
+extern	const char	*gl_version;
+
 //==============================================================================
 
 #define QGL_CORE_FUNCTIONS(x)\

@@ -60,9 +60,9 @@ typedef struct {
 #define MIN_GL_VERSION						MAKE_GL_VERSION(MIN_GL_VERSION_MAJOR, MIN_GL_VERSION_MINOR)
 #define MIN_GL_VERSION_STR					QS_STRINGIFY(MIN_GL_VERSION_MAJOR)"."QS_STRINGIFY(MIN_GL_VERSION_MINOR)
 
-static const char *gl_vendor;
-static const char *gl_renderer;
-static const char *gl_version;
+const char *gl_vendor;
+const char *gl_renderer;
+const char *gl_version;
 static int gl_version_major;
 static int gl_version_minor;
 static int gl_version_number;
