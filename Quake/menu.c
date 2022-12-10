@@ -142,6 +142,8 @@ char		m_return_reason [32];
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
 
+#define DESCRIPTION_SCROLL_WAIT_TIME	1.0
+
 #define SEARCH_FADE_TIMEOUT				0.5
 #define SEARCH_TYPE_TIMEOUT				1.5
 #define SEARCH_ERASE_TIMEOUT			1.5
@@ -1464,6 +1466,8 @@ static void M_Maps_Init (void)
 	mapsmenu.list.cursor = -1;
 	mapsmenu.list.scroll = 0;
 	mapsmenu.list.numitems = 0;
+	mapsmenu.scroll_time = 0;
+	mapsmenu.scroll_wait_time = DESCRIPTION_SCROLL_WAIT_TIME;
 	mapsmenu.mapcount = 0;
 	VEC_CLEAR (mapsmenu.items);
 
@@ -1530,7 +1534,7 @@ void M_Maps_Draw (void)
 	{
 		mapsmenu.prev_cursor = mapsmenu.list.cursor;
 		mapsmenu.scroll_time = 0.0;
-		mapsmenu.scroll_wait_time = 1.0;
+		mapsmenu.scroll_wait_time = DESCRIPTION_SCROLL_WAIT_TIME;
 	}
 	else
 	{
