@@ -1050,6 +1050,10 @@ static void Draw_Transform2 (float width, float height, float scalex, float scal
 	out->scale[1] = scaley * -2.f / scrheight;
 	out->offset[0] = (scrwidth - width*scalex) * alignx / scrwidth * 2.f - 1.f;
 	out->offset[1] = (scrheight - height*scaley) * aligny / scrheight * -2.f + 1.f;
+
+	// shift projection by a fraction of a pixel to avoid interpolation artifacts at certain scales
+	out->offset[0] += 0.61803399f / 2.f / glwidth;
+	out->offset[1] += 0.61803399f / 2.f / glheight;
 }
 
 /*
