@@ -31,7 +31,18 @@ qboolean Sys_GetSteamDir (char *path, size_t pathsize);
 
 // fills in the user-specific path where add-ons are downloaded
 // (%userprofile%\Saved Games\Nightdive Studios\Quake)
+// Note: library path is needed for Proton
 qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library);
+
+// retrieves GOG Quake directory
+qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize);
+
+// retrieves GOG Quake Enhanced directory
+qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize);
+
+// fills in the user-specific path where add-ons are downloaded
+// (%userprofile%\Saved Games\Nightdive Studios\Quake)
+qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize);
 
 //
 // file IO

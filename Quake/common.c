@@ -1527,6 +1527,7 @@ typedef struct
 char	com_gamenames[1024];	//eg: "hipnotic;quoth;warp" ... no id1
 char	com_gamedir[MAX_OSPATH];
 char	com_basedir[MAX_OSPATH];
+char	com_nightdivedir[MAX_OSPATH];
 THREAD_LOCAL int	file_from_pak;		// ZOID: global indicating that file came from a pak
 
 searchpath_t	*com_searchpaths;
@@ -2406,8 +2407,10 @@ COM_InitBaseDir
 static void COM_InitBaseDir (void)
 {
 	steamgame_t steamquake;
-	char path[countof (com_basedir)];
-	int i, steam;
+	char path[MAX_OSPATH];
+	char original[MAX_OSPATH] = {0};
+	char remastered[MAX_OSPATH] = {0};
+	int i, steam, gog;
 
 	i = COM_CheckParm ("-basedir");
 	if (i)
@@ -2428,9 +2431,13 @@ static void COM_InitBaseDir (void)
 		return;
 	}
 
+	// skip default basedir if a store version is requested explicitly
 	steam = COM_CheckParm ("-steam");
 	if (steam)
 		goto try_steam;
+	gog = COM_CheckParm ("-gog");
+	if (gog)
+		goto try_gog;
 
 	if (COM_SetBaseDir (host_parms->basedir))
 		return;
@@ -2447,25 +2454,62 @@ static void COM_InitBaseDir (void)
 		return;
 	}
 
-try_steam:
-	if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
-		Steam_ResolvePath (path, sizeof (path), &steamquake))
+	if (!COM_CheckParm ("-nosteam"))
 	{
-		qboolean remastered = (Steam_ChooseQuakeVersion () == STEAM_VERSION_REMASTERED);
-		if (remastered)
-			if ((size_t) q_strlcat (path, "/rerelease", sizeof (path)) >= sizeof (path))
-				Sys_Error ("COM_InitBaseDir: rerelease path overflow");
+	try_steam:
+		if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
+			Steam_ResolvePath (original, sizeof (original), &steamquake))
+		{
+			if ((size_t) q_snprintf (remastered, sizeof (remastered), "%s/rerelease", original) >= sizeof (remastered))
+				remastered[0] = '\0';
+			else if (!Sys_GetSteamQuakeUserDir (com_nightdivedir, sizeof (com_nightdivedir), steamquake.library))
+				com_nightdivedir[0] = '\0';
+		}
+		if (steam)
+			goto storesetup;
+	}
+
+	if (!COM_CheckParm ("-nogog"))
+	{
+	try_gog:
+		if (!original[0] && !Sys_GetGOGQuakeDir (original, sizeof (original)))
+			original[0] = '\0';
+		if (!remastered[0])
+		{
+			if (Sys_GetGOGQuakeEnhancedDir (remastered, sizeof (remastered)))
+			{
+				if (!com_nightdivedir[0] && !Sys_GetGOGQuakeEnhancedUserDir (com_nightdivedir, sizeof (com_nightdivedir)))
+					com_nightdivedir[0] = '\0';
+			}
+			else
+			{
+				remastered[0] = '\0';
+			}
+		}
+		if (gog)
+			goto storesetup;
+	}
+
+storesetup:
+	if (original[0] || remastered[0])
+	{
+		quakeflavor_t flavor;
+		if (original[0] && remastered[0])
+			flavor = ChooseQuakeFlavor ();
+		else
+			flavor = remastered[0] ? QUAKE_FLAVOR_REMASTERED : QUAKE_FLAVOR_ORIGINAL;
+		q_strlcpy (path, flavor == QUAKE_FLAVOR_REMASTERED ? remastered : original, sizeof (path));
 
 		if (COM_SetBaseDir (path))
 		{
-			static char userdir[MAX_OSPATH];
 			if (remastered)
 			{
-				if (Sys_GetSteamQuakeUserDir (userdir, sizeof (userdir), steamquake.library))
-					host_parms->userdir = userdir;
+				if (com_nightdivedir[0])
+					host_parms->userdir = com_nightdivedir;
 			}
 			else if (host_parms->userdir == host_parms->basedir)
 			{
+				static char userdir[MAX_OSPATH];
 				char testcfg[MAX_OSPATH];
 				if ((size_t) q_snprintf (testcfg, sizeof (testcfg), "%s/" GAMENAME "/" CONFIG_NAME, path) >= sizeof (testcfg))
 					testcfg[0] = 0;
@@ -2477,8 +2521,11 @@ try_steam:
 			return;
 		}
 	}
+
 	if (steam)
 		Sys_Error ("Couldn't find Steam Quake");
+	if (gog)
+		Sys_Error ("Couldn't find GOG Quake");
 
 	Sys_Error (
 		"Couldn't determine where Quake is installed.\n"
@@ -2852,6 +2899,15 @@ void LOC_LoadFile (const char *file)
 				Steam_ResolvePath (steampath, sizeof (steampath), &steamquake))
 			{
 				q_snprintf(path, sizeof(path), "%s/rerelease/QuakeEX.kpf", steampath);
+				rw = SDL_RWFromFile(path, "rb");
+			}
+		}
+		if (!rw)
+		{
+			char gogpath[MAX_OSPATH];
+			if (Sys_GetGOGQuakeEnhancedDir (gogpath, sizeof (gogpath)))
+			{
+				q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", gogpath);
 				rw = SDL_RWFromFile(path, "rb");
 			}
 		}

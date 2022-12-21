@@ -352,19 +352,19 @@ qboolean Steam_ResolvePath (char *path, size_t pathsize, const steamgame_t *game
 
 /*
 ========================
-Steam_ChooseQuakeVersion
+ChooseQuakeFlavor
 
 Shows a simple message box asking the user to choose
 between the original version and the 2021 rerelease
 ========================
 */
-steamversion_t Steam_ChooseQuakeVersion (void)
+quakeflavor_t ChooseQuakeFlavor (void)
 {
 #ifdef _WIN32
 	static const SDL_MessageBoxButtonData buttons[] =
 	{
-		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, STEAM_VERSION_REMASTERED, "Remastered" },
-		{ 0, STEAM_VERSION_ORIGINAL, "Original" },
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, QUAKE_FLAVOR_REMASTERED, "Remastered" },
+		{ 0, QUAKE_FLAVOR_ORIGINAL, "Original" },
 	};
 	SDL_MessageBoxData messagebox;
 	int choice = -1;
@@ -380,8 +380,8 @@ steamversion_t Steam_ChooseQuakeVersion (void)
 
 	if (SDL_ShowMessageBox (&messagebox, &choice) < 0)
 	{
-		Sys_Printf ("Steam_ChooseQuakeVersion: %s\n", SDL_GetError ());
-		return STEAM_VERSION_REMASTERED;
+		Sys_Printf ("ChooseQuakeFlavor: %s\n", SDL_GetError ());
+		return QUAKE_FLAVOR_REMASTERED;
 	}
 
 	if (choice == -1)
@@ -390,10 +390,10 @@ steamversion_t Steam_ChooseQuakeVersion (void)
 		exit (0);
 	}
 
-	return (steamversion_t) choice;
+	return (quakeflavor_t) choice;
 #else
 	// FIXME: Original version can't be played on OS's with case-sensitive file systems
 	// (due to id1 being named "Id1" and pak0.pak "PAK0.PAK")
-	return STEAM_VERSION_REMASTERED;
+	return QUAKE_FLAVOR_REMASTERED;
 #endif
 }

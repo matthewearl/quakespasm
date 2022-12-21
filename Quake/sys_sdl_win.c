@@ -220,35 +220,75 @@ qboolean Sys_FileExists (const char *path)
 	return attr != INVALID_FILE_ATTRIBUTES && !(attr & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_DEVICE));
 }
 
-qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+static qboolean Sys_GetRegistryString (HKEY root, const wchar_t *dir, const wchar_t *keyname, char *out, size_t maxchars)
 {
 	LSTATUS		err;
 	HKEY		key;
 	WCHAR		wpath[MAX_PATH + 1];
 	DWORD		size, type;
 
-	err = RegOpenKeyExW (HKEY_CURRENT_USER, L"Software\\Valve\\Steam", 0, KEY_READ, &key);
+	if (!maxchars)
+		return false;
+	*out = 0;
+
+	err = RegOpenKeyExW (root, dir, 0, KEY_READ, &key);
 	if (err != ERROR_SUCCESS)
 		return false;
 
 	// Note: string might not contain a terminating null character
 	// https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw#remarks
 
-	err = RegQueryValueExW (key, L"SteamPath", NULL, &type, NULL, &size);
+	err = RegQueryValueExW (key, keyname, NULL, &type, NULL, &size);
 	if (err != ERROR_SUCCESS || type != REG_SZ || size > sizeof (wpath) - sizeof (wpath[0]))
 	{
 		RegCloseKey (key);
 		return false;
 	}
 
-	err = RegQueryValueExW (key, L"SteamPath", NULL, &type, (BYTE *)wpath, &size);
+	err = RegQueryValueExW (key, keyname, NULL, &type, (BYTE *)wpath, &size);
 	RegCloseKey (key);
 	if (err != ERROR_SUCCESS || type != REG_SZ)
 		return false;
 
 	wpath[size / sizeof (wpath[0])] = 0;
 
-	return WideCharToMultiByte (CP_UTF8, 0, wpath, -1, path, pathsize, NULL, NULL) != 0;
+	if (WideCharToMultiByte (CP_UTF8, 0, wpath, -1, out, maxchars, NULL, NULL) != 0)
+		return true;
+	*out = 0;
+	return false;
+}
+
+qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+{
+	return Sys_GetRegistryString (HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", path, pathsize);
+}
+
+static qboolean Sys_StripTrailingSlashes (char *path)
+{
+	size_t i = strlen (path);
+	while (i > 0 && (path[i-1] == '\\' || path[i-1] == '/'))
+		path[--i] = 0;
+	return i > 0;
+}
+
+qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
+{
+	if (!Sys_GetRegistryString (HKEY_LOCAL_MACHINE,
+		L"SOFTWARE\\Wow6432Node\\GOG.com\\Games\\1435828198", L"path",
+		path, pathsize))
+		return false;
+
+	return Sys_StripTrailingSlashes (path);
+}
+
+qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize)
+{
+	if (!Sys_GetRegistryString (HKEY_LOCAL_MACHINE,
+		L"SOFTWARE\\Wow6432Node\\GOG.com\\Games\\1739637082", L"path",
+		path, pathsize))
+		return false;
+
+	return Sys_StripTrailingSlashes (path);
 }
 
 // https://github.com/libsdl-org/SDL/blob/120c76c84bbce4c1bfed4e9eb74e10678bd83120/src/core/windows/SDL_windows.c#L88-L99
@@ -266,7 +306,7 @@ static HRESULT Sys_InitCOM (void)
 	return hr;
 }
 
-qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library)
+static qboolean Sys_GetNightdiveDir (char *path, size_t pathsize)
 {
 	const char SUBDIR[] = "\\Nightdive Studios\\Quake";
 	PWSTR wpath;
@@ -289,6 +329,16 @@ qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *libr
 	CoUninitialize ();
 
 	return ret && (size_t) q_strlcat (path, SUBDIR, pathsize) < pathsize;
+}
+
+qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library)
+{
+	return Sys_GetNightdiveDir (path, pathsize);
+}
+
+qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize)
+{
+	return Sys_GetNightdiveDir (path, pathsize);
 }
 
 static char	cwd[1024];
