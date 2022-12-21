@@ -1497,6 +1497,9 @@ static void Host_InvalidateSave (const char *relname)
 
 void Host_ShutdownSave (void)
 {
+	if (!save_mutex)
+		return; // not initialized yet
+
 	SDL_LockMutex (save_mutex);
 	while (save_pending)
 		SDL_CondWait (save_finished_condition, save_mutex);
