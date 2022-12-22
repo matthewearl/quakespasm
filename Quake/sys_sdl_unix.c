@@ -293,6 +293,11 @@ qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *libr
 	return stat (path, &st) == 0 && S_ISDIR (st.st_mode);
 }
 
+qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
+{
+	return false;
+}
+
 qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize)
 {
 	return false;
