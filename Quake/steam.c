@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 #include "steam.h"
+#include "json.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -348,6 +349,68 @@ qboolean Steam_ResolvePath (char *path, size_t pathsize, const steamgame_t *game
 		game->subdir &&
 		(size_t) q_snprintf (path, pathsize, "%s/steamapps/common/%s", game->library, game->subdir) < pathsize
 	;
+}
+
+/*
+========================
+EGS_FindGame
+========================
+*/
+qboolean EGS_FindGame (char *path, size_t pathsize, const char *nspace, const char *itemid, const char *appname)
+{
+	char		manifestdir[MAX_OSPATH];
+	findfile_t	*find;
+
+	if (!Sys_GetEGSManifestDir (manifestdir, sizeof (manifestdir)))
+		return false;
+
+	for (find = Sys_FindFirst (manifestdir, "item"); find; find = Sys_FindNext (find))
+	{
+		char			filepath[MAX_OSPATH];
+		char			*manifest;
+		const char		*cur_nspace;
+		const char		*cur_itemid;
+		const char		*cur_appname;
+		const char		*location;
+		const qboolean	*incomplete;
+		json_t			*json;
+
+		if (find->attribs & FA_DIRECTORY)
+			continue;
+		if ((size_t) q_snprintf (filepath, sizeof (filepath), "%s/%s", manifestdir, find->name) >= sizeof (filepath))
+			continue;
+
+		manifest = COM_LoadMallocFile_TextMode_OSPath (filepath, NULL);
+		if (!manifest)
+			continue;
+		json = JSON_Parse (manifest);
+		free (manifest);
+		if (!json)
+			continue;
+
+		cur_nspace	= JSON_FindString (json->root, "CatalogNamespace");
+		cur_itemid	= JSON_FindString (json->root, "CatalogItemId");
+		cur_appname	= JSON_FindString (json->root, "AppName");
+		location	= JSON_FindString (json->root, "InstallLocation");
+		incomplete	= JSON_FindBoolean (json->root, "bIsIncompleteInstall");
+
+		if (location && *location &&
+			(!incomplete || !*incomplete) &&
+			cur_nspace && cur_itemid && cur_appname &&
+			strcmp (cur_nspace, nspace) == 0 &&
+			strcmp (cur_itemid, itemid) == 0 &&
+			strcmp (cur_appname, appname) == 0)
+		{
+			q_strlcpy (path, location, pathsize);
+			JSON_Free (json);
+			Sys_FindClose (find);
+			return true;
+		}
+
+		JSON_Free (json);
+	}
+
+	return false;
 }
 
 /*

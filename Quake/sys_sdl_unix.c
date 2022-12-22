@@ -308,6 +308,11 @@ qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize)
 	return false;
 }
 
+qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
+{
+	return false;
+}
+
 static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
 static char	userdir[MAX_OSPATH];

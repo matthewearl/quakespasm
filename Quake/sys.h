@@ -44,6 +44,8 @@ qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize);
 // (%userprofile%\Saved Games\Nightdive Studios\Quake)
 qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize);
 
+qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize);
+
 //
 // file IO
 //

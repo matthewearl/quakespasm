@@ -247,6 +247,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\host_cmd.c" />
     <ClCompile Include="..\..\Quake\image.c" />
     <ClCompile Include="..\..\Quake\in_sdl.c" />
+    <ClCompile Include="..\..\Quake\json.c" />
     <ClCompile Include="..\..\Quake\keys.c" />
     <ClCompile Include="..\..\Quake\main_sdl.c" />
     <ClCompile Include="..\..\Quake\mathlib.c" />
@@ -343,6 +344,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\gl_warp_sin.h" />
     <ClInclude Include="..\..\Quake\image.h" />
     <ClInclude Include="..\..\Quake\input.h" />
+    <ClInclude Include="..\..\Quake\jsmn.h" />
+    <ClInclude Include="..\..\Quake\json.h" />
     <ClInclude Include="..\..\Quake\keys.h" />
     <ClInclude Include="..\..\Quake\mathlib.h" />
     <ClInclude Include="..\..\Quake\menu.h" />

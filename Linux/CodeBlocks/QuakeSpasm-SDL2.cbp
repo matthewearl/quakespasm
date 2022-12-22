@@ -164,6 +164,11 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../Quake/input.h" />
+		<Unit filename="../../Quake/jsmn.h" />
+		<Unit filename="../../Quake/json.h" />
+		<Unit filename="../../Quake/json.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="../../Quake/keys.c">
 			<Option compilerVar="CC" />
 		</Unit>

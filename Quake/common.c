@@ -2410,7 +2410,7 @@ static void COM_InitBaseDir (void)
 	char path[MAX_OSPATH];
 	char original[MAX_OSPATH] = {0};
 	char remastered[MAX_OSPATH] = {0};
-	int i, steam, gog;
+	int i, steam, gog, egs;
 
 	i = COM_CheckParm ("-basedir");
 	if (i)
@@ -2438,6 +2438,11 @@ static void COM_InitBaseDir (void)
 	gog = COM_CheckParm ("-gog");
 	if (gog)
 		goto try_gog;
+	egs = COM_CheckParm ("-egs");
+	if (!egs)
+		egs = COM_CheckParm ("-epic");
+	if (egs)
+		goto try_egs;
 
 	if (COM_SetBaseDir (host_parms->basedir))
 		return;
@@ -2482,11 +2487,27 @@ static void COM_InitBaseDir (void)
 					com_nightdivedir[0] = '\0';
 			}
 			else
-			{
 				remastered[0] = '\0';
-			}
 		}
 		if (gog)
+			goto storesetup;
+	}
+
+	if (!COM_CheckParm ("-noegs") && !COM_CheckParm ("-noepic"))
+	{
+	try_egs:
+		if (!remastered[0])
+		{
+			if (EGS_FindGame (remastered, sizeof (remastered), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
+			{
+				// same directory as GOG
+				if (!Sys_GetGOGQuakeEnhancedUserDir (com_nightdivedir, sizeof (com_nightdivedir)))
+					com_nightdivedir[0] = '\0';
+			}
+			else
+				remastered[0] = '\0';
+		}
+		if (egs)
 			goto storesetup;
 	}
 
@@ -2526,6 +2547,8 @@ storesetup:
 		Sys_Error ("Couldn't find Steam Quake");
 	if (gog)
 		Sys_Error ("Couldn't find GOG Quake");
+	if (egs)
+		Sys_Error ("Couldn't find Epic Games Store Quake");
 
 	Sys_Error (
 		"Couldn't determine where Quake is installed.\n"
@@ -2908,6 +2931,15 @@ void LOC_LoadFile (const char *file)
 			if (Sys_GetGOGQuakeEnhancedDir (gogpath, sizeof (gogpath)))
 			{
 				q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", gogpath);
+				rw = SDL_RWFromFile(path, "rb");
+			}
+		}
+		if (!rw)
+		{
+			char egspath[MAX_OSPATH];
+			if (EGS_FindGame (egspath, sizeof (egspath), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
+			{
+				q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", egspath);
 				rw = SDL_RWFromFile(path, "rb");
 			}
 		}

@@ -306,9 +306,8 @@ static HRESULT Sys_InitCOM (void)
 	return hr;
 }
 
-static qboolean Sys_GetNightdiveDir (char *path, size_t pathsize)
+static qboolean Sys_GetKnownFolder (const KNOWNFOLDERID *base, const char *subdir, char *path, size_t pathsize)
 {
-	const char SUBDIR[] = "\\Nightdive Studios\\Quake";
 	PWSTR wpath;
 	HRESULT hr;
 	qboolean ret;
@@ -317,7 +316,7 @@ static qboolean Sys_GetNightdiveDir (char *path, size_t pathsize)
 	if (FAILED (hr))
 		return false;
 
-	hr = SHGetKnownFolderPath (&FOLDERID_SavedGames, 0, NULL, &wpath);
+	hr = SHGetKnownFolderPath (base, 0, NULL, &wpath);
 	if (FAILED (hr))
 	{
 		CoUninitialize ();
@@ -328,7 +327,12 @@ static qboolean Sys_GetNightdiveDir (char *path, size_t pathsize)
 	CoTaskMemFree (wpath);
 	CoUninitialize ();
 
-	return ret && (size_t) q_strlcat (path, SUBDIR, pathsize) < pathsize;
+	return ret && (size_t) q_strlcat (path, subdir, pathsize) < pathsize;
+}
+
+static qboolean Sys_GetNightdiveDir (char *path, size_t pathsize)
+{
+	return Sys_GetKnownFolder (&FOLDERID_SavedGames, "\\Nightdive Studios\\Quake", path, pathsize);
 }
 
 qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *library)
@@ -339,6 +343,14 @@ qboolean Sys_GetSteamQuakeUserDir (char *path, size_t pathsize, const char *libr
 qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize)
 {
 	return Sys_GetNightdiveDir (path, pathsize);
+}
+
+qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
+{
+	return Sys_GetKnownFolder (
+		&FOLDERID_ProgramData, "\\Epic\\EpicGamesLauncher\\Data\\Manifests",
+		path, pathsize
+	);
 }
 
 static char	cwd[1024];
