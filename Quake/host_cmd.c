@@ -543,15 +543,15 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 
 	q_snprintf (modpath, sizeof (modpath), "%s/%s", base, modname);
 
+	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
+	if (Sys_FileExists (itempath))
+		return true;
+
 	q_snprintf (itempath, sizeof (itempath), "%s/progs.dat", modpath);
 	if (Sys_FileExists (itempath))
 		return true;
 
 	q_snprintf (itempath, sizeof (itempath), "%s/csprogs.dat", modpath);
-	if (Sys_FileExists (itempath))
-		return true;
-
-	q_snprintf (itempath, sizeof (itempath), "%s/pak0.pak", modpath);
 	if (Sys_FileExists (itempath))
 		return true;
 
