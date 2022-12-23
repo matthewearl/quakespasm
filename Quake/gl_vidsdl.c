@@ -1314,6 +1314,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	GL_AcquireFrameResources ();
 	GLPalette_UpdateLookupTable ();
+	TexMgr_ApplySettings ();
 
 	GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0);
 }

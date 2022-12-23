@@ -94,6 +94,15 @@ static int glmode_idx = 2; /* nearest with linear mips */
 
 static GLuint gl_samplers[NUM_GLMODES * 2]; // x2: nomip + mip
 
+typedef struct texfilter_s
+{
+	int		mode;
+	float	anisotropy;
+	float	lodbias;
+} texfilter_t;
+
+static texfilter_t gl_texfilter;
+
 /*
 ===============
 TexMgr_DeleteSamplers
@@ -121,13 +130,13 @@ static void TexMgr_CreateSamplers (void)
 	{
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+0], GL_TEXTURE_MIN_FILTER, glmodes[i].magfilter);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_LOD_BIAS, lodbias);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+0], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MAG_FILTER, glmodes[i].magfilter);
 		GL_SamplerParameteriFunc (gl_samplers[i*2+1], GL_TEXTURE_MIN_FILTER, glmodes[i].minfilter);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
-		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_LOD_BIAS, lodbias);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
+		GL_SamplerParameterfFunc (gl_samplers[i*2+1], GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 	}
 }
 
@@ -160,7 +169,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 			return;
 
 		GL_MakeTextureHandleNonResidentARBFunc (glt->bindless_handle);
-		sampleridx = glmode_idx * 2;
+		sampleridx = gl_texfilter.mode * 2;
 		if (glt->flags & TEXPREF_MIPMAP)
 			sampleridx++;
 		glt->bindless_handle = GL_GetTextureSamplerHandleARBFunc (glt->texnum, gl_samplers[sampleridx]);
@@ -183,15 +192,15 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	}
 	else if (glt->flags & TEXPREF_MIPMAP)
 	{
-		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
-		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].minfilter);
-		glTexParameterf(glt->target, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
-		glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, lodbias);
+		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[gl_texfilter.mode].magfilter);
+		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[gl_texfilter.mode].minfilter);
+		glTexParameterf(glt->target, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
+		glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 	}
 	else
 	{
-		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
-		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].magfilter);
+		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[gl_texfilter.mode].magfilter);
+		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[gl_texfilter.mode].magfilter);
 	}
 
 	if (glt->flags & TEXPREF_CLAMP)
@@ -203,19 +212,6 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 
 /*
 ===============
-TexMgr_ApplyTextureMode
-===============
-*/
-static void TexMgr_ApplyTextureMode (void)
-{
-	gltexture_t	*glt;
-	for (glt = active_gltextures; glt; glt = glt->next)
-		TexMgr_SetFilterModes (glt);
-	Sbar_Changed (); //sbar graphics need to be redrawn with new filter mode
-}
-
-/*
-===============
 TexMgr_TextureMode_f -- called when gl_texturemode changes
 ===============
 */
@@ -223,25 +219,11 @@ static void TexMgr_TextureMode_f (cvar_t *var)
 {
 	int i;
 
-	if (softemu >= SOFTEMU_COARSE)
-	{
-		if (glmode_idx != 2) // nearest with linear mips
-		{
-			glmode_idx = 2;
-			TexMgr_ApplyTextureMode ();
-		}
-		return;
-	}
-
 	for (i = 0; i < NUM_GLMODES; i++)
 	{
 		if (!Q_strcmp (glmodes[i].name, gl_texturemode.string))
 		{
-			if (glmode_idx != i)
-			{
-				glmode_idx = i;
-				TexMgr_ApplyTextureMode ();
-			}
+			glmode_idx = i;
 			return;
 		}
 	}
@@ -284,14 +266,6 @@ void TexMgr_Anisotropy_f (cvar_t *var)
 	{
 		Cvar_SetValueQuick (&gl_texture_anisotropy, gl_max_anisotropy);
 	}
-	else
-	{
-		gltexture_t	*glt;
-		if (gl_bindless_able)
-			TexMgr_CreateSamplers ();
-		for (glt = active_gltextures; glt; glt = glt->next)
-			TexMgr_SetFilterModes (glt);
-	}
 }
 
 /*
@@ -303,8 +277,6 @@ static void TexMgr_SoftEmu_f (cvar_t *var)
 {
 	softemu = (int)r_softemu.value;
 	softemu = CLAMP (0, (int)softemu, SOFTEMU_NUMMODES - 1);
-
-	gl_texturemode.callback (&gl_texturemode);
 }
 
 /*
@@ -315,19 +287,62 @@ TexMgr_LodBias_f -- called when gl_lodbias changes
 static void TexMgr_LodBias_f (cvar_t *var)
 {
 	extern cvar_t vid_fsaa, vid_fsaamode;
-	float previous = lodbias;
 
 	lodbias = var->value;
 
 	if (!q_strcasecmp (var->string, "auto"))
 		lodbias = Q_log2 (vid_fsaa.value * vid_fsaamode.value) / -2.f;
+}
 
-	if (lodbias == previous)
+/*
+===============
+TexMgr_ForceFilterUpdate
+
+Forces an update the next time TexMgr_ApplySettings is called
+===============
+*/
+static void TexMgr_ForceFilterUpdate (void)
+{
+	gl_texfilter.mode = -1;
+	gl_texfilter.anisotropy = -1.f;
+}
+
+/*
+===============
+TexMgr_ApplySettings -- called at the beginning of each frame
+===============
+*/
+void TexMgr_ApplySettings (void)
+{
+	texfilter_t prev = gl_texfilter;
+	gltexture_t	*glt;
+
+	gl_texfilter.mode		= glmode_idx;
+	gl_texfilter.anisotropy	= CLAMP (1.f, gl_texture_anisotropy.value, gl_max_anisotropy);
+	gl_texfilter.lodbias	= lodbias;
+
+	if (softemu >= SOFTEMU_COARSE)
+	{
+		const float SOFTEMU_ANISOTROPY = 8.f;
+		gl_texfilter.mode = 2; // nearest with linear mips
+		if (gl_texfilter.anisotropy < SOFTEMU_ANISOTROPY)
+			gl_texfilter.anisotropy = q_min (SOFTEMU_ANISOTROPY, gl_max_anisotropy);
+	}
+
+	if (gl_texfilter.mode		== prev.mode &&
+		gl_texfilter.anisotropy	== prev.anisotropy &&
+		gl_texfilter.lodbias	== prev.lodbias)
 		return;
 
 	if (gl_bindless_able)
-		TexMgr_CreateSamplers ();
-	TexMgr_ApplyTextureMode ();
+		if (gl_texfilter.anisotropy	!= prev.anisotropy ||
+			gl_texfilter.lodbias	!= prev.lodbias)
+			TexMgr_CreateSamplers ();
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+		TexMgr_SetFilterModes (glt);
+
+	Sbar_Changed (); //sbar graphics need to be redrawn with new filter mode
 }
 
 /*
@@ -802,6 +817,10 @@ void TexMgr_Init (void)
 	free_gltextures[i].next = NULL;
 	numgltextures = 0;
 
+	// init texture filter
+	TexMgr_ForceFilterUpdate ();
+	TexMgr_ApplySettings ();
+
 	// palette
 	TexMgr_LoadPalette ();
 
@@ -820,8 +839,6 @@ void TexMgr_Init (void)
 
 	// poll max size from hardware
 	glGetIntegerv (GL_MAX_TEXTURE_SIZE, &gl_max_texture_size);
-
-	TexMgr_CreateSamplers ();
 
 	// load notexture images
 	notexture = TexMgr_LoadImage (NULL, "notexture", 2, 2, SRC_RGBA, notexture_data, "", (src_offset_t)notexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_BINDLESS);
