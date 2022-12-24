@@ -141,6 +141,16 @@ json_t *JSON_Parse (const char *text)
 	if (!text)
 		return NULL;
 
+	// fail if text starts with UTF-16 byte order mark
+	if ((byte)text[0] == 0xFF && (byte)text[1] == 0xFE) // little-endian
+		return NULL;
+	if ((byte)text[0] == 0xFE && (byte)text[1] == 0xFF) // big-endian
+		return NULL;
+
+	// skip UTF-8 byte order mark
+	if ((byte)text[0] == 0xEF && (byte)text[1] == 0xBB && (byte)text[2] == 0xBF)
+		text += 3;
+
 	len = strlen (text);
 	jsmn_init (&parser);
 	numtokens = jsmn_parse (&parser, text, len, NULL, 0);
