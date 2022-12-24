@@ -64,7 +64,7 @@ static qboolean JSON_ReadHexNumber (const char *str, int *out)
 JSON_Unescape
 ==================
 */
-static void JSON_Unescape (char *dst, const char *src, int len)
+static char *JSON_Unescape (char *dst, const char *src, int len)
 {
 	const char *srcend;
 
@@ -122,6 +122,8 @@ static void JSON_Unescape (char *dst, const char *src, int len)
 	}
 
 	*dst++ = '\0';
+
+	return dst;
 }
 
 /*
@@ -136,7 +138,7 @@ json_t *JSON_Parse (const char *text)
 	jsmntok_t		*tokens;
 	jsonentry_t		*entries;
 	char			*strings;
-	int				i, ofs, len, numtokens;
+	int				i, len, numtokens;
 
 	if (!text)
 		return NULL;
@@ -183,7 +185,7 @@ json_t *JSON_Parse (const char *text)
 	json->root = entries;
 	json->strings = strings;
 
-	for (i = ofs = 0; i < numtokens; i++)
+	for (i = 0; i < numtokens; i++)
 	{
 		if (tokens[i].parent >= 0 && tokens[i].parent < i)
 		{
@@ -198,9 +200,8 @@ json_t *JSON_Parse (const char *text)
 		if (tokens[i].type == JSMN_STRING)
 		{
 			len = tokens[i].end - tokens[i].start;
-			entries[i].string = strings + ofs;
-			JSON_Unescape (strings + ofs, text + tokens[i].start, len);
-			ofs += len + 1;
+			entries[i].string = strings;
+			strings = JSON_Unescape (strings, text + tokens[i].start, len);
 		}
 
 		if (tokens[i].type == JSMN_OBJECT)
@@ -238,6 +239,7 @@ json_t *JSON_Parse (const char *text)
 			}
 		}
 	}
+	*strings++ = '\0';
 
 	free (tokens);
 
