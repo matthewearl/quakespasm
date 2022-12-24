@@ -358,8 +358,43 @@ EGS_FindGame
 */
 qboolean EGS_FindGame (char *path, size_t pathsize, const char *nspace, const char *itemid, const char *appname)
 {
+	const char	*launcherdata;
 	char		manifestdir[MAX_OSPATH];
 	findfile_t	*find;
+
+	launcherdata = Sys_GetEGSLauncherData ();
+	if (launcherdata)
+	{
+		json_t *json = JSON_Parse (launcherdata);
+		free ((void *) launcherdata);
+		if (json)
+		{
+			const jsonentry_t *list = JSON_Find (json->root, "InstallationList", JSON_ARRAY);
+			if (list)
+			{
+				const jsonentry_t *item;
+				for (item = list->firstchild; item; item = item->next)
+				{
+					const char	*cur_nspace		= JSON_FindString (item, "NamespaceId");
+					const char	*cur_itemid		= JSON_FindString (item, "ItemId");
+					const char	*cur_appname	= JSON_FindString (item, "AppName");
+					const char	*location		= JSON_FindString (item, "InstallLocation");
+
+					if (location && *location &&
+						cur_nspace && cur_itemid && cur_appname &&
+						strcmp (cur_nspace, nspace) == 0 &&
+						strcmp (cur_itemid, itemid) == 0 &&
+						strcmp (cur_appname, appname) == 0)
+					{
+						q_strlcpy (path, location, pathsize);
+						JSON_Free (json);
+						return true;
+					}
+				}
+			}
+			JSON_Free (json);
+		}
+	}
 
 	if (!Sys_GetEGSManifestDir (manifestdir, sizeof (manifestdir)))
 		return false;
@@ -380,7 +415,7 @@ qboolean EGS_FindGame (char *path, size_t pathsize, const char *nspace, const ch
 		if ((size_t) q_snprintf (filepath, sizeof (filepath), "%s/%s", manifestdir, find->name) >= sizeof (filepath))
 			continue;
 
-		manifest = COM_LoadMallocFile_TextMode_OSPath (filepath, NULL);
+		manifest = (char *) COM_LoadMallocFile_TextMode_OSPath (filepath, NULL);
 		if (!manifest)
 			continue;
 		json = JSON_Parse (manifest);

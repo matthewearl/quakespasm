@@ -353,6 +353,87 @@ qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
 	);
 }
 
+const char *Sys_GetEGSLauncherData (void)
+{
+	char		path[MAX_PATH];
+	char		*buf;
+	FILE		*file;
+	int64_t		filesize;
+	int			size;
+
+	if (!Sys_GetKnownFolder (
+		&FOLDERID_ProgramData, "\\Epic\\UnrealEngineLauncher\\LauncherInstalled.dat",
+		path, sizeof (path)))
+		return NULL;
+
+	file = Sys_fopen (path, "rb");
+	if (!file)
+		return NULL;
+
+	_fseeki64 (file, 0, SEEK_END);
+	filesize = _ftelli64 (file);
+	_fseeki64 (file, 0, SEEK_SET);
+
+	if (filesize < 128 || filesize > (1 << 30))
+	{
+		fclose (file);
+		return NULL;
+	}
+
+	size = (int) filesize;
+	buf = (char *) malloc (size + 1);
+	if (!buf)
+	{
+		fclose (file);
+		return NULL;
+	}
+
+	if (fread (buf, size, 1, file) != 1)
+	{
+		free (buf);
+		fclose (file);
+		return NULL;
+	}
+	buf[size] = '\0';
+
+	fclose (file);
+
+	// Convert to UTF-8 if needed
+	if ((byte)buf[0] == 0xff && (byte)buf[1] == 0xfe) // UTF-16 little-endian byte order mark
+	{
+		int		size8;
+		char	*buf8;
+
+		size8 = WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, NULL, 0, NULL, NULL);
+		if (!size8)
+		{
+			free (buf);
+			return NULL;
+		}
+
+		buf8 = (char *) malloc (size8 + 1);
+		if (!buf8)
+		{
+			free (buf);
+			return NULL;
+		}
+
+		size8 = WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, buf8, size8, NULL, NULL);
+		if (!size8)
+		{
+			free (buf8);
+			free (buf);
+			return NULL;
+		}
+		buf8[size8] = '\0';
+
+		free (buf);
+		buf = buf8;
+	}
+
+	return buf;
+}
+
 static char	cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)

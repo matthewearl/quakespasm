@@ -313,6 +313,11 @@ qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
 	return false;
 }
 
+const char *Sys_GetEGSLauncherData (void)
+{
+	return NULL;
+}
+
 static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
 static char	userdir[MAX_OSPATH];

@@ -44,7 +44,14 @@ qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize);
 // (%userprofile%\Saved Games\Nightdive Studios\Quake)
 qboolean Sys_GetGOGQuakeEnhancedUserDir (char *path, size_t pathsize);
 
+// retrieves Epic Games Store manifest directory
+// (%programdata%\Epic\EpicGamesLauncher\Data\Manifests)
 qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize);
+
+// returns Epic Games Store launcher data file contents
+// (%programdata%\Epic\UnrealEngineLauncher\LauncherInstalled.dat)
+// Note: dynamically-alocated, call free when no longer needed
+const char *Sys_GetEGSLauncherData (void);
 
 //
 // file IO
