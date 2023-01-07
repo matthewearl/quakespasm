@@ -4234,7 +4234,8 @@ void M_ServerList_Mousemove (int cx, int cy)
 //=============================================================================
 /* Mods menu */
 
-#define MODLIST_OFS		28
+#define MODLIST_OFS				28
+#define DOWNLOAD_FLASH_TIME		1.0
 
 typedef struct
 {
@@ -4252,6 +4253,7 @@ static struct
 	int					prev_cursor;
 	double				scroll_time;
 	double				scroll_wait_time;
+	double				download_flash_time;
 	enum m_state_e		prev;
 	qboolean			scrollbar_grab;
 	moditem_t			*items;
@@ -4418,6 +4420,7 @@ void M_Mods_Draw (void)
 	int firstvis, numvis;
 	int firstvismod, numvismods;
 	int namecols, desccols;
+	int flash;
 
 	if (!keydown[K_MOUSE1])
 		modsmenu.scrollbar_grab = false;
@@ -4441,6 +4444,9 @@ void M_Mods_Draw (void)
 		else
 			modsmenu.scroll_wait_time = q_max (0.0, modsmenu.scroll_wait_time - host_rawframetime);
 	}
+
+	modsmenu.download_flash_time = q_max (0.0, modsmenu.download_flash_time - host_rawframetime);
+	flash = (int)(modsmenu.download_flash_time * 8.0) & 1;
 
 	x = modsmenu.x;
 	y = modsmenu.y;
@@ -4478,6 +4484,8 @@ void M_Mods_Draw (void)
 			{
 				double progress = Modlist_GetDownloadProgress (item->source);
 				q_snprintf (buf, sizeof (buf), "\20%3.0f%%\21 %s", 100.0 * progress, item->name);
+				if (flash)
+					mask ^= 128;
 			}
 			else
 				q_strlcpy (buf, tinted, sizeof (buf));
@@ -4706,7 +4714,10 @@ void M_Menu_ModInfo_f (const filelist_item_t *item)
 
 	m_entersound = true;
 	if (Modlist_IsInstalling () || Modlist_GetStatus (item) != MODSTATUS_DOWNLOADABLE)
+	{
+		modsmenu.download_flash_time = DOWNLOAD_FLASH_TIME;
 		return;
+	}
 
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
