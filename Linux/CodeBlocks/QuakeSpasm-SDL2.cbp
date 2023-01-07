@@ -345,6 +345,7 @@
 		<Unit filename="../../Quake/sys_sdl_unix.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="../../Quake/unicode_translit.h" />
 		<Unit filename="../../Quake/vid.h" />
 		<Unit filename="../../Quake/view.c">
 			<Option compilerVar="CC" />

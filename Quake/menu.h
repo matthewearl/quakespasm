@@ -38,6 +38,7 @@ enum m_state_e {
 	m_video,
 	m_keys,
 	m_mods,
+	m_modinfo,
 	m_help,
 	m_quit,
 	m_lanconfig,

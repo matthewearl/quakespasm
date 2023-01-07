@@ -60,6 +60,7 @@ void M_Menu_Main_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Video_f (void);
 	void M_Menu_Mods_f (void);
+		void M_Menu_ModInfo_f (const filelist_item_t *item);
 	void M_Menu_Help_f (void);
 	void M_Menu_Quit_f (void);
 
@@ -80,6 +81,7 @@ void M_Main_Draw (void);
 		void M_Keys_Draw (void);
 		void M_Video_Draw (void);
 	void M_Mods_Draw (void);
+		void M_ModInfo_Draw (void);
 	void M_Help_Draw (void);
 	void M_Quit_Draw (void);
 
@@ -100,6 +102,7 @@ void M_Main_Key (int key);
 		void M_Keys_Key (int key);
 		void M_Video_Key (int key);
 	void M_Mods_Key (int key);
+		void M_ModInfo_Key (int key);
 	void M_Help_Key (int key);
 	void M_Quit_Key (int key);
 
@@ -238,6 +241,84 @@ void M_PrintScroll (int x, int y, int maxwidth, const char *str, double time, qb
 		if (++ofs >= len + 5)
 			ofs = 0;
 	}
+}
+
+static void M_PrintSubstring (int x, int y, const char *text, int numchars, qboolean color)
+{
+	char mask = color ? 0x80 : 0;
+	while (*text && numchars)
+	{
+		M_DrawCharacter (x, y, *text++ ^ mask);
+		x += 8;
+		--numchars;
+	}
+}
+
+static int M_WordLength (const char *text)
+{
+	const char *start = text;
+	while (*text && !q_isblank (*text))
+		text++;
+	return text - start;
+}
+
+static int M_LineWrap (const char **text, int maxchars)
+{
+	const char *str = *text;
+	int i, lastspace = 0;
+
+	for (i = 0; i < maxchars && str[i]; /**/)
+	{
+		if (str[i] == '\n')
+		{
+			*text += i + 1;
+			return i;
+		}
+
+		// new word
+		if (!q_isblank (str[i]) && (i == 0 || q_isblank (str[i - 1])))
+		{
+			int len = M_WordLength (str + i);
+			// split word if longer than given limit
+			if (len > maxchars)
+			{
+				*text += maxchars;
+				return maxchars;
+			}
+			// not enough space left? push word to next line
+			if (i + len > maxchars)
+			{
+				*text += i;
+				return i;
+			}
+			// word fits, continue
+			i += len;
+		}
+		else
+			i++;
+	}
+
+	// avoid starting next line with a space
+	*text += i + (q_isblank (str[i]) ? 1 : 0);
+
+	return i;
+}
+
+int M_PrintWordWrap (int x, int y, const char *text, int width, int height, qboolean color)
+{
+	int maxcols = width / 8;
+	int maxlines = height / 8;
+	int numlines = 0;
+
+	while (*text && numlines < maxlines)
+	{
+		const char *line = text;
+		int len = M_LineWrap (&text, maxcols);
+		M_PrintSubstring (x, y + numlines * 8, line, len, color);
+		numlines++;
+	}
+
+	return numlines;
 }
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
@@ -4506,8 +4587,7 @@ void M_Mods_Key (int key)
 		}
 		else
 		{
-			M_ThrottledSound ("misc/menu2.wav");
-			Modlist_StartInstalling (item);
+			M_Menu_ModInfo_f (item);
 		}
 		break;
 
@@ -4559,7 +4639,7 @@ void M_Mods_Mousemove (int cx, int cy)
 
 void M_OnModInstall (const char *name)
 {
-	if (key_dest != key_menu || m_state != m_mods)
+	if (key_dest != key_menu || (m_state != m_mods && m_state != m_modinfo))
 		return;
 	Cbuf_AddText (va ("game \"%s\"\n", name));
 	M_Menu_Main_f ();
@@ -4570,6 +4650,214 @@ void M_RefreshMods (void)
 	if (key_dest != key_menu || m_state != m_mods)
 		return;
 	M_Mods_Init ();
+}
+
+//=============================================================================
+/* Mod info menu */
+
+#define MODINFO_HEADERCOLS			16
+#define MODINFO_INFOCOLS			(modinfomenu.cols - 2 - MODINFO_HEADERCOLS)
+#define MODINFO_MAXAUTHORLINES		11
+#define MODINFO_BOXMARGIN			1	// lines, not pixels
+
+static struct
+{
+	const filelist_item_t	*item;
+	int						x, y, cols, lines;
+	char					title[36];
+	char					author[256];
+} modinfomenu;
+
+static void M_ModInfo_UpdateLayout (void)
+{
+	int			width = strlen (modinfomenu.title) * 12 + 16;
+	int			height = 0;
+	const char	*str;
+	
+	str = modinfomenu.author;
+	while (*str && height < MODINFO_MAXAUTHORLINES)
+	{
+		M_LineWrap (&str, MODINFO_INFOCOLS);
+		height++;
+	}
+
+	if (height)
+		height = height * 8 + 8;
+	if (Modlist_GetDate (modinfomenu.item))
+		height += 16;
+	if (Modlist_GetDownloadSize (modinfomenu.item))
+		height += 16;
+
+	height += 12 + 8 + 8; // title + bar + spacing
+	height += 32; // download button
+	height += MODINFO_BOXMARGIN * 2;
+
+	modinfomenu.cols = CLAMP (320 - 32, width, m_width - 32) / 8;
+	modinfomenu.cols = (modinfomenu.cols + 1) & ~1;
+	modinfomenu.lines = (height + 7) / 8;
+	modinfomenu.x = m_left + (((m_width - modinfomenu.cols * 8) / 2) & ~7);
+	modinfomenu.y = m_top + (((m_height - height) / 2) & ~7) + MODINFO_BOXMARGIN * 8;
+}
+
+void M_Menu_ModInfo_f (const filelist_item_t *item)
+{
+	const char *str;
+	size_t i, j;
+
+	m_entersound = true;
+	if (Modlist_IsInstalling () || Modlist_GetStatus (item) != MODSTATUS_DOWNLOADABLE)
+		return;
+
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = m_modinfo;
+	m_entersound = true;
+	modinfomenu.item = item;
+
+	str = Modlist_GetFullName (item);
+	if (!str)
+		str = item->name;
+	COM_TintString (str, modinfomenu.title, sizeof (modinfomenu.title));
+
+	str = Modlist_GetAuthor (item);
+	if (!str || !*str)
+		modinfomenu.author[0] = '\0';
+	else
+	{
+		UTF8_ToQuake (modinfomenu.author, sizeof (modinfomenu.author), str);
+
+		// clean up a bit
+		for (i = j = 0; modinfomenu.author[i]; i++)
+		{
+			char c = modinfomenu.author[i];
+			// replace newlines with spaces (since we're doing manual word wrapping)
+			if (c == '\n')
+				c = ' ';
+			// remove leading spaces, replace consecutive spaces with single one
+			if (c != ' ' || (j > 0 && modinfomenu.author[j - 1] != ' '))
+				modinfomenu.author[j++] = c;
+		}
+
+		// remove trailing spaces
+		while (j > 0 && modinfomenu.author[j] == ' ')
+			--j;
+
+		modinfomenu.author[j] = '\0';
+	}
+
+	M_ModInfo_UpdateLayout ();
+}
+
+static void M_ModInfo_PrintHeader (int x, int y, const char *text, int cols, qboolean color)
+{
+	char mask = color ? 0x80 : 0;
+	while (*text && cols >= 2)
+	{
+		M_DrawCharacter (x, y, *text++ ^ mask);
+		x += 8;
+		--cols;
+	}
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 0.375f);
+	while (cols --> 0)
+	{
+		M_DrawCharacter (x, y, '.' ^ mask);
+		x += 8;
+	}
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+}
+
+void M_ModInfo_Draw (void)
+{
+	const char	*str;
+	double		size;
+	int			x, x2, y, namecols, len;
+
+	M_ModInfo_UpdateLayout ();
+
+	namecols = MODINFO_HEADERCOLS;
+	x = modinfomenu.x + 8;
+	x2 = x + namecols * 8;
+	y = modinfomenu.y;
+
+	M_DrawTextBox (x - 24, y - 12, modinfomenu.cols + 2, modinfomenu.lines - 4);
+
+	len = strlen (modinfomenu.title);
+	if (len * 10 + 16 > modinfomenu.cols * 8)
+		M_PrintSubstring (x, y + 2, modinfomenu.title, modinfomenu.cols - 2, false);
+	else if (len * 12 + 16 > modinfomenu.cols * 8)
+		Draw_StringEx (x, y, 10, modinfomenu.title);
+	else
+		Draw_StringEx (x, y, 12, modinfomenu.title);
+	y += 12;
+
+	M_DrawQuakeBar (x - 8, y, modinfomenu.cols);
+	y += 16;
+
+	str = modinfomenu.author;
+	if (*str)
+	{
+		int maxlines = MODINFO_MAXAUTHORLINES;
+		M_ModInfo_PrintHeader (x, y, "Created by", namecols, false);
+		y += M_PrintWordWrap (x2, y, str, MODINFO_INFOCOLS * 8, maxlines * 8, false) * 8 + 8;
+	}
+
+	str = Modlist_GetDate (modinfomenu.item);
+	if (str)
+	{
+		M_ModInfo_PrintHeader (x, y, "Release date", namecols, false);
+		M_PrintWhite (x2, y, str);
+		y += 16;
+	}
+
+	size = Modlist_GetDownloadSize (modinfomenu.item);
+	if (size)
+	{
+		M_ModInfo_PrintHeader (x, y, "Download size", namecols, false);
+		M_PrintWhite (x2, y, va ("%.1f MB", size / (double) 0x100000));
+		y += 16;
+	}
+
+	str = "Download";
+	len = strlen (str);
+	x = 160 - (len / 2) * 8;
+	y = modinfomenu.y + modinfomenu.lines * 8 - 8;
+	M_DrawTextBox (x - 8, y - 8, len, 1);
+
+	M_Print (x, y, str);
+	M_DrawCharacter (x - 16, y, 12+((int)(realtime*4)&1));
+}
+
+void M_ModInfo_Key (int key)
+{
+	int dx, dy;
+
+	switch (key)
+	{
+	case K_MOUSE1:
+		dx = abs (m_mousex - 160) / 8;
+		dy = abs (m_mousey - modinfomenu.y - (modinfomenu.lines - 1) * 8 - 4) / 8;
+		if (dy > 0 || dx > 4)
+		{
+			m_entersound = true;
+			break;
+		}
+		/* fall-through */
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+		Modlist_StartInstalling (modinfomenu.item);
+		/* fall-through */
+
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		m_state = m_mods;
+		m_entersound = true;
+		break;
+	}
 }
 
 
@@ -4713,6 +5001,10 @@ void M_Draw (void)
 		M_Mods_Draw ();
 		break;
 
+	case m_modinfo:
+		M_ModInfo_Draw ();
+		break;
+
 	case m_help:
 		M_Help_Draw ();
 		break;
@@ -4814,6 +5106,10 @@ void M_Keydown (int key)
 
 	case m_mods:
 		M_Mods_Key (key);
+		return;
+
+	case m_modinfo:
+		M_ModInfo_Key (key);
 		return;
 
 	case m_help:

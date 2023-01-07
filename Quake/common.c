@@ -27,8 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "steam.h"
 #include <time.h>
 #include <errno.h>
-
 #include "miniz.h"
+#include "unicode_translit.h"
 
 static char	*largv[MAX_NUM_ARGVS + 1];
 static char	argvdummy[] = " ";
@@ -1218,11 +1218,34 @@ char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t o
 		{
 			l = strlen(substr);
 			while (l-->0)
-				if (*m >= ' ' && *m < 127)
+				if (*m > ' ' && *m < 127)
 					*m++ |= 0x80;
 		}
 	}
 	return out;
+}
+
+
+/*
+================
+COM_TintString
+================
+*/
+char *COM_TintString (const char *in, char *out, size_t outsize)
+{
+	char *ret = out;
+	if (!outsize)
+		return "";
+	--outsize;
+	while (*in && outsize > 0)
+	{
+		char c = *in++;
+		if (c > ' ' && c < 127)
+			c |= 0x80;
+		*out++ = c;
+	}
+	*out++ = '\0';
+	return ret;
 }
 
 
@@ -3408,6 +3431,11 @@ size_t LOC_Format (const char *format, const char* (*getarg_fn) (int idx, void* 
 ============================================================================
 */
 
+static const uint32_t 	utf8_maxcode[4] = {0x7F, 0x7FF, 0xFFFF, 0x10FFFF}; // 1/2/3/4 bytes
+
+static uint8_t			unicode_translit[65536];
+static qboolean			unicode_translit_init = false;
+
 static const uint32_t qchar_to_unicode[256] =
 {/*     0       1       2       3       4       5       6       7       8       9       10      11      12      13      14      15
       ----------------------------------------------------------------------------------------------------------------------------------
@@ -3487,6 +3515,70 @@ size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint)
 
 /*
 ==================
+UTF8_ReadCodePoint
+
+Reads at most 6 bytes from *src and advances the pointer
+
+Returns 32-bit codepoint, or UNICODE_UNKNOWN on error
+==================
+*/
+uint32_t UTF8_ReadCodePoint (const char **src)
+{
+	const char	*text = *src;
+	uint32_t	code, mask, i;
+	uint8_t		first, cont;
+	
+	first = text[0];
+	if (!first)
+		return 0;
+
+	if (first < 128)
+	{
+		*src = text + 1;
+		return first;
+	}
+
+	if ((first & 0xC0) != 0xC0)
+	{
+		*src = text + 1;
+		return UNICODE_UNKNOWN;
+	}
+
+	mask = first << 1;
+	code = 0;
+	for (i = 1; i < 6 && (mask & 0x80) != 0; i++, mask <<= 1)
+	{
+		cont = text[i];
+		if (!cont)
+		{
+			*src = text + i;
+			return UNICODE_UNKNOWN;
+		}
+		if ((cont & 0x80) != 0x80)
+		{
+			*src = text + i + 1;
+			return UNICODE_UNKNOWN;
+		}
+		code = (code << 6) | (cont & 63);
+	}
+
+	mask = ((1 << (7 - i)) - 1);
+	code |= (first & mask) << (6 * (i - 1));
+	*src = text + i;
+
+	if (code > UNICODE_MAX			||	// out of range
+		i > 4						||	// out of range/overlong
+		code > utf8_maxcode[i - 1]	||	// overlong
+		code - 0xD800 < 1024)			// surrogate
+	{
+		code = UNICODE_UNKNOWN;
+	}
+
+	return code;
+}
+
+/*
+==================
 UTF8_FromQuake
 
 Converts a string from Quake encoding to UTF-8
@@ -3512,4 +3604,70 @@ void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 	}
 
 	dst[j] = '\0';
+}
+
+/*
+==================
+UTF8_ToQuake
+
+Transliterates a string from UTF-8 to Quake encoding
+
+Note: only single-character transliterations are used for now,
+mainly to remove diacritics
+==================
+*/
+void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
+{
+	size_t i;
+
+	if (!unicode_translit_init)
+	{
+		// single-character transliterations
+		for (i = 0; i < countof (unicode_translit_src); i++)
+			unicode_translit[unicode_translit_src[i][0]] = (uint8_t) unicode_translit_src[i][1];
+
+		// Quake-specific characters: we process the list in reverse order
+		// so that codepoints used for both colored and non-colored qchars
+		// end up being remapped to the non-colored versions
+		// Note: loop relies on unsigned underflow!
+		for (i = countof (qchar_to_unicode) - 1; i < countof (qchar_to_unicode); i--)
+			if (qchar_to_unicode[i] && qchar_to_unicode[i] != (uint8_t)i)
+				unicode_translit[qchar_to_unicode[i]] = (uint8_t) i;
+
+		// map ASCII characters to themselves
+		for (i = 0; i < 128; i++)
+			unicode_translit[i] = (uint8_t) i;
+
+		unicode_translit_init = true;
+	}
+
+	if (!maxbytes)
+		return;
+	--maxbytes;
+
+	for (i = 0; i < maxbytes && *src; i++)
+	{
+		uint32_t cp;
+
+		// ASCII fast path
+		while (*src && i < maxbytes && (byte)*src < 0x80)
+			dst[i++] = *src++;
+
+		if (!*src || i >= maxbytes)
+			break;
+
+		cp = UTF8_ReadCodePoint (&src);
+		if (cp < countof (unicode_translit))
+		{
+			cp = unicode_translit[cp];
+			if (!cp)
+				cp = QCHAR_BOX;
+		}
+		else
+			cp = QCHAR_BOX;
+
+		dst[i] = (uint8_t) cp;
+	}
+
+	dst[i++] = '\0';
 }

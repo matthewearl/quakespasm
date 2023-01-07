@@ -1058,6 +1058,11 @@ qboolean Modlist_StartInstalling (const filelist_item_t *item)
 	return extramods_install_thread != NULL;
 }
 
+qboolean Modlist_IsInstalling (void)
+{
+	return extramods_install_thread != NULL;
+}
+
 static void Modlist_Add (const char *name)
 {
 	filelist_item_t	*item;

@@ -305,6 +305,7 @@ char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer
 
 char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize);
+char *COM_TintString (const char *in, char *out, size_t outsize);
 
 unsigned COM_HashString (const char *str);
 unsigned COM_HashBlock (const void *data, size_t size);
@@ -319,7 +320,14 @@ size_t LOC_Format (const char *format, const char* (*getarg_fn)(int idx, void* u
 
 // Unicode
 size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint);
+uint32_t UTF8_ReadCodePoint (const char **src);
 void UTF8_FromQuake (char *dst, size_t maxbytes, const char *src);
+void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src);
+
+#define UNICODE_UNKNOWN		0xFFFD
+#define UNICODE_MAX			0x10FFFF
+
+#define QCHAR_BOX			11
 
 //============================================================================
 

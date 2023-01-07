@@ -363,6 +363,7 @@ const char			*Modlist_GetDescription (const filelist_item_t *item);
 const char			*Modlist_GetAuthor (const filelist_item_t *item);
 const char			*Modlist_GetDate (const filelist_item_t *item);
 qboolean			Modlist_StartInstalling (const filelist_item_t *item);
+qboolean			Modlist_IsInstalling (void);
 
 extern filelist_item_t **extralevels_sorted;
 extern filelist_item_t	*modlist;
