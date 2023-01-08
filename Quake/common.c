@@ -2523,7 +2523,7 @@ storesetup:
 
 		if (COM_SetBaseDir (path))
 		{
-			if (remastered)
+			if (flavor == QUAKE_FLAVOR_REMASTERED)
 			{
 				if (com_nightdivedir[0])
 					host_parms->userdir = com_nightdivedir;
