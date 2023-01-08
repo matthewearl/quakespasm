@@ -310,7 +310,7 @@ extern	double		realtime;		// not bounded in any way, changed at
 
 typedef struct filelist_item_s
 {
-	char			name[32];
+	char			name[MAX_QPATH];
 	struct filelist_item_s	*next;
 } filelist_item_t;
 
