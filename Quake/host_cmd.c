@@ -852,7 +852,7 @@ static int Modlist_DownloadJSON (void *unused)
 		cachepath[0] = '\0';
 	else if (!urlchanged && Sys_GetFileTime (cachepath, &filetime) && difftime (now, filetime) < MANIFEST_RETENTION)
 	{
-		manifest = COM_LoadMallocFile_TextMode_OSPath (cachepath, NULL);
+		manifest = (char *) COM_LoadMallocFile_TextMode_OSPath (cachepath, NULL);
 		if (manifest)
 		{
 			json = JSON_Parse (manifest);
