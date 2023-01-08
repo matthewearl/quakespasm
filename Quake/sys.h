@@ -53,6 +53,10 @@ qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize);
 // Note: dynamically-alocated, call free when no longer needed
 const char *Sys_GetEGSLauncherData (void);
 
+// alternate user data dir when playing the 2021 re-release
+// (to avoid writing in Nightdive Studios/Quake)
+qboolean Sys_GetAltUserPrefDir (qboolean remastered, char *path, size_t pathsize);
+
 //
 // file IO
 //

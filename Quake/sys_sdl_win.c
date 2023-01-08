@@ -469,6 +469,15 @@ const char *Sys_GetEGSLauncherData (void)
 	return buf;
 }
 
+qboolean Sys_GetAltUserPrefDir (qboolean remastered, char *path, size_t pathsize)
+{
+	const char *subdir = remastered ?
+		"\\" ENGINE_USERDIR_WIN "\\rerelease" :
+		"\\" ENGINE_USERDIR_WIN "\\original"
+	;
+	return Sys_GetKnownFolder (&FOLDERID_SavedGames, subdir, path, pathsize);
+}
+
 static char	cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)

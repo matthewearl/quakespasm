@@ -809,13 +809,14 @@ static void Modlist_PrintJSONCurlError (void *param)
 
 static const char *Modlist_GetInstallDir (void)
 {
-	return com_basedirs[com_numbasedirs - 1];
+	return com_nightdivedir[0] ? com_nightdivedir : com_basedirs[com_numbasedirs - 1];
 }
 
 static int Modlist_DownloadJSON (void *unused)
 {
 	const char	*accept = "Accept: application/json";
 	const char	*basedir;
+	const char	*installdir;
 	char		cachepath[MAX_OSPATH];
 	char		cacheurlpath[MAX_OSPATH];
 	char		url[MAX_URL];
@@ -831,9 +832,11 @@ static int Modlist_DownloadJSON (void *unused)
 		return 1;
 
 	time (&now);
-	basedir = Modlist_GetInstallDir ();
+	basedir = com_basedirs[com_numbasedirs - 1];
+	installdir = Modlist_GetInstallDir ();
 
 	// check cached URL
+	// Note: potentially different directory than the one where addons.json is cached
 	if ((size_t) q_snprintf (cacheurlpath, sizeof (cacheurlpath), "%s/addons.url.dat", basedir) >= sizeof (cacheurlpath))
 		cacheurlpath[0] = '\0';
 	else
@@ -845,7 +848,7 @@ static int Modlist_DownloadJSON (void *unused)
 	}
 
 	// check cached manifest
-	if ((size_t) q_snprintf (cachepath, sizeof (cachepath), "%s/addons.json", basedir) >= sizeof (cachepath))
+	if ((size_t) q_snprintf (cachepath, sizeof (cachepath), "%s/addons.json", installdir) >= sizeof (cachepath))
 		cachepath[0] = '\0';
 	else if (!urlchanged && Sys_GetFileTime (cachepath, &filetime) && difftime (now, filetime) < MANIFEST_RETENTION)
 	{

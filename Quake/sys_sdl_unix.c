@@ -331,14 +331,15 @@ const char *Sys_GetEGSLauncherData (void)
 	return NULL;
 }
 
-static char	cwd[MAX_OSPATH];
-#ifdef DO_USERDIRS
-static char	userdir[MAX_OSPATH];
 #ifdef PLATFORM_OSX
 #define SYS_USERDIR	"Library/Application Support/" ENGINE_USERDIR_OSX
 #else
 #define SYS_USERDIR	ENGINE_USERDIR_UNIX
 #endif
+
+static char	cwd[MAX_OSPATH];
+#ifdef DO_USERDIRS
+static char	userdir[MAX_OSPATH];
 
 static void Sys_GetUserdir (char *dst, size_t dstsize)
 {
@@ -367,6 +368,29 @@ static void Sys_GetUserdir (char *dst, size_t dstsize)
 	q_snprintf (dst, dstsize, "%s/%s", home_dir, SYS_USERDIR);
 }
 #endif	/* DO_USERDIRS */
+
+qboolean Sys_GetAltUserPrefDir (qboolean remastered, char *dst, size_t dstsize)
+{
+	size_t		n;
+	const char	*home_dir = NULL;
+	struct passwd	*pwent;
+
+	pwent = getpwuid( getuid() );
+	if (pwent == NULL)
+		perror("getpwuid");
+	else
+		home_dir = pwent->pw_dir;
+	if (home_dir == NULL)
+		home_dir = getenv("HOME");
+	if (home_dir == NULL)
+		return false;
+
+	if ((size_t) q_snprintf (dst, dstsize, "%s/%s/%s",
+		home_dir, SYS_USERDIR, remastered ? ".rerelease" : ".original") >= dstsize)
+		return false;
+
+	return true;
+}
 
 #ifdef PLATFORM_OSX
 static char *OSX_StripAppBundle (char *dir)

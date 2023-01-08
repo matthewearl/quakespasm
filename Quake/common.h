@@ -367,6 +367,7 @@ struct cache_user_s;
 extern	int		com_numbasedirs;
 extern	char	com_basedirs[MAX_BASEDIRS][MAX_OSPATH];
 extern	char	com_gamedir[MAX_OSPATH];
+extern	char	com_nightdivedir[MAX_OSPATH];
 extern	THREAD_LOCAL int	file_from_pak;	// global indicating that file came from a pak
 
 void COM_WriteFile (const char *filename, const void *data, int len);

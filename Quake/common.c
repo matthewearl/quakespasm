@@ -1553,6 +1553,7 @@ char	com_gamedir[MAX_OSPATH];
 char	com_basedirs[MAX_BASEDIRS][MAX_OSPATH];
 int		com_numbasedirs;
 char	com_nightdivedir[MAX_OSPATH];
+char	com_userprefdir[MAX_OSPATH];
 THREAD_LOCAL int	file_from_pak;		// ZOID: global indicating that file came from a pak
 
 searchpath_t	*com_searchpaths;
@@ -1590,8 +1591,6 @@ void COM_WriteFile (const char *filename, const void *data, int len)
 {
 	int		handle;
 	char	name[MAX_OSPATH];
-
-	Sys_mkdir (com_gamedir); //johnfitz -- if we've switched to a nonexistant gamedir, create it now so we don't crash
 
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, filename);
 
@@ -2273,8 +2272,6 @@ static void COM_AddGameDirectory (const char *dir)
 	{
 		base = com_basedirs[j];
 		q_snprintf (com_gamedir, sizeof (com_gamedir), "%s/%s", base, dir);
-		if (j != 0)
-			Sys_mkdir (com_gamedir);
 
 		// add the directory to the search path
 		search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
@@ -2662,22 +2659,23 @@ storesetup:
 
 		if (COM_SetBaseDir (path))
 		{
+			if (!Sys_GetAltUserPrefDir (flavor == QUAKE_FLAVOR_REMASTERED, com_userprefdir, sizeof (com_userprefdir)))
+				Sys_Error ("Couldn't set up settings dir");
+
 			if (flavor == QUAKE_FLAVOR_REMASTERED)
 			{
 				if (com_nightdivedir[0])
-					host_parms->userdir = com_nightdivedir;
+					COM_AddBaseDir (com_nightdivedir);
+				else
+					Con_Warning ("Nightdive dir not found\n");
 			}
-			else if (host_parms->userdir == host_parms->basedir)
+			else
 			{
-				static char userdir[MAX_OSPATH];
-				char testcfg[MAX_OSPATH];
-				if ((size_t) q_snprintf (testcfg, sizeof (testcfg), "%s/" GAMENAME "/" CONFIG_NAME, path) >= sizeof (testcfg))
-					testcfg[0] = 0;
-
-				if (!COM_IsFileWritable (testcfg) &&
-					(size_t) q_strlcpy (userdir, host_parms->basedir, sizeof (userdir)) < sizeof (userdir))
-					host_parms->userdir = userdir;
+				com_nightdivedir[0] = '\0';
 			}
+			
+			host_parms->userdir = com_userprefdir;
+
 			return;
 		}
 	}
