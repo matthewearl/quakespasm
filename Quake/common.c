@@ -2523,6 +2523,107 @@ static void COM_AddBaseDir (const char *path)
 
 /*
 =================
+COM_MigrateNightdiveUserFiles
+
+Checks the Nightdive dir for subdirs containing
+an ironwail.cfg file and moves known files over
+to the new dir
+=================
+*/
+static void COM_MigrateNightdiveUserFiles (void)
+{
+	const char	*episodes[] = {"id1", "hipnotic", "rogue", "dopa", "mg1"};
+	const char	*filetypes[] = {"cfg", "txt", "sav", "dem", "png", "jpg"};
+	const char	*game, *ext;
+	char		src[MAX_OSPATH];
+	char		dst[MAX_OSPATH];
+	char		*subdirs = NULL;
+	findfile_t	*moditer, *fileiter;
+	size_t		i;
+
+	// move episode dirs if they contain a config file
+	for (i = 0; i < countof (episodes); i++)
+	{
+		const char *game = episodes[i];
+		if ((size_t) q_snprintf (src, sizeof (src), "%s/%s/%s", com_nightdivedir, game, CONFIG_NAME) >= sizeof (src))
+			continue;
+		if (!Sys_FileExists (src))
+			continue;
+		q_snprintf (src, sizeof (src), "%s/%s", com_nightdivedir, game);
+		q_snprintf (dst, sizeof (dst), "%s/%s", com_userprefdir, game);
+		Sys_rename (src, dst);
+	}
+
+	// iterate through all remaining subdirs
+	for (moditer = Sys_FindFirst (com_nightdivedir, NULL); moditer; moditer = Sys_FindNext (moditer))
+	{
+		char srcmod[MAX_OSPATH];
+		char dstmod[MAX_OSPATH];
+		char *cfg;
+
+		if (!(moditer->attribs & FA_DIRECTORY))
+			continue;
+		if (!strcmp (moditer->name, ".") || !strcmp (moditer->name, ".."))
+			continue;
+
+		for (i = 0; i < countof (episodes); i++)
+			if (!strcmp (moditer->name, episodes[i]))
+				break;
+		if (i != countof (episodes))
+			continue;
+
+		// look for engine config
+		if ((size_t) q_snprintf (src, sizeof (src), "%s/%s/%s", com_nightdivedir, moditer->name, CONFIG_NAME) >= sizeof (src) ||
+			(size_t) q_snprintf (dst, sizeof (dst), "%s/%s/%s", com_userprefdir, moditer->name, CONFIG_NAME) >= sizeof (dst))
+			continue;
+		cfg = (char *) COM_LoadMallocFile_TextMode_OSPath (src, NULL);
+		if (!cfg)
+			continue;
+
+		// write config (and create directory structure as needed)
+		COM_WriteFile_OSPath (dst, cfg, strlen (cfg));
+		free (cfg);
+		Sys_remove (src);
+
+		// move all recognized files
+		q_snprintf (srcmod, sizeof (srcmod), "%s/%s", com_nightdivedir, moditer->name);
+		q_snprintf (dstmod, sizeof (dstmod), "%s/%s", com_userprefdir, moditer->name);
+		for (fileiter = Sys_FindFirst (srcmod, NULL); fileiter; fileiter = Sys_FindNext (fileiter))
+		{
+			if (fileiter->attribs & FA_DIRECTORY)
+				continue;
+
+			ext = COM_FileGetExtension (fileiter->name);
+			for (i = 0; i < countof (filetypes); i++)
+				if (!q_strcasecmp (ext, filetypes[i]))
+					break;
+			if (i == countof (filetypes))
+				continue;
+
+			if ((size_t) q_snprintf (src, sizeof (src), "%s/%s", srcmod, fileiter->name) < sizeof (src) &&
+				(size_t) q_snprintf (dst, sizeof (dst), "%s/%s", dstmod, fileiter->name) < sizeof (dst))
+			{
+				Sys_rename (src, dst);
+			}
+		}
+
+		Vec_Append ((void **)&subdirs, 1, moditer->name, strlen (moditer->name) + 1);
+	}
+
+	VEC_PUSH (subdirs, '\0');
+
+	// remove empty dirs
+	for (game = subdirs; *game; game += strlen (game) + 1)
+	{
+		q_snprintf (src, sizeof (src), "%s/%s", com_nightdivedir, game);
+		Sys_remove (game);
+	}
+
+	VEC_FREE (subdirs);
+}
+
+/*
+=================
 COM_InitBaseDir
 =================
 */
@@ -2665,7 +2766,10 @@ storesetup:
 			if (flavor == QUAKE_FLAVOR_REMASTERED)
 			{
 				if (com_nightdivedir[0])
+				{
+					COM_MigrateNightdiveUserFiles ();
 					COM_AddBaseDir (com_nightdivedir);
+				}
 				else
 					Con_Warning ("Nightdive dir not found\n");
 			}
