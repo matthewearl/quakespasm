@@ -842,7 +842,7 @@ static int Modlist_DownloadJSON (void *unused)
 	else
 	{
 		char *cachedurl = (char *) COM_LoadMallocFile_TextMode_OSPath (cacheurlpath, NULL);
-		if (cachedurl && !strcmp (cachedurl, url))
+		if (cachedurl && !strcmp (cachedurl, extramods_addons_url))
 			urlchanged = false;
 		free (cachedurl);
 	}
@@ -895,7 +895,7 @@ static int Modlist_DownloadJSON (void *unused)
 	if (json && cachepath[0] && cacheurlpath[0])
 	{
 		COM_WriteFile_OSPath (cachepath, manifest, strlen (manifest));
-		COM_WriteFile_OSPath (cacheurlpath, url, strlen (url));
+		COM_WriteFile_OSPath (cacheurlpath, extramods_addons_url, strlen (extramods_addons_url));
 	}
 
 	VEC_FREE (manifest);
