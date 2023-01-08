@@ -1393,7 +1393,7 @@ static void COM_CheckRegistered (void)
 				   "Basedir is: %s\n\n"
 				   "Check that this has an " GAMENAME " subdirectory containing pak0.pak and pak1.pak, "
 				   "or use the -basedir command-line option to specify another directory.",
-				   com_basedir);
+				   com_basedirs[0]);
 		return;
 	}
 
@@ -1550,7 +1550,8 @@ typedef struct
 
 char	com_gamenames[1024];	//eg: "hipnotic;quoth;warp" ... no id1
 char	com_gamedir[MAX_OSPATH];
-char	com_basedir[MAX_OSPATH];
+char	com_basedirs[MAX_BASEDIRS][MAX_OSPATH];
+int		com_numbasedirs;
 char	com_nightdivedir[MAX_OSPATH];
 THREAD_LOCAL int	file_from_pak;		// ZOID: global indicating that file came from a pak
 
@@ -2190,6 +2191,7 @@ COM_AddEnginePak
 */
 static void COM_AddEnginePak (void)
 {
+	int			i;
 	char		pakfile[MAX_OSPATH];
 	pack_t		*pak = NULL;
 	qboolean	modified = com_modified;
@@ -2208,14 +2210,13 @@ static void COM_AddEnginePak (void)
 
 	if (!pak)
 	{
-		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, com_basedir);
-		pak = COM_LoadPackFile (pakfile);
-	}
-
-	if (!pak && host_parms->userdir != host_parms->basedir)
-	{
-		q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, host_parms->userdir);
-		pak = COM_LoadPackFile (pakfile);
+		for (i = 0; i < com_numbasedirs; i++)
+		{
+			q_snprintf (pakfile, sizeof(pakfile), "%s/" ENGINE_PAK, com_basedirs[i]);
+			pak = COM_LoadPackFile (pakfile);
+			if (pak)
+				break;
+		}
 	}
 
 	if (pak)
@@ -2237,8 +2238,8 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory (const char *dir)
 {
-	const char *basedirs[2], *base;
-	int i, j, numbasedirs;
+	const char *base;
+	int i, j;
 	unsigned int path_id;
 	searchpath_t *search;
 	pack_t *pak;
@@ -2268,14 +2269,9 @@ static void COM_AddGameDirectory (const char *dir)
 	else
 		path_id = 1U;
 
-	basedirs[0] = com_basedir;
-	numbasedirs = 1;
-	if (host_parms->userdir != host_parms->basedir)
-		basedirs[numbasedirs++] = host_parms->userdir;
-
-	for (j = 0; j < numbasedirs; j++)
+	for (j = 0; j < com_numbasedirs; j++)
 	{
-		base = basedirs[j];
+		base = com_basedirs[j];
 		q_snprintf (com_gamedir, sizeof (com_gamedir), "%s/%s", base, dir);
 		if (j != 0)
 			Sys_mkdir (com_gamedir);
@@ -2332,7 +2328,7 @@ void COM_ResetGameDirectories(char *newgamedirs)
 	//wipe the list of mod gamedirs
 	*com_gamenames = 0;
 	//reset this too
-	q_strlcpy (com_gamedir, va("%s/%s", (host_parms->userdir != host_parms->basedir)?host_parms->userdir:com_basedir, GAMENAME), sizeof(com_gamedir));
+	q_strlcpy (com_gamedir, va("%s/%s", com_basedirs[com_numbasedirs-1], GAMENAME), sizeof(com_gamedir));
 
 	for(newpath = newgamedirs; newpath && *newpath; )
 	{
@@ -2494,7 +2490,7 @@ COM_SetBaseDir
 static qboolean COM_SetBaseDir (const char *path)
 {
 	const char pak0[] = "/" GAMENAME "/pak0.pak";
-	char pakpath[countof (com_basedir)];
+	char pakpath[countof (com_basedirs[0])];
 	size_t i;
 
 	i = strlen (path);
@@ -2508,10 +2504,24 @@ static qboolean COM_SetBaseDir (const char *path)
 	if (!Sys_FileExists (pakpath))
 		return false;
 
-	memcpy (com_basedir, path, i);
-	com_basedir[i] = 0;
+	memcpy (com_basedirs[0], path, i);
+	com_basedirs[0][i] = 0;
+	com_numbasedirs = 1;
 
 	return true;
+}
+
+/*
+=================
+COM_AddBaseDir
+=================
+*/
+static void COM_AddBaseDir (const char *path)
+{
+	if (com_numbasedirs >= countof (com_basedirs))
+		Sys_Error ("Too many basedirs (%d)", com_numbasedirs);
+	if ((size_t) q_strlcpy (com_basedirs[com_numbasedirs++], path, sizeof (com_basedirs[0])) >= sizeof (com_basedirs[0]))
+		Sys_Error ("Basedir too long (%d characters, max %d):\n%s\n", (int)strlen (path), (int)sizeof (com_basedirs[0]), path);
 }
 
 /*
@@ -2527,15 +2537,18 @@ static void COM_InitBaseDir (void)
 	char remastered[MAX_OSPATH] = {0};
 	int i, steam, gog, egs;
 
+	// command-line basedir takes priority over everything else
 	i = COM_CheckParm ("-basedir");
 	if (i)
 	{
-		const char *dir = (i < com_argc - 1) ? com_argv[i + 1] : NULL;
-		if (!dir)
+		const char *dir;
+		if (i >= com_argc - 1)
 			Sys_Error (
 				"Please specify a valid Quake directory after -basedir\n"
 				"(one that has an " GAMENAME " subdirectory containing pak0.pak)\n"
 			);
+
+		dir = com_argv[++i];
 		if (!COM_SetBaseDir (dir))
 			Sys_Error (
 				"The specified -basedir is not a valid Quake directory:\n"
@@ -2543,6 +2556,17 @@ static void COM_InitBaseDir (void)
 				"doesn't have an " GAMENAME " subdirectory containing pak0.pak.\n",
 				dir
 			);
+
+		for (;;) // add all other -basedirs
+		{
+			i = COM_CheckParmNext (i, "-basedir");
+			if (!i)
+				break;
+			if (i >= com_argc - 1)
+				Sys_Error ("Please specify a directory after -basedir\n");
+			COM_AddBaseDir (com_argv[++i]);
+		}
+
 		return;
 	}
 
@@ -2688,6 +2712,9 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 	Cmd_AddCommand ("game", COM_Game_f); //johnfitz
 
 	COM_InitBaseDir ();
+
+	if (host_parms->userdir != host_parms->basedir)
+		COM_AddBaseDir (host_parms->userdir);
 
 	i = COM_CheckParm ("-basegame");
 	if (i)
@@ -3011,24 +3038,22 @@ void LOC_LoadFile (const char *file)
 	Con_Printf("\nLanguage initialization\n");
 
 	memset(&archive, 0, sizeof(archive));
-	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
-	rw = SDL_RWFromFile(path, "rb");
-	#if defined(DO_USERDIRS)
-	if (!rw) {
-		q_snprintf(path, sizeof(path), "%s/%s", host_parms->userdir, file);
+	for (i = com_numbasedirs - 1; i >= 0; i--)
+	{
+		q_snprintf(path, sizeof(path), "%s/%s", com_basedirs[i], file);
 		rw = SDL_RWFromFile(path, "rb");
+		if (rw)
+			break;
 	}
-	#endif
 	if (!rw)
 	{
-		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
-		rw = SDL_RWFromFile(path, "rb");
-		#if defined(DO_USERDIRS)
-		if (!rw) {
-			q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", host_parms->userdir);
+		for (i = com_numbasedirs - 1; i >= 0; i--)
+		{
+			q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedirs[i]);
 			rw = SDL_RWFromFile(path, "rb");
+			if (rw)
+				break;
 		}
-		#endif
 		if (!rw)
 		{
 			steamgame_t steamquake;

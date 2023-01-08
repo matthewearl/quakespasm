@@ -809,7 +809,7 @@ static void Modlist_PrintJSONCurlError (void *param)
 
 static const char *Modlist_GetInstallDir (void)
 {
-	return host_parms->userdir != host_parms->basedir ? host_parms->userdir : com_basedir;
+	return com_basedirs[com_numbasedirs - 1];
 }
 
 static int Modlist_DownloadJSON (void *unused)
@@ -1127,18 +1127,12 @@ static qboolean Modlist_Check (const char *modname, const char *base)
 
 static void Modlist_FindLocal (void)
 {
-	const char	*basedirs[2];
-	int			i, numbasedirs;
+	int			i;
 	findfile_t	*find;
 
-	basedirs[0] = com_basedir;
-	numbasedirs = 1;
-	if (host_parms->userdir != host_parms->basedir)
-		basedirs[numbasedirs++] = host_parms->userdir;
-
-	for (i = 0; i < numbasedirs; i++)
+	for (i = 0; i < com_numbasedirs; i++)
 	{
-		for (find = Sys_FindFirst (basedirs[i], NULL); find; find = Sys_FindNext (find))
+		for (find = Sys_FindFirst (com_basedirs[i], NULL); find; find = Sys_FindNext (find))
 		{
 			if (!(find->attribs & FA_DIRECTORY))
 				continue;
@@ -1148,7 +1142,7 @@ static void Modlist_FindLocal (void)
 			if (!q_strcasecmp (COM_FileGetExtension (find->name), "app")) // skip .app bundles on macOS
 				continue;
 #endif
-			if (Modlist_Check (find->name, basedirs[i]))
+			if (Modlist_Check (find->name, com_basedirs[i]))
 				Modlist_Add (find->name);
 		}
 	}
