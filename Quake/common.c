@@ -3756,9 +3756,9 @@ void UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
 		// Quake-specific characters: we process the list in reverse order
 		// so that codepoints used for both colored and non-colored qchars
 		// end up being remapped to the non-colored versions
-		// Note: loop relies on unsigned underflow!
-		for (i = countof (qchar_to_unicode) - 1; i < countof (qchar_to_unicode); i--)
-			if (qchar_to_unicode[i] && qchar_to_unicode[i] != (uint8_t)i)
+		// Note: 0 is not included
+		for (i = countof (qchar_to_unicode) - 1; i > 0; i--)
+			if (qchar_to_unicode[i] >= 128 && qchar_to_unicode[i] < countof (unicode_translit))
 				unicode_translit[qchar_to_unicode[i]] = (uint8_t) i;
 
 		// map ASCII characters to themselves
