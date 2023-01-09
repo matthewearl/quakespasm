@@ -1219,10 +1219,11 @@ void SCR_ScreenShot_f (void)
 	else
 		ok = false;
 
+	UTF8_ToQuake (basename, sizeof (basename), imagename);
 	if (ok)
-		Con_Printf ("Wrote %s\n", imagename);
+		Con_Printf ("Wrote %s\n", basename);
 	else
-		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", imagename);
+		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", basename);
 
 	free (buffer);
 }
