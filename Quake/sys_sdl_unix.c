@@ -187,7 +187,7 @@ qboolean Sys_GetFileTime (const char *path, time_t *out)
 	struct stat st;
 	if (stat (path, &st) != 0)
 		return false;
-	*out = (time_t) st.st_mtim.tv_sec;
+	*out = st.st_mtime;
 	return true;
 }
 
