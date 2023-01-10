@@ -371,8 +371,7 @@ static void Sys_GetUserdir (char *dst, size_t dstsize)
 
 qboolean Sys_GetAltUserPrefDir (qboolean remastered, char *dst, size_t dstsize)
 {
-	size_t		n;
-	const char	*home_dir = NULL;
+	const char		*home_dir = NULL;
 	struct passwd	*pwent;
 
 	pwent = getpwuid( getuid() );
