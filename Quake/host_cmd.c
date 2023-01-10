@@ -655,6 +655,7 @@ typedef struct
 	const char			*date;
 	const char			*download;
 	double				bytes_total;
+	const jsonentry_t	*json;
 	SDL_atomic_t		bytes_downloaded;
 	SDL_atomic_t		status;
 } modinfo_t;
@@ -761,21 +762,17 @@ static void Modlist_RegisterAddons (void *param)
 		item = FileList_AddWithData (gamedir, NULL, sizeof (*info), &modlist);
 		info = (modinfo_t *) (item + 1);
 
-		if (!info->full_name && name && *name)
+		if (!info->json)
+		{
+			info->json = entry;
 			info->full_name = name;
-		if (!info->download)
 			info->download = download;
-		if (!info->bytes_total && size)
-			info->bytes_total = *size;
-
-		if (!info->description && description && *description)
+			if (size)
+				info->bytes_total = *size;
 			info->description = description;
-
-		if (!info->author && author && *author)
 			info->author = author;
-
-		if (!info->date && date && *date)
 			info->date = date;
+		}
 
 		total++;
 		if (Modlist_GetStatus (item) == MODSTATUS_INSTALLED)
