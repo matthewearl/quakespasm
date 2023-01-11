@@ -4499,7 +4499,7 @@ void M_Mods_Draw (void)
 
 			if (message && message[0])
 			{
-				if (mapsmenu.list.search.len > 0)
+				if (modsmenu.list.search.len > 0)
 					COM_TintSubstring (message, modsmenu.list.search.text, buf, sizeof (buf));
 				else
 					q_strlcpy (buf, message, sizeof (buf));
