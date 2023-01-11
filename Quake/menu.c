@@ -1616,7 +1616,7 @@ void M_Maps_Draw (void)
 
 	M_Maps_UpdateLayout ();
 
-	namecols = CLAMP (14, mapsmenu.cols * 0.375f, 56);
+	namecols = (int) CLAMP (14, mapsmenu.cols * 0.375f, 56) & ~1;
 	desccols = mapsmenu.cols - 1 - namecols;
 
 	if (!keydown[K_MOUSE1])
@@ -4234,7 +4234,7 @@ void M_ServerList_Mousemove (int cx, int cy)
 //=============================================================================
 /* Mods menu */
 
-#define MODLIST_OFS				28
+#define MODLIST_OFS				32
 #define DOWNLOAD_FLASH_TIME		1.0
 
 typedef struct
@@ -4360,13 +4360,13 @@ static void M_Mods_UpdateLayout (void)
 
 	M_UpdateBounds ();
 
-	height = modsmenu.list.numitems * 8 + MODLIST_OFS + 8;
+	height = modsmenu.list.numitems * 8 + MODLIST_OFS + 16;
 	height = q_min (height, m_height);
 	modsmenu.cols = m_width / 8 - 2;
 	modsmenu.cols = q_min (modsmenu.cols, 44);
 	modsmenu.x = m_left + (m_width - modsmenu.cols * 8) / 2;
 	modsmenu.y = m_top + (((m_height - height) / 2) & ~7);
-	modsmenu.list.viewsize = (height - MODLIST_OFS - 8) / 8;
+	modsmenu.list.viewsize = (height - MODLIST_OFS - 16) / 8;
 }
 
 static void M_Mods_Init (void)
@@ -4437,7 +4437,7 @@ void M_Mods_Draw (void)
 	M_Mods_UpdateLayout ();
 	M_List_Update (&modsmenu.list);
 
-	namecols = CLAMP (16, modsmenu.cols * 0.4375f, 24);
+	namecols = (int) CLAMP (16, modsmenu.cols * 0.4375f, 24) & ~1;
 	desccols = modsmenu.cols - 1 - namecols;
 
 	if (modsmenu.prev_cursor != modsmenu.list.cursor)
@@ -4461,9 +4461,9 @@ void M_Mods_Draw (void)
 	y = modsmenu.y;
 	cols = modsmenu.cols;
 
-	Draw_StringEx (x, y, 12, "Mods");
-	M_DrawQuakeBar (x - 8, y + 12, namecols + 1);
-	M_DrawQuakeBar (x + namecols * 8, y + 12, cols + 1 - namecols);
+	Draw_StringEx (x, y + 4, 12, "Mods");
+	M_DrawQuakeBar (x - 8, y + 16, namecols + 1);
+	M_DrawQuakeBar (x + namecols * 8, y + 16, cols + 1 - namecols);
 
 	y += MODLIST_OFS;
 
@@ -4545,7 +4545,7 @@ void M_Mods_Draw (void)
 	}
 
 	i = q_min (modsmenu.list.viewsize, modsmenu.list.numitems);
-	M_List_DrawSearch (&modsmenu.list, x, y + i*8 + 4, 14);
+	M_List_DrawSearch (&modsmenu.list, x, y + i*8 + 4, namecols);
 }
 
 void M_Mods_Char (int key)
