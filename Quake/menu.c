@@ -4337,7 +4337,16 @@ static void M_Mods_Add (const filelist_item_t *item)
 
 static qboolean M_Mods_Match (int index)
 {
-	return !q_strncasecmp (modsmenu.items[index].name, modsmenu.list.search.text, modsmenu.list.search.len);
+	const filelist_item_t *source = modsmenu.items[index].source;
+	const char *fullname;
+	if (!source)
+		return false;
+
+	if (q_strcasestr (source->name, modsmenu.list.search.text))
+		return true;
+
+	fullname = Modlist_GetFullName (source);
+	return fullname && q_strcasestr (fullname, modsmenu.list.search.text);
 }
 
 static qboolean M_Mods_IsSelectable (int index)
