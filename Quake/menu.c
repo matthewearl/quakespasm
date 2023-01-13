@@ -29,6 +29,14 @@ cvar_t ui_mouse_sound = {"ui_mouse_sound", "0", CVAR_ARCHIVE};
 cvar_t ui_sound_throttle = {"ui_sound_throttle", "0.1", CVAR_ARCHIVE};
 cvar_t ui_search_timeout = {"ui_search_timeout", "1", CVAR_ARCHIVE};
 
+extern cvar_t crosshair;
+extern cvar_t scr_fov;
+extern cvar_t cl_gun_fovscale;
+extern cvar_t v_gunkick;
+extern cvar_t cl_bob;
+extern cvar_t cl_rollangle;
+extern cvar_t sv_autoload;
+
 void (*vid_menucmdfn)(void); //johnfitz
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
@@ -144,6 +152,7 @@ char		m_return_reason [32];
 
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
+void M_Options_SelectMods (void);
 
 #define DESCRIPTION_SCROLL_WAIT_TIME	1.0
 
@@ -194,6 +203,16 @@ void M_PrintEx (int cx, int cy, int dim, const char *str)
 void M_Print (int cx, int cy, const char *str)
 {
 	M_PrintEx (cx, cy, 8, str);
+}
+
+#define ALIGN_LEFT		0
+#define ALIGN_CENTER	1
+#define ALIGN_RIGHT		2
+
+void M_PrintAligned (int cx, int cy, int align, const char *str)
+{
+	cx -= strlen (str) * align / 2 * 8;
+	M_Print (cx, cy, str);
 }
 
 void M_PrintWhiteEx (int cx, int cy, int dim, const char *str)
@@ -638,6 +657,17 @@ qboolean M_List_IsItemVisible (const menulist_t *list, int i)
 	return (unsigned)(i - first) < (unsigned)count;
 }
 
+void M_List_Rescroll (menulist_t *list)
+{
+	int overflow = M_List_GetOverflow (list);
+	if (overflow < 0)
+		overflow = 0;
+	if (list->scroll > overflow)
+		list->scroll = overflow;
+	if (list->cursor >= 0 && list->cursor < list->numitems && !M_List_IsItemVisible (list, list->cursor))
+		M_List_AutoScroll (list);
+}
+
 qboolean M_List_SelectNextMatch (menulist_t *list, qboolean (*match_fn) (int idx), int start, int dir, qboolean wrap)
 {
 	int i, j;
@@ -707,6 +737,8 @@ void M_List_Update (menulist_t *list)
 
 qboolean M_List_Key (menulist_t *list, int key)
 {
+	qboolean overflow = M_List_GetOverflow (list) > 0;
+
 	switch (key)
 	{
 	case K_BACKSPACE:
@@ -820,6 +852,8 @@ qboolean M_List_Key (menulist_t *list, int key)
 		return true;
 
 	case K_MWHEELUP:
+		if (!overflow)
+			return false;
 		list->scroll -= 3;
 		if (list->scroll < 0)
 			list->scroll = 0;
@@ -827,6 +861,8 @@ qboolean M_List_Key (menulist_t *list, int key)
 		return true;
 
 	case K_MWHEELDOWN:
+		if (!overflow)
+			return false;
 		list->scroll += 3;
 		if (list->scroll > list->numitems - list->viewsize)
 			list->scroll = list->numitems - list->viewsize;
@@ -1018,9 +1054,8 @@ void M_Menu_Main_f (void)
 	// and its alternative location?
 	if (!m_main_mods && m_main_cursor == MAIN_MODS)
 	{
-		extern int options_cursor;
 		m_main_cursor = MAIN_OPTIONS;
-		options_cursor = 1; // OPT_MODS
+		M_Options_SelectMods ();
 	}
 }
 
@@ -2352,29 +2387,41 @@ void M_Net_Mousemove (int cx, int cy)
 
 enum
 {
+	OPT_VIDEO,
 	OPT_CUSTOMIZE,
 	OPT_MODS,
 	OPT_CONSOLE,
 	OPT_DEFAULTS,
-	OPT_HUDSTYLE,
-	OPT_SBALPHA,
-	OPT_SCALE,
-	OPT_SCRSIZE,
+
+	OPT_SPACE1,
+
 	OPT_GAMMA,
 	OPT_CONTRAST,
+	OPT_SCALE,
+	OPT_PIXELASPECT,
+	OPT_UIMOUSE,
+	OPT_HUDSTYLE,
+	OPT_SBALPHA,
+	OPT_SCRSIZE,
+	OPT_CROSSHAIR,
+
+	OPT_SPACE2,
+
 	OPT_MOUSESPEED,
+	OPT_INVMOUSE,
+	OPT_ALWAYSMLOOK,
+	OPT_FOV,
+	OPT_FOVDISTORT,
+	OPT_RECOIL,
+	OPT_VIEWBOB,
+	OPT_ALWAYRUN,
+
+	OPT_SPACE3,
+
 	OPT_SNDVOL,
 	OPT_MUSICVOL,
 	OPT_MUSICEXT,
-	OPT_ALWAYRUN,
-	OPT_INVMOUSE,
-	OPT_ALWAYSMLOOK,
-	OPT_LOOKSPRING,
-	OPT_LOOKSTRAFE,
-//#ifdef _WIN32
-//	OPT_USEMOUSE,
-//#endif
-	OPT_VIDEO,	// This is the last before OPTIONS_ITEMS
+
 	OPTIONS_ITEMS
 };
 
@@ -2386,11 +2433,58 @@ enum
 	ALWAYSRUN_ITEMS
 };
 
-#define	SLIDER_RANGE	10
+#define	SLIDER_RANGE		10
 
-int options_cursor;
+#define OPTIONS_LISTOFS		36
+#define OPTIONS_MIDPOS		204
+
+#define FOV_MIN				50.f
+#define FOV_MAX				130.f
+
+struct
+{
+	menulist_t		list;
+	int				y;
+} optionsmenu;
+
 qboolean slider_grab;
 float target_scale_frac;
+
+void M_Options_SelectMods (void)
+{
+	optionsmenu.list.cursor = OPT_MODS;
+}
+
+static void M_Options_UpdateLayout (void)
+{
+	int height;
+
+	M_UpdateBounds ();
+
+	height = OPTIONS_LISTOFS + optionsmenu.list.numitems * 8;
+	if (height <= m_height)
+	{
+		optionsmenu.y = (m_top + (m_height - height) / 2) & ~7;
+		optionsmenu.list.viewsize = optionsmenu.list.numitems;
+	}
+	else
+	{
+		optionsmenu.y = m_top;
+		// Note: -8 for the bottom ellipsis bar
+		optionsmenu.list.viewsize = (m_height - OPTIONS_LISTOFS - 8) / 8;
+	}
+
+	M_List_Rescroll (&optionsmenu.list);
+}
+
+static qboolean M_Options_IsSelectable (int index)
+{
+	return
+		index != OPT_SPACE1 &&
+		index != OPT_SPACE2 &&
+		index != OPT_SPACE3
+	;
+}
 
 void M_Menu_Options_f (void)
 {
@@ -2399,8 +2493,49 @@ void M_Menu_Options_f (void)
 	m_state = m_options;
 	m_entersound = true;
 	slider_grab = false;
+
+	optionsmenu.list.scroll = 0;
+	optionsmenu.list.numitems = OPTIONS_ITEMS;
+	optionsmenu.list.isactive_fn = M_Options_IsSelectable;
+
+	M_Options_UpdateLayout ();
 }
 
+typedef enum
+{
+	UI_MOUSE_OFF,
+	UI_MOUSE_SILENT,
+	UI_MOUSE_NOISY,
+
+	UI_MOUSE_NUMSETTINGS,
+} uimouse_t;
+
+static uimouse_t M_Options_GetUIMouse (void)
+{
+	if (!ui_mouse.value)
+		return UI_MOUSE_OFF;
+	return ui_mouse_sound.value ? UI_MOUSE_NOISY : UI_MOUSE_SILENT;
+}
+
+static void M_Options_SetUIMouse (uimouse_t opt)
+{
+	switch (opt)
+	{
+	case UI_MOUSE_OFF:
+		Cvar_SetValueQuick (&ui_mouse, 0.f);
+		break;
+	case UI_MOUSE_SILENT:
+		Cvar_SetValueQuick (&ui_mouse, 1.f);
+		Cvar_SetValueQuick (&ui_mouse_sound, 0.f);
+		break;
+	case UI_MOUSE_NOISY:
+		Cvar_SetValueQuick (&ui_mouse, 1.f);
+		Cvar_SetValueQuick (&ui_mouse_sound, 1.f);
+		break;
+	default:
+		break;
+	}
+}
 
 void M_AdjustSliders (int dir)
 {
@@ -2409,7 +2544,7 @@ void M_AdjustSliders (int dir)
 
 	M_ThrottledSound ("misc/menu3.wav");
 
-	switch (options_cursor)
+	switch (optionsmenu.list.cursor)
 	{
 	case OPT_SCALE:	// console and menu scale
 		l = ((vid.width + 31) / 32) / 10.0;
@@ -2426,6 +2561,15 @@ void M_AdjustSliders (int dir)
 		if (f > 130)	f = 130;
 		else if(f < 30)	f = 30;
 		Cvar_SetValue ("viewsize", f);
+		break;
+	case OPT_PIXELASPECT:	// 2D pixel aspect ratio
+		Cvar_Set ("scr_pixelaspect", vid.guipixelaspect == 1.f ? "5:6" : "1");
+		break;
+	case OPT_CROSSHAIR:		// crosshair
+		Cvar_SetValueQuick (&crosshair, ((int) q_max (crosshair.value, 0.f) + 3 + dir) % 3);
+		break;
+	case OPT_UIMOUSE:	// UI mouse support
+		M_Options_SetUIMouse ((M_Options_GetUIMouse () + UI_MOUSE_NUMSETTINGS + dir) % UI_MOUSE_NUMSETTINGS);
 		break;
 	case OPT_GAMMA:	// gamma
 		f = vid_gamma.value - dir * 0.05;
@@ -2501,6 +2645,31 @@ void M_AdjustSliders (int dir)
 		}
 		break;
 
+	case OPT_VIEWBOB:	// view bob+roll
+		if (cl_bob.value)
+		{
+			Cvar_SetValueQuick (&cl_bob, 0.f);
+			Cvar_SetValueQuick (&cl_rollangle, 0.f);
+		}
+		else
+		{
+			Cvar_SetQuick (&cl_bob, cl_bob.default_string);
+			Cvar_SetQuick (&cl_rollangle, cl_rollangle.default_string);
+		}
+		break;
+
+	case OPT_RECOIL:	// gun kick
+		Cvar_SetValueQuick (&v_gunkick, ((int) q_max (v_gunkick.value, 0.f) + 3 + dir) % 3);
+		break;
+
+	case OPT_FOV:	// field of view
+		Cvar_SetValueQuick (&scr_fov, CLAMP (FOV_MIN, scr_fov.value + dir * 5.f, FOV_MAX));
+		break;
+
+	case OPT_FOVDISTORT:	// FOV distortion
+		Cvar_SetValueQuick (&cl_gun_fovscale, CLAMP (0.0, cl_gun_fovscale.value - dir * 0.1, 1.0));
+		break;
+
 	case OPT_INVMOUSE:	// invert mouse
 		Cvar_SetValue ("m_pitch", -m_pitch.value);
 		break;
@@ -2515,14 +2684,6 @@ void M_AdjustSliders (int dir)
 		{
 			Cvar_SetValueQuick (&freelook, 1.f);
 		}
-		break;
-
-	case OPT_LOOKSPRING:	// lookspring
-		Cvar_Set ("lookspring", lookspring.value ? "0" : "1");
-		break;
-
-	case OPT_LOOKSTRAFE:	// lookstrafe
-		Cvar_Set ("lookstrafe", lookstrafe.value ? "0" : "1");
 		break;
 	}
 }
@@ -2566,16 +2727,17 @@ qboolean M_SetSliderValue (int option, float f)
 	{
 	case OPT_SCALE:	// console and menu scale
 		target_scale_frac = f;
+		l = (vid.width / 320.0) - 1;
+		f = l > 0 ? f * l + 1 : 0;
+		Cvar_SetValue ("scr_conscale", f);
+		Cvar_SetValue ("scr_sbarscale", f);
+		Cvar_SetValue ("scr_crosshairscale", f);
 		// Delay the actual update until we release the mouse button
 		// to keep the UI layout stable while adjusting the scale
 		if (!slider_grab)
 		{
-			l = (vid.width / 320.0) - 1;
-			f = l > 0 ? f * l + 1 : 0;
-			Cvar_SetValue ("scr_conscale", f);
 			Cvar_SetValue ("scr_menuscale", f);
-			Cvar_SetValue ("scr_sbarscale", f);
-			Cvar_SetValue ("scr_crosshairscale", f);
+			M_Options_UpdateLayout ();
 		}
 		return true;
 	case OPT_SCRSIZE:	// screen size
@@ -2606,6 +2768,14 @@ qboolean M_SetSliderValue (int option, float f)
 	case OPT_SNDVOL:	// sfx volume
 		Cvar_SetValue ("volume", f);
 		return true;
+	case OPT_FOV:	// field of view
+		f = LERP (FOV_MIN, FOV_MAX, f);
+		f = floor (f / 5 + 0.5) * 5;
+		Cvar_SetValue ("fov", f);
+		return true;
+	case OPT_FOVDISTORT:	// FOV distortion
+		Cvar_SetValue ("cl_gun_fovscale", 1.f - f);
+		return true;
 	default:
 		return false;
 	}
@@ -2628,138 +2798,246 @@ void M_ReleaseSliderGrab (void)
 		return;
 	slider_grab = false;
 	M_ThrottledSound ("misc/menu1.wav");
-	if (options_cursor == OPT_SCALE)
+	if (optionsmenu.list.cursor == OPT_SCALE)
 		M_SetSliderValue (OPT_SCALE, target_scale_frac);
 }
 
 qboolean M_SliderClick (int cx, int cy)
 {
-	cx -= 220;
+	cx -= OPTIONS_MIDPOS;
 	if (cx < -12 || cx > SLIDER_RANGE*8+4)
 		return false;
 	// HACK: we set the flag to true before updating the slider
 	// to avoid changing the UI scale and implicitly the layout
-	if (options_cursor == OPT_SCALE)
+	if (optionsmenu.list.cursor == OPT_SCALE)
 		slider_grab = true;
-	if (!M_SetSliderValue (options_cursor, M_MouseToSliderFraction (cx)))
+	if (!M_SetSliderValue (optionsmenu.list.cursor, M_MouseToSliderFraction (cx)))
 		return false;
 	slider_grab = true;
 	M_ThrottledSound ("misc/menu3.wav");
 	return true;
 }
 
+static void M_Options_DrawItem (int y, int item)
+{
+	int			x = OPTIONS_MIDPOS;
+	float		r, l;
+
+	switch (item)
+	{
+	case OPT_CUSTOMIZE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Controls");
+		M_Print (x - 4, y, "...");
+		break;
+
+	case OPT_CONSOLE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Go to console");
+		break;
+
+	case OPT_DEFAULTS:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Reset config");
+		break;
+
+	case OPT_MODS:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mods");
+		M_Print (x - 4, y, "...");
+		break;
+
+	case OPT_SCALE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Scale");
+		l = (vid.width / 320.0) - 1;
+		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
+		if (slider_grab && optionsmenu.list.cursor == OPT_SCALE)
+			r = target_scale_frac;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_SCRSIZE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Screen size");
+		r = (scr_viewsize.value - 30) / (130 - 30);
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_PIXELASPECT:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Pixels");
+		M_Print (x, y, vid.guipixelaspect == 1.f ? "Square" : "Stretched");
+		break;
+
+	case OPT_CROSSHAIR:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Crosshair");
+		if (!crosshair.value)
+			M_Print (x, y, "Off");
+		else if (crosshair.value > 1)
+			M_PrintWhite (x, y, "\x0f");
+		else
+			M_PrintWhite (x, y, "+");
+		break;
+
+	case OPT_UIMOUSE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Mouse");
+		switch (M_Options_GetUIMouse ())
+		{
+		case UI_MOUSE_OFF:		M_Print (x, y, "Off"); break;
+		case UI_MOUSE_SILENT:	M_Print (x, y, "Silent"); break;
+		case UI_MOUSE_NOISY:	M_Print (x, y, "Noisy"); break;
+		default:
+			break;
+		}
+		break;
+
+	case OPT_GAMMA:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Brightness");
+		r = (1.0 - vid_gamma.value) / 0.5;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_CONTRAST:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Contrast");
+		r = vid_contrast.value - 1.0;
+		M_DrawSlider (x, y, r);
+		break;
+	
+	case OPT_MOUSESPEED:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mouse Speed");
+		r = (sensitivity.value - 1)/10;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_SBALPHA:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "HUD alpha");
+		r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_HUDSTYLE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "HUD");
+		if (scr_hudstyle.value < 1)
+			M_Print (x, y, "Classic");
+		else if (scr_hudstyle.value < 2)
+			M_Print (x, y, "Modern 1");
+		else
+			M_Print (x, y, "Modern 2");
+		break;
+
+	case OPT_SNDVOL:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Sound Volume");
+		r = sfxvolume.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_MUSICVOL:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Music Volume");
+		r = bgmvolume.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_MUSICEXT:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "External Music");
+		M_DrawCheckbox (x, y, bgm_extmusic.value);
+		break;
+
+	case OPT_ALWAYRUN:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Always Run");
+		if (cl_alwaysrun.value)
+			M_Print (x, y, "QuakeSpasm");
+		else if (cl_forwardspeed.value > 200.0)
+			M_Print (x, y, "Vanilla");
+		else
+			M_Print (x, y, "Off");
+		break;
+
+	case OPT_VIEWBOB:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "View bob");
+		M_Print (x, y, cl_bob.value ? "On" : "Off");
+		break;
+
+	case OPT_RECOIL:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Recoil");
+		if ((int)v_gunkick.value == 2)
+			M_Print (x, y, "Smooth");
+		else if ((int)v_gunkick.value == 1)
+			M_Print (x, y, "Classic");
+		else
+			M_Print (x, y, "Off");
+		break;
+
+	case OPT_INVMOUSE:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Invert Mouse");
+		M_DrawCheckbox (x, y, m_pitch.value < 0);
+		break;
+
+	case OPT_ALWAYSMLOOK:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mouse Look");
+		M_DrawCheckbox (x, y, (in_mlook.state & 1) || freelook.value);
+		break;
+
+	case OPT_FOV:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Field of view");
+		r = (scr_fov.value - FOV_MIN) / (FOV_MAX - FOV_MIN);
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_FOVDISTORT:
+		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Gun distortion");
+		r = 1.f - cl_gun_fovscale.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_VIDEO:
+		if (vid_menudrawfn)
+		{
+			M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Video Options");
+			M_Print (x - 4, y, "...");
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
 void M_Options_Draw (void)
 {
-	float		r, l;
+	int firstvis, numvis;
+	int i, x, y, cols;
 	qpic_t	*p;
 
 	if (slider_grab && !keydown[K_MOUSE1])
 		M_ReleaseSliderGrab ();
 
+	M_Options_UpdateLayout ();
+
+	x = 56;
+	y = optionsmenu.y;
+	cols = 32;
+
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/p_option.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
+	M_DrawPic ( (320-p->width)/2, y + 4, p);
 
-	// Draw the items in the order of the enum defined above:
-	// OPT_CUSTOMIZE:
-	M_Print (16, 32 + 8*OPT_CUSTOMIZE,	"              Controls");
-	// OPT_CONSOLE:
-	M_Print (16, 32 + 8*OPT_CONSOLE,	"          Goto console");
-	// OPT_DEFAULTS:
-	M_Print (16, 32 + 8*OPT_DEFAULTS,	"          Reset config");
+	y += OPTIONS_LISTOFS;
 
-	// OPT_MODS
-	M_Print (16, 32 + 8*OPT_MODS,		"                  Mods");
+	if (M_List_GetOverflow (&optionsmenu.list) > 0)
+	{
+		if (optionsmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (optionsmenu.list.scroll + optionsmenu.list.viewsize < optionsmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + optionsmenu.list.viewsize*8, cols);
+	}
 
-	// OPT_SCALE:
-	M_Print (16, 32 + 8*OPT_SCALE,		"                 Scale");
-	l = (vid.width / 320.0) - 1;
-	r = l > 0 ? (scr_conscale.value - 1) / l : 0;
-	if (slider_grab && options_cursor == OPT_SCALE)
-		r = target_scale_frac;
-	M_DrawSlider (220, 32 + 8*OPT_SCALE, r);
+	M_List_GetVisibleRange (&optionsmenu.list, &firstvis, &numvis);
+	while (numvis-- > 0)
+	{
+		i = firstvis++;
+		M_Options_DrawItem (y, i);
 
-	// OPT_SCRSIZE:
-	M_Print (16, 32 + 8*OPT_SCRSIZE,	"           Screen size");
-	r = (scr_viewsize.value - 30) / (130 - 30);
-	M_DrawSlider (220, 32 + 8*OPT_SCRSIZE, r);
+		// cursor
+		if (i == optionsmenu.list.cursor)
+			M_DrawCharacter (OPTIONS_MIDPOS - 20, y, 12+((int)(realtime*4)&1));
 
-	// OPT_GAMMA:
-	M_Print (16, 32 + 8*OPT_GAMMA,		"            Brightness");
-	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (220, 32 + 8*OPT_GAMMA, r);
-
-	// OPT_CONTRAST:
-	M_Print (16, 32 + 8*OPT_CONTRAST,	"              Contrast");
-	r = vid_contrast.value - 1.0;
-	M_DrawSlider (220, 32 + 8*OPT_CONTRAST, r);
-	
-	// OPT_MOUSESPEED:
-	M_Print (16, 32 + 8*OPT_MOUSESPEED,	"           Mouse Speed");
-	r = (sensitivity.value - 1)/10;
-	M_DrawSlider (220, 32 + 8*OPT_MOUSESPEED, r);
-
-	// OPT_SBALPHA:
-	M_Print (16, 32 + 8*OPT_SBALPHA,	"             HUD alpha");
-	r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
-	M_DrawSlider (220, 32 + 8*OPT_SBALPHA, r);
-
-	// OPT_HUDSTYLE
-	M_Print (16, 32 + 8*OPT_HUDSTYLE,	"                   HUD");
-	if (scr_hudstyle.value < 1)
-		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Classic");
-	else if (scr_hudstyle.value < 2)
-		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Modern 1");
-	else
-		M_Print (220, 32 + 8*OPT_HUDSTYLE, "Modern 2");
-
-	// OPT_SNDVOL:
-	M_Print (16, 32 + 8*OPT_SNDVOL,		"          Sound Volume");
-	r = sfxvolume.value;
-	M_DrawSlider (220, 32 + 8*OPT_SNDVOL, r);
-
-	// OPT_MUSICVOL:
-	M_Print (16, 32 + 8*OPT_MUSICVOL,	"          Music Volume");
-	r = bgmvolume.value;
-	M_DrawSlider (220, 32 + 8*OPT_MUSICVOL, r);
-
-	// OPT_MUSICEXT:
-	M_Print (16, 32 + 8*OPT_MUSICEXT,	"        External Music");
-	M_DrawCheckbox (220, 32 + 8*OPT_MUSICEXT, bgm_extmusic.value);
-
-	// OPT_ALWAYRUN:
-	M_Print (16, 32 + 8*OPT_ALWAYRUN,	"            Always Run");
-	if (cl_alwaysrun.value)
-		M_Print (220, 32 + 8*OPT_ALWAYRUN, "quakespasm");
-	else if (cl_forwardspeed.value > 200.0)
-		M_Print (220, 32 + 8*OPT_ALWAYRUN, "vanilla");
-	else
-		M_Print (220, 32 + 8*OPT_ALWAYRUN, "off");
-
-	// OPT_INVMOUSE:
-	M_Print (16, 32 + 8*OPT_INVMOUSE,	"          Invert Mouse");
-	M_DrawCheckbox (220, 32 + 8*OPT_INVMOUSE, m_pitch.value < 0);
-
-	// OPT_ALWAYSMLOOK:
-	M_Print (16, 32 + 8*OPT_ALWAYSMLOOK,	"            Mouse Look");
-	M_DrawCheckbox (220, 32 + 8*OPT_ALWAYSMLOOK, (in_mlook.state & 1) || freelook.value);
-
-	// OPT_LOOKSPRING:
-	M_Print (16, 32 + 8*OPT_LOOKSPRING,	"            Lookspring");
-	M_DrawCheckbox (220, 32 + 8*OPT_LOOKSPRING, lookspring.value);
-
-	// OPT_LOOKSTRAFE:
-	M_Print (16, 32 + 8*OPT_LOOKSTRAFE,	"            Lookstrafe");
-	M_DrawCheckbox (220, 32 + 8*OPT_LOOKSTRAFE, lookstrafe.value);
-
-	// OPT_VIDEO:
-	if (vid_menudrawfn)
-		M_Print (16, 32 + 8*OPT_VIDEO,	"         Video Options");
-
-// cursor
-	M_DrawCharacter (200, 32 + options_cursor*8, 12+((int)(realtime*4)&1));
+		y += 8;
+	}
 }
-
 
 void M_Options_Key (int k)
 {
@@ -2780,6 +3058,9 @@ void M_Options_Key (int k)
 		return;
 	}
 
+	if (M_List_Key (&optionsmenu.list, k))
+		return;
+
 	switch (k)
 	{
 	case K_ESCAPE:
@@ -2794,7 +3075,7 @@ void M_Options_Key (int k)
 	case K_ABUTTON:
 	enter:
 		m_entersound = true;
-		switch (options_cursor)
+		switch (optionsmenu.list.cursor)
 		{
 		case OPT_CUSTOMIZE:
 			M_Menu_Keys_f ();
@@ -2823,20 +3104,6 @@ void M_Options_Key (int k)
 		}
 		return;
 
-	case K_UPARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		options_cursor--;
-		if (options_cursor < 0)
-			options_cursor = OPTIONS_ITEMS-1;
-		break;
-
-	case K_DOWNARROW:
-		M_ThrottledSound ("misc/menu1.wav");
-		options_cursor++;
-		if (options_cursor >= OPTIONS_ITEMS)
-			options_cursor = 0;
-		break;
-
 	case K_LEFTARROW:
 	case K_MWHEELDOWN:
 	//case K_MOUSE2:
@@ -2853,19 +3120,10 @@ void M_Options_Key (int k)
 			goto enter;
 		break;
 	}
-
-	if (options_cursor == OPTIONS_ITEMS - 1 && vid_menudrawfn == NULL)
-	{
-		if (k == K_UPARROW)
-			options_cursor = OPTIONS_ITEMS - 2;
-		else
-			options_cursor = 0;
-	}
 }
 
 void M_Options_Mousemove (int cx, int cy)
 {
-	int prev;
 	if (slider_grab)
 	{
 		float frac;
@@ -2874,17 +3132,14 @@ void M_Options_Mousemove (int cx, int cy)
 			M_ReleaseSliderGrab ();
 			return;
 		}
-		frac = M_MouseToRawSliderFraction (cx - 220);
-		M_SetSliderValue (options_cursor, frac);
+		frac = M_MouseToRawSliderFraction (cx - OPTIONS_MIDPOS);
+		M_SetSliderValue (optionsmenu.list.cursor, frac);
 		if (frac >= 0.f && frac <= 1.f)
 			M_MouseSound ("misc/menu1.wav");
 		return;
 	}
 
-	prev = options_cursor;
-	M_UpdateCursor (cy, 32, 8, OPTIONS_ITEMS, &options_cursor);
-	if (options_cursor != prev)
-		M_MouseSound ("misc/menu1.wav");
+	M_List_Mousemove (&optionsmenu.list, cy - optionsmenu.y - OPTIONS_LISTOFS);
 }
 
 //=============================================================================
@@ -4930,7 +5185,8 @@ static void M_UpdateBounds (void)
 	width = right - left;
 	height = bottom - top;
 
-	m_height = 200 + q_max (0, height - 200) * yfrac;
+	m_height = q_min (height, 280);
+	m_height += (height - m_height) * yfrac;
 	m_height &= ~7;
 	m_width = 320 + q_max (0, width - 320) * xfrac;
 	m_width = q_min (m_width, m_height * 2);
