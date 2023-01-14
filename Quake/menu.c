@@ -3154,13 +3154,14 @@ static const char* const bindnames[][2] =
 	{"+back",			"Move backward"},
 	{"+moveleft",		"Move left"},
 	{"+moveright",		"Move right"},
-	{"+left",			"Turn left"},
-	{"+right",			"Turn right"},
 	{"+jump",			"Jump / swim up"},
 	{"+moveup",			"Swim up"},
 	{"+movedown",		"Swim down"},
 	{"+speed",			"Run"},
 	{"+strafe",			"Sidestep"},
+	{"",				""},
+	{"+left",			"Turn left"},
+	{"+right",			"Turn right"},
 	{"+lookup",			"Look up"},
 	{"+lookdown",		"Look down"},
 	{"centerview",		"Center view"},
@@ -3168,6 +3169,7 @@ static const char* const bindnames[][2] =
 	{"+klook",			"Keyboard look"},
 	{"zoom_in",			"Toggle zoom"},
 	{"+zoom",			"Quick zoom"},
+	{"",				""},
 	{"+attack",			"Attack"},
 	{"impulse 10",		"Next weapon"},
 	{"impulse 12",		"Previous weapon"},
@@ -3184,7 +3186,7 @@ static const char* const bindnames[][2] =
 };
 
 #define	NUMCOMMANDS		(sizeof(bindnames)/sizeof(bindnames[0]))
-#define KEYLIST_OFS		56
+#define KEYLIST_OFS		48
 
 static struct
 {
@@ -3199,10 +3201,23 @@ static void M_Keys_UpdateLayout (void)
 	int height;
 
 	M_UpdateBounds ();
-	height = keysmenu.list.numitems * 8 + KEYLIST_OFS + 8;
+	height = keysmenu.list.numitems * 8 + KEYLIST_OFS + 12;
 	height = q_min (height, m_height);
 	keysmenu.y = m_top + (((m_height - height) / 2) & ~7);
-	keysmenu.list.viewsize = (height - KEYLIST_OFS - 8) / 8;
+	keysmenu.list.viewsize = (height - KEYLIST_OFS - 12) / 8;
+}
+
+static qboolean M_Keys_IsSelectable (int index)
+{
+	return bindnames[index][0][0] != 0;
+}
+
+static qboolean M_Keys_Match (int index)
+{
+	const char *name = bindnames[index][1];
+	if (!*name)
+		return false;
+	return q_strcasestr (name, keysmenu.list.search.text) != NULL;
 }
 
 void M_Menu_Keys_f (void)
@@ -3214,6 +3229,10 @@ void M_Menu_Keys_f (void)
 	keysmenu.list.cursor = 0;
 	keysmenu.list.scroll = 0;
 	keysmenu.list.numitems = hipnotic ? NUMCOMMANDS : NUMCOMMANDS - 2;
+	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
+	keysmenu.list.search.match_fn = M_Keys_Match;
+
+	M_List_ClearSearch (&keysmenu.list);
 
 	M_Keys_UpdateLayout ();
 }
@@ -3250,6 +3269,7 @@ void M_Keys_Draw (void)
 	qpic_t	*p;
 
 	M_Keys_UpdateLayout ();
+	M_List_Update (&keysmenu.list);
 
 	x = 0;
 	y = keysmenu.y;
@@ -3277,41 +3297,46 @@ void M_Keys_Draw (void)
 	M_List_GetVisibleRange (&keysmenu.list, &firstvis, &numvis);
 	while (numvis-- > 0)
 	{
-		void (*print_fn) (int cx, int cy, const char *text);
-
 		i = firstvis++;
-		print_fn = (i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
 
-		print_fn (0, y, bindnames[i][1]);
-
-		M_FindKeysForCommand (bindnames[i][0], keys);
-		// If we already have 3 keys bound to this action
-		// they will all be unbound when a new one is assigned.
-		// We show this outcome to the user before it actually
-		// occurs so they have a chance to abort the process
-		// and keep the existing key bindings.
-		if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
-			keys[0] = -1;
-
-		if (keys[0] == -1)
+		if (bindnames[i][0][0])
 		{
-			print_fn (136, y, "???");
-		}
-		else
-		{
-			name = Key_KeynumToString (keys[0]);
-			print_fn (136, y, name);
-			x = strlen(name) * 8;
-			if (keys[1] != -1)
+			char buf[64];
+			void (*print_fn) (int cx, int cy, const char *text) =
+				(i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
+
+			COM_TintSubstring (bindnames[i][1], keysmenu.list.search.text, buf, sizeof (buf));
+			print_fn (0, y, buf);
+
+			M_FindKeysForCommand (bindnames[i][0], keys);
+			// If we already have 3 keys bound to this action
+			// they will all be unbound when a new one is assigned.
+			// We show this outcome to the user before it actually
+			// occurs so they have a chance to abort the process
+			// and keep the existing key bindings.
+			if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
+				keys[0] = -1;
+
+			if (keys[0] == -1)
 			{
-				name = Key_KeynumToString (keys[1]);
-				print_fn (136 + x + 8, y, "or");
-				print_fn (136 + x + 32, y, name);
-				x = x + 32 + strlen(name) * 8;
-				if (keys[2] != -1)
+				print_fn (136, y, "???");
+			}
+			else
+			{
+				name = Key_KeynumToString (keys[0]);
+				print_fn (136, y, name);
+				x = strlen(name) * 8;
+				if (keys[1] != -1)
 				{
+					name = Key_KeynumToString (keys[1]);
 					print_fn (136 + x + 8, y, "or");
-					print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
+					print_fn (136 + x + 32, y, name);
+					x = x + 32 + strlen(name) * 8;
+					if (keys[2] != -1)
+					{
+						print_fn (136 + x + 8, y, "or");
+						print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
+					}
 				}
 			}
 		}
@@ -3326,6 +3351,7 @@ void M_Keys_Draw (void)
 
 		y += 8;
 	}
+	M_List_DrawSearch (&keysmenu.list, x - 8, y + 4, 16);
 }
 
 
@@ -3367,6 +3393,7 @@ void M_Keys_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 	case K_MOUSE1:
+		M_List_ClearSearch (&keysmenu.list);
 		M_ThrottledSound ("misc/menu2.wav");
 		bind_grab = true;
 		M_List_AutoScroll (&keysmenu.list);
@@ -3385,6 +3412,18 @@ void M_Keys_Key (int k)
 void M_Keys_Mousemove (int cx, int cy)
 {
 	M_List_Mousemove (&keysmenu.list, cy - keysmenu.y - KEYLIST_OFS);
+}
+
+qboolean M_Keys_TextEntry (void)
+{
+	return !bind_grab;
+}
+
+void M_Keys_Char (int key)
+{
+	if (!keysmenu.list.search.len && key == ' ')
+		return;
+	M_List_Char (&keysmenu.list, key);
 }
 
 //=============================================================================
@@ -5541,6 +5580,9 @@ void M_Charinput (int key)
 	case m_options:
 		M_Options_Char (key);
 		return;
+	case m_keys:
+		M_Keys_Char (key);
+		return;
 	default:
 		return;
 	}
@@ -5563,6 +5605,8 @@ qboolean M_TextEntry (void)
 		return M_Mods_TextEntry ();
 	case m_options:
 		return M_Options_TextEntry ();
+	case m_keys:
+		return M_Keys_TextEntry ();
 	default:
 		return false;
 	}
