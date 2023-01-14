@@ -897,6 +897,10 @@ void M_List_Char (menulist_t *list, int key)
 	if (list->numitems <= 0 || !list->search.match_fn)
 		return;
 
+	// don't allow starting with a space
+	if (list->search.len <= 0 && key == ' ')
+		return;
+
 	maxlen = (int) countof (list->search.text) - 1;
 	if (list->search.maxlen)
 		maxlen = q_min (maxlen, list->search.maxlen);
@@ -3120,8 +3124,6 @@ qboolean M_Options_TextEntry (void)
 
 void M_Options_Char (int key)
 {
-	if (!optionsmenu.list.search.len && key == ' ')
-		return;
 	M_List_Char (&optionsmenu.list, key);
 }
 
@@ -3421,8 +3423,6 @@ qboolean M_Keys_TextEntry (void)
 
 void M_Keys_Char (int key)
 {
-	if (!keysmenu.list.search.len && key == ' ')
-		return;
 	M_List_Char (&keysmenu.list, key);
 }
 
