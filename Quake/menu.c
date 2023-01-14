@@ -2385,44 +2385,56 @@ void M_Net_Mousemove (int cx, int cy)
 //=============================================================================
 /* OPTIONS MENU */
 
+#define OPTIONS_LIST(def)\
+	def (OPT_VIDEO,			"Video Options")\
+	def (OPT_CUSTOMIZE,		"Controls")\
+	def (OPT_MODS,			"Mods")\
+	def (OPT_CONSOLE,		"Go To Console")\
+	def (OPT_DEFAULTS,		"Reset Config")\
+	\
+	def (OPT_SPACE1,		"")\
+	\
+	def (OPT_GAMMA,			"Brightness")\
+	def (OPT_CONTRAST,		"Contrast")\
+	def (OPT_SCALE,			"UI Scale")\
+	def (OPT_PIXELASPECT,	"UI Pixels")\
+	def (OPT_UIMOUSE,		"UI Mouse")\
+	def (OPT_HUDSTYLE,		"HUD")\
+	def (OPT_SBALPHA,		"HUD alpha")\
+	def (OPT_SCRSIZE,		"Screen Size")\
+	def (OPT_CROSSHAIR,		"Crosshair")\
+	\
+	def (OPT_SPACE2,		"")\
+	\
+	def (OPT_MOUSESPEED,	"Mouse Speed")\
+	def (OPT_INVMOUSE,		"Invert Mouse")\
+	def (OPT_ALWAYSMLOOK,	"Mouse Look")\
+	def (OPT_FOV,			"Field Of View")\
+	def (OPT_FOVDISTORT,	"Gun Distortion")\
+	def (OPT_RECOIL,		"Recoil")\
+	def (OPT_VIEWBOB,		"View Bob")\
+	def (OPT_ALWAYRUN,		"Always Run")\
+	\
+	def (OPT_SPACE3,		"")\
+	\
+	def (OPT_SNDVOL,		"Sound Volume")\
+	def (OPT_MUSICVOL,		"Music Volume")\
+	def (OPT_MUSICEXT,		"External Music")\
+
 enum
 {
-	OPT_VIDEO,
-	OPT_CUSTOMIZE,
-	OPT_MODS,
-	OPT_CONSOLE,
-	OPT_DEFAULTS,
-
-	OPT_SPACE1,
-
-	OPT_GAMMA,
-	OPT_CONTRAST,
-	OPT_SCALE,
-	OPT_PIXELASPECT,
-	OPT_UIMOUSE,
-	OPT_HUDSTYLE,
-	OPT_SBALPHA,
-	OPT_SCRSIZE,
-	OPT_CROSSHAIR,
-
-	OPT_SPACE2,
-
-	OPT_MOUSESPEED,
-	OPT_INVMOUSE,
-	OPT_ALWAYSMLOOK,
-	OPT_FOV,
-	OPT_FOVDISTORT,
-	OPT_RECOIL,
-	OPT_VIEWBOB,
-	OPT_ALWAYRUN,
-
-	OPT_SPACE3,
-
-	OPT_SNDVOL,
-	OPT_MUSICVOL,
-	OPT_MUSICEXT,
+	#define ADD_OPTION_ENUM(id, name) id,
+	OPTIONS_LIST (ADD_OPTION_ENUM)
+	#undef ADD_OPTION_ENUM
 
 	OPTIONS_ITEMS
+};
+
+static const char *const options_names[] =
+{
+	#define ADD_OPTION_NAME(id, name) name,
+	OPTIONS_LIST (ADD_OPTION_NAME)
+	#undef ADD_OPTION_NAME
 };
 
 enum
@@ -2486,6 +2498,14 @@ static qboolean M_Options_IsSelectable (int index)
 	;
 }
 
+static qboolean M_Options_Match (int index)
+{
+	const char *name = options_names[index];
+	if (!*name)
+		return false;
+	return q_strcasestr (name, optionsmenu.list.search.text) != NULL;
+}
+
 void M_Menu_Options_f (void)
 {
 	IN_DeactivateForMenu();
@@ -2494,9 +2514,11 @@ void M_Menu_Options_f (void)
 	m_entersound = true;
 	slider_grab = false;
 
-	optionsmenu.list.scroll = 0;
 	optionsmenu.list.numitems = OPTIONS_ITEMS;
 	optionsmenu.list.isactive_fn = M_Options_IsSelectable;
+	optionsmenu.list.search.match_fn = M_Options_Match;
+
+	M_List_ClearSearch (&optionsmenu.list);
 
 	M_Options_UpdateLayout ();
 }
@@ -2820,31 +2842,25 @@ qboolean M_SliderClick (int cx, int cy)
 
 static void M_Options_DrawItem (int y, int item)
 {
+	char		buf[256];
 	int			x = OPTIONS_MIDPOS;
 	float		r, l;
 
+	if (item < 0 || item >= OPTIONS_ITEMS)
+		return;
+
+	COM_TintSubstring (options_names[item], optionsmenu.list.search.text, buf, sizeof (buf));
+	M_PrintAligned (x - 28, y, ALIGN_RIGHT, buf);
+
 	switch (item)
 	{
+	case OPT_VIDEO:
 	case OPT_CUSTOMIZE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Controls");
-		M_Print (x - 4, y, "...");
-		break;
-
-	case OPT_CONSOLE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Go to console");
-		break;
-
-	case OPT_DEFAULTS:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Reset config");
-		break;
-
 	case OPT_MODS:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mods");
 		M_Print (x - 4, y, "...");
 		break;
 
 	case OPT_SCALE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Scale");
 		l = (vid.width / 320.0) - 1;
 		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
 		if (slider_grab && optionsmenu.list.cursor == OPT_SCALE)
@@ -2853,18 +2869,15 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_SCRSIZE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Screen size");
 		r = (scr_viewsize.value - 30) / (130 - 30);
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_PIXELASPECT:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Pixels");
 		M_Print (x, y, vid.guipixelaspect == 1.f ? "Square" : "Stretched");
 		break;
 
 	case OPT_CROSSHAIR:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Crosshair");
 		if (!crosshair.value)
 			M_Print (x, y, "Off");
 		else if (crosshair.value > 1)
@@ -2874,7 +2887,6 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_UIMOUSE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "UI Mouse");
 		switch (M_Options_GetUIMouse ())
 		{
 		case UI_MOUSE_OFF:		M_Print (x, y, "Off"); break;
@@ -2886,31 +2898,26 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_GAMMA:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Brightness");
 		r = (1.0 - vid_gamma.value) / 0.5;
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_CONTRAST:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Contrast");
 		r = vid_contrast.value - 1.0;
 		M_DrawSlider (x, y, r);
 		break;
 	
 	case OPT_MOUSESPEED:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mouse Speed");
 		r = (sensitivity.value - 1)/10;
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_SBALPHA:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "HUD alpha");
 		r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_HUDSTYLE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "HUD");
 		if (scr_hudstyle.value < 1)
 			M_Print (x, y, "Classic");
 		else if (scr_hudstyle.value < 2)
@@ -2920,24 +2927,20 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_SNDVOL:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Sound Volume");
 		r = sfxvolume.value;
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_MUSICVOL:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Music Volume");
 		r = bgmvolume.value;
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_MUSICEXT:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "External Music");
 		M_DrawCheckbox (x, y, bgm_extmusic.value);
 		break;
 
 	case OPT_ALWAYRUN:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Always Run");
 		if (cl_alwaysrun.value)
 			M_Print (x, y, "QuakeSpasm");
 		else if (cl_forwardspeed.value > 200.0)
@@ -2947,12 +2950,10 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_VIEWBOB:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "View bob");
 		M_Print (x, y, cl_bob.value ? "On" : "Off");
 		break;
 
 	case OPT_RECOIL:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Recoil");
 		if ((int)v_gunkick.value == 2)
 			M_Print (x, y, "Smooth");
 		else if ((int)v_gunkick.value == 1)
@@ -2962,33 +2963,21 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 
 	case OPT_INVMOUSE:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Invert Mouse");
 		M_DrawCheckbox (x, y, m_pitch.value < 0);
 		break;
 
 	case OPT_ALWAYSMLOOK:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Mouse Look");
 		M_DrawCheckbox (x, y, (in_mlook.state & 1) || freelook.value);
 		break;
 
 	case OPT_FOV:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Field of view");
 		r = (scr_fov.value - FOV_MIN) / (FOV_MAX - FOV_MIN);
 		M_DrawSlider (x, y, r);
 		break;
 
 	case OPT_FOVDISTORT:
-		M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Gun distortion");
 		r = 1.f - cl_gun_fovscale.value;
 		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_VIDEO:
-		if (vid_menudrawfn)
-		{
-			M_PrintAligned (x - 28, y, ALIGN_RIGHT, "Video Options");
-			M_Print (x - 4, y, "...");
-		}
 		break;
 
 	default:
@@ -3006,6 +2995,7 @@ void M_Options_Draw (void)
 		M_ReleaseSliderGrab ();
 
 	M_Options_UpdateLayout ();
+	M_List_Update (&optionsmenu.list);
 
 	x = 56;
 	y = optionsmenu.y;
@@ -3075,6 +3065,7 @@ void M_Options_Key (int k)
 	case K_ABUTTON:
 	enter:
 		m_entersound = true;
+		M_List_ClearSearch (&optionsmenu.list);
 		switch (optionsmenu.list.cursor)
 		{
 		case OPT_CUSTOMIZE:
@@ -3120,6 +3111,18 @@ void M_Options_Key (int k)
 			goto enter;
 		break;
 	}
+}
+
+qboolean M_Options_TextEntry (void)
+{
+	return !slider_grab;
+}
+
+void M_Options_Char (int key)
+{
+	if (!optionsmenu.list.search.len && key == ' ')
+		return;
+	M_List_Char (&optionsmenu.list, key);
 }
 
 void M_Options_Mousemove (int cx, int cy)
@@ -5535,6 +5538,9 @@ void M_Charinput (int key)
 	case m_mods:
 		M_Mods_Char (key);
 		return;
+	case m_options:
+		M_Options_Char (key);
+		return;
 	default:
 		return;
 	}
@@ -5555,6 +5561,8 @@ qboolean M_TextEntry (void)
 		return M_Maps_TextEntry ();
 	case m_mods:
 		return M_Mods_TextEntry ();
+	case m_options:
+		return M_Options_TextEntry ();
 	default:
 		return false;
 	}
