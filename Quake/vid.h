@@ -66,10 +66,18 @@ typedef struct
 
 extern	viddef_t	vid;				// global video state
 
-extern void (*vid_menudrawfn)(void);
-extern void (*vid_menukeyfn)(int key);
-extern void (*vid_menucmdfn)(void); //johnfitz
-extern void (*vid_menumousefn)(int cx, int cy);
+typedef struct
+{
+	int			width;
+	int			height;
+	int			refreshrate;
+	int			bpp;
+} vmode_t;
+
+#define MAX_MODE_LIST	600 //johnfitz -- was 30
+
+extern	vmode_t	modelist[MAX_MODE_LIST];
+extern	int		nummodes;
 
 void	VID_Init (void); //johnfitz -- removed palette from argument list
 void	VID_Shutdown (void); // Called at shutdown

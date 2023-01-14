@@ -36,11 +36,19 @@ extern cvar_t v_gunkick;
 extern cvar_t cl_bob;
 extern cvar_t cl_rollangle;
 extern cvar_t sv_autoload;
-
-void (*vid_menucmdfn)(void); //johnfitz
-void (*vid_menudrawfn)(void);
-void (*vid_menukeyfn)(int key);
-void (*vid_menumousefn)(int cx, int cy);
+extern cvar_t r_particles;
+extern cvar_t gl_texturemode;
+extern cvar_t gl_texture_anisotropy;
+extern cvar_t host_maxfps;
+extern cvar_t scr_showfps;
+extern cvar_t vid_width;
+extern cvar_t vid_height;
+extern cvar_t vid_bpp;
+extern cvar_t vid_refreshrate;
+extern cvar_t vid_fullscreen;
+extern cvar_t vid_vsync;
+extern cvar_t vid_fsaamode;
+extern cvar_t vid_fsaa;
 
 extern qboolean quake64;
 
@@ -3429,26 +3437,864 @@ void M_Keys_Char (int key)
 //=============================================================================
 /* VIDEO MENU */
 
-void M_Menu_Video_f (void)
+enum
 {
-	(*vid_menucmdfn) (); //johnfitz
+	VID_OPT_MODE,
+	VID_OPT_BPP,
+	VID_OPT_REFRESHRATE,
+	VID_OPT_FULLSCREEN,
+	VID_OPT_VSYNC,
+	VID_OPT_FSAA,
+	VID_OPT_FSAA_MODE,
+	VID_OPT_SCALE,
+	VID_OPT_ANISO,
+	VID_OPT_TEXFILTER,
+	VID_OPT_PARTICLES,
+	VID_OPT_WATERWARP,
+	VID_OPT_DLIGHTS,
+	VID_OPT_SOFTEMU,
+	VID_OPT_FPSLIMIT,
+	VID_OPT_SHOWFPS,
+	VID_OPT_TEST,
+	VID_OPT_APPLY,
+	VIDEO_OPTIONS_ITEMS
+};
+
+static int	video_options_cursor = 0;
+
+typedef struct
+{
+	int width,height;
+} vid_menu_mode;
+
+//TODO: replace these fixed-length arrays with hunk_allocated buffers
+#define MAX_BPPS_LIST	5
+#define MAX_RATES_LIST	20
+
+static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
+static int vid_menu_nummodes = 0;
+
+static int vid_menu_bpps[MAX_BPPS_LIST];
+static int vid_menu_numbpps = 0;
+
+static int vid_menu_rates[MAX_RATES_LIST];
+static int vid_menu_numrates=0;
+
+/*
+================
+VID_Menu_Init
+================
+*/
+void VID_Menu_Init (void)
+{
+	int i, j, h, w;
+
+	for (i = 0; i < nummodes; i++)
+	{
+		w = modelist[i].width;
+		h = modelist[i].height;
+
+		for (j = 0; j < vid_menu_nummodes; j++)
+		{
+			if (vid_menu_modes[j].width == w &&
+				vid_menu_modes[j].height == h)
+				break;
+		}
+
+		if (j == vid_menu_nummodes)
+		{
+			vid_menu_modes[j].width = w;
+			vid_menu_modes[j].height = h;
+			vid_menu_nummodes++;
+		}
+	}
 }
 
+/*
+================
+VID_Menu_RebuildBppList
 
-void M_Video_Draw (void)
+regenerates bpp list based on current vid_width and vid_height
+================
+*/
+static void VID_Menu_RebuildBppList (void)
 {
-	(*vid_menudrawfn) ();
+	int i, j, b;
+
+	vid_menu_numbpps = 0;
+
+	for (i = 0; i < nummodes; i++)
+	{
+		if (vid_menu_numbpps >= MAX_BPPS_LIST)
+			break;
+
+		//bpp list is limited to bpps available with current width/height
+		if (modelist[i].width != vid_width.value ||
+			modelist[i].height != vid_height.value)
+			continue;
+
+		b = modelist[i].bpp;
+
+		for (j = 0; j < vid_menu_numbpps; j++)
+		{
+			if (vid_menu_bpps[j] == b)
+				break;
+		}
+
+		if (j == vid_menu_numbpps)
+		{
+			vid_menu_bpps[j] = b;
+			vid_menu_numbpps++;
+		}
+	}
+
+	//if there are no valid fullscreen bpps for this width/height, just pick one
+	if (vid_menu_numbpps == 0)
+	{
+		Cvar_SetValueQuick (&vid_bpp, (float)modelist[0].bpp);
+		return;
+	}
+
+	//if vid_bpp is not in the new list, change vid_bpp
+	for (i = 0; i < vid_menu_numbpps; i++)
+		if (vid_menu_bpps[i] == (int)(vid_bpp.value))
+			break;
+
+	if (i == vid_menu_numbpps)
+		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[0]);
 }
 
+/*
+================
+VID_Menu_RebuildRateList
 
-void M_Video_Key (int key)
+regenerates rate list based on current vid_width, vid_height and vid_bpp
+================
+*/
+static void VID_Menu_RebuildRateList (void)
 {
-	(*vid_menukeyfn) (key);
+	int i, j, r;
+
+	vid_menu_numrates = 0;
+
+	for (i = 0; i < nummodes; i++)
+	{
+		//rate list is limited to rates available with current width/height/bpp
+		if (modelist[i].width != vid_width.value ||
+		    modelist[i].height != vid_height.value ||
+		    modelist[i].bpp != vid_bpp.value)
+			continue;
+
+		r = modelist[i].refreshrate;
+
+		for (j = 0; j < vid_menu_numrates; j++)
+		{
+			if (vid_menu_rates[j] == r)
+				break;
+		}
+
+		if (j == vid_menu_numrates)
+		{
+			vid_menu_rates[j] = r;
+			vid_menu_numrates++;
+		}
+	}
+
+	//if there are no valid fullscreen refreshrates for this width/height, just pick one
+	if (vid_menu_numrates == 0)
+	{
+		Cvar_SetValue ("vid_refreshrate",(float)modelist[0].refreshrate);
+		return;
+	}
+
+	//if vid_refreshrate is not in the new list, change vid_refreshrate
+	for (i = 0; i < vid_menu_numrates; i++)
+		if (vid_menu_rates[i] == (int)(vid_refreshrate.value))
+			break;
+
+	if (i == vid_menu_numrates)
+		Cvar_SetValue ("vid_refreshrate",(float)vid_menu_rates[0]);
 }
 
-void M_Video_Mousemove (int cx, int cy)
+/*
+================
+VID_Menu_ChooseNextMode
+
+chooses next resolution in order, then updates vid_width and
+vid_height cvars, then updates bpp and refreshrate lists
+================
+*/
+static void VID_Menu_ChooseNextMode (int dir)
 {
-	(*vid_menumousefn) (cx, cy);
+	int i;
+
+	if (vid_menu_nummodes)
+	{
+		for (i = 0; i < vid_menu_nummodes; i++)
+		{
+			if (vid_menu_modes[i].width == vid_width.value &&
+				vid_menu_modes[i].height == vid_height.value)
+				break;
+		}
+
+		if (i == vid_menu_nummodes) //can't find it in list, so it must be a custom windowed res
+		{
+			i = 0;
+		}
+		else
+		{
+			i += dir;
+			if (i >= vid_menu_nummodes)
+				i = 0;
+			else if (i < 0)
+				i = vid_menu_nummodes-1;
+		}
+
+		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[i].width);
+		Cvar_SetValueQuick (&vid_height, (float)vid_menu_modes[i].height);
+		VID_Menu_RebuildBppList ();
+		VID_Menu_RebuildRateList ();
+	}
+}
+
+/*
+================
+VID_Menu_ChooseNextBpp
+
+chooses next bpp in order, then updates vid_bpp cvar
+================
+*/
+static void VID_Menu_ChooseNextBpp (int dir)
+{
+	int i;
+
+	if (vid_menu_numbpps)
+	{
+		for (i = 0; i < vid_menu_numbpps; i++)
+		{
+			if (vid_menu_bpps[i] == vid_bpp.value)
+				break;
+		}
+
+		if (i == vid_menu_numbpps) //can't find it in list
+		{
+			i = 0;
+		}
+		else
+		{
+			i += dir;
+			if (i >= vid_menu_numbpps)
+				i = 0;
+			else if (i < 0)
+				i = vid_menu_numbpps-1;
+		}
+
+		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[i]);
+	}
+}
+
+/*
+================
+VID_Menu_ChooseNextRate
+
+chooses next refresh rate in order, then updates vid_refreshrate cvar
+================
+*/
+static void VID_Menu_ChooseNextRate (int dir)
+{
+	int i;
+
+	for (i = 0; i < vid_menu_numrates; i++)
+	{
+		if (vid_menu_rates[i] == vid_refreshrate.value)
+			break;
+	}
+
+	if (i == vid_menu_numrates) //can't find it in list
+	{
+		i = 0;
+	}
+	else
+	{
+		i += dir;
+		if (i >= vid_menu_numrates)
+			i = 0;
+		else if (i < 0)
+			i = vid_menu_numrates-1;
+	}
+
+	Cvar_SetValue ("vid_refreshrate",(float)vid_menu_rates[i]);
+}
+
+/*
+================
+VID_Menu_ChooseNextAA
+
+chooses next AA level in order, then updates vid_fsaa cvar
+================
+*/
+static void VID_Menu_ChooseNextAA (int dir)
+{
+	int samples = Q_nextPow2 (framebufs.scene.samples);
+
+	if (dir < 0)
+	{
+		samples <<= 1;
+		if (samples > framebufs.max_samples)
+			samples = 1;
+	}
+	else
+	{
+		samples >>= 1;
+		if (samples < 1)
+			samples = framebufs.max_samples;
+	}
+
+	Cvar_SetValueQuick (&vid_fsaa, CLAMP (1, samples, framebufs.max_samples));
+}
+
+/*
+================
+VID_Menu_ChooseNextAnisotropy
+
+chooses next anisotropy level in order, then updates gl_texture_anisotropy cvar
+================
+*/
+static void VID_Menu_ChooseNextAnisotropy (int dir)
+{
+	int aniso = Q_nextPow2 (q_max (1, (int)gl_texture_anisotropy.value));
+
+	if (dir < 0)
+	{
+		aniso <<= 1;
+		if (aniso > gl_max_anisotropy)
+			aniso = 1;
+	}
+	else
+	{
+		aniso >>= 1;
+		if (aniso < 1)
+			aniso = gl_max_anisotropy;
+	}
+
+	Cvar_SetValueQuick (&gl_texture_anisotropy, CLAMP (1, aniso, (int)gl_max_anisotropy));
+}
+
+/*
+================
+VID_Menu_ChooseNextScale
+
+chooses next scale in order, then updates r_scale cvar
+================
+*/
+static void VID_Menu_ChooseNextScale (int dir)
+{
+	// cycle [1..vid_maxscale]
+	int scale = 1 + (r_refdef.scale - 1 + vid.maxscale - dir) % vid.maxscale;
+	Cvar_SetValueQuick (&r_scale, scale);
+}
+
+static const char *const texfilters[][2] =
+{
+	{"gl_nearest_mipmap_linear", "Classic"},
+	{"gl_linear_mipmap_linear", "Smooth"},
+};
+
+/*
+================
+VID_Menu_ChooseNextTexFilter
+
+chooses next texture filter, then updates gl_texturemode cvar
+================
+*/
+static void VID_Menu_ChooseNextTexFilter (void)
+{
+	const char *filter = gl_texturemode.string;
+	int i;
+
+	for (i = 0; i < countof (texfilters); i++)
+	{
+		if (!q_strcasecmp (filter, texfilters[i][0]))
+		{
+			filter = texfilters[(i + 1) % countof (texfilters)][0];
+			break;
+		}
+	}
+	if (i == countof (texfilters))
+		filter = texfilters[0][0];
+
+	Cvar_SetQuick (&gl_texturemode, filter);
+}
+
+/*
+================
+VID_Menu_GetTexFilterDesc
+================
+*/
+static const char *VID_Menu_GetTexFilterDesc (void)
+{
+	const char *current = Cvar_VariableString ("gl_texturemode");
+	int i;
+	for (i = 0; i < countof (texfilters); i++)
+		if (!q_strcasecmp (current, texfilters[i][0]))
+			return texfilters[i][1];
+	return "";
+}
+
+/*
+================
+VID_Menu_ChooseNextFPSLimit
+
+chooses next fps limit in order, then updates host_maxfps cvar
+================
+*/
+static void VID_Menu_ChooseNextFPSLimit (int dir)
+{
+	static const int values[] = {0, 60, 72, 100, 120, 144, 165, 180, 200, 240, 300, 360, 500};
+	int i, current = (int)host_maxfps.value;
+
+	if (dir < 0)
+		for (i = 0; i < countof (values) && values[i] <= current; i++)
+			;
+	else
+		for (i = countof (values) - 1; i >= 0 && values[i] >= current; i--)
+			;
+
+	if (i < 0)
+		i = countof (values) - 1;
+	else if (i == countof (values))
+		i = 0;
+
+	Cvar_SetValueQuick (&host_maxfps, values[i]);
+}
+
+/*
+================
+VID_Menu_GetSoftEmuDesc
+================
+*/
+static const char *VID_Menu_GetSoftEmuDesc (void)
+{
+	switch (softemu)
+	{
+	case SOFTEMU_BANDED: return "Raw";
+	case SOFTEMU_COARSE: return "Balanced";
+	case SOFTEMU_FINE: return "Subtle";
+	case SOFTEMU_OFF: return "Off";
+	default: return "";
+	}
+}
+
+/*
+================
+VID_Menu_GetWaterWarpDesc
+================
+*/
+static const char *VID_Menu_GetWaterWarpDesc (void)
+{
+	switch ((int)r_waterwarp.value)
+	{
+	case 0: return "Off";
+	case 1: return "Classic";
+	case 2: return "glQuake";
+	default: return "";
+	}
+}
+
+/*
+================
+VID_Menu_GetParticlesDesc
+================
+*/
+static const char *VID_Menu_GetParticlesDesc (void)
+{
+	switch ((int)r_particles.value)
+	{
+	case 0: return "Off";
+	case 1: return "glQuake";
+	case 2: return "Classic";
+	default: return "";
+	}
+}
+
+/*
+================
+VID_MenuKey
+================
+*/
+static void M_Video_Key (int key)
+{
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		VID_SyncCvars (); //sync cvars before leaving menu. FIXME: there are other ways to leave menu
+		S_LocalSound ("misc/menu1.wav");
+		M_Menu_Options_f ();
+		break;
+
+	case K_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		video_options_cursor--;
+		if (video_options_cursor < 0)
+			video_options_cursor = VIDEO_OPTIONS_ITEMS-1;
+		break;
+
+	case K_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		video_options_cursor++;
+		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
+			video_options_cursor = 0;
+		break;
+
+	case K_LEFTARROW:
+	//case K_MOUSE2:
+	case K_MWHEELDOWN:
+		S_LocalSound ("misc/menu3.wav");
+		switch (video_options_cursor)
+		{
+		case VID_OPT_MODE:
+			VID_Menu_ChooseNextMode (1);
+			break;
+		case VID_OPT_BPP:
+			VID_Menu_ChooseNextBpp (1);
+			break;
+		case VID_OPT_REFRESHRATE:
+			VID_Menu_ChooseNextRate (1);
+			break;
+		case VID_OPT_FULLSCREEN:
+			Cbuf_AddText ("toggle vid_fullscreen\n");
+			break;
+		case VID_OPT_VSYNC:
+			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
+			break;
+		case VID_OPT_FSAA:
+			VID_Menu_ChooseNextAA (1);
+			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
+			break;
+		case VID_OPT_SCALE:
+			VID_Menu_ChooseNextScale (1);
+			break;
+		case VID_OPT_ANISO:
+			VID_Menu_ChooseNextAnisotropy (1);
+			break;
+		case VID_OPT_TEXFILTER:
+			VID_Menu_ChooseNextTexFilter ();
+			break;
+		case VID_OPT_PARTICLES:
+			Cbuf_AddText ("cycle r_particles 1 2 0\n");
+			break;
+		case VID_OPT_WATERWARP:
+			Cbuf_AddText ("cycle r_waterwarp 2 1 0\n");
+			break;
+		case VID_OPT_DLIGHTS:
+			Cbuf_AddText ("toggle r_dynamic\n");
+			break;
+		case VID_OPT_SOFTEMU:
+			Cbuf_AddText ("cycle r_softemu 3 2 1 0\n");
+			break;
+		case VID_OPT_FPSLIMIT:
+			VID_Menu_ChooseNextFPSLimit (1);
+			break;
+		case VID_OPT_SHOWFPS:
+			Cbuf_AddText ("toggle scr_showfps\n");
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case K_RIGHTARROW:
+	case K_MWHEELUP:
+		S_LocalSound ("misc/menu3.wav");
+		switch (video_options_cursor)
+		{
+		case VID_OPT_MODE:
+			VID_Menu_ChooseNextMode (-1);
+			break;
+		case VID_OPT_BPP:
+			VID_Menu_ChooseNextBpp (-1);
+			break;
+		case VID_OPT_REFRESHRATE:
+			VID_Menu_ChooseNextRate (-1);
+			break;
+		case VID_OPT_FULLSCREEN:
+			Cbuf_AddText ("toggle vid_fullscreen\n");
+			break;
+		case VID_OPT_VSYNC:
+			Cbuf_AddText ("toggle vid_vsync\n");
+			break;
+		case VID_OPT_FSAA:
+			VID_Menu_ChooseNextAA (-1);
+			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
+			break;
+		case VID_OPT_SCALE:
+			VID_Menu_ChooseNextScale (-1);
+			break;
+		case VID_OPT_ANISO:
+			VID_Menu_ChooseNextAnisotropy (-1);
+			break;
+		case VID_OPT_TEXFILTER:
+			VID_Menu_ChooseNextTexFilter ();
+			break;
+		case VID_OPT_PARTICLES:
+			Cbuf_AddText ("cycle r_particles 0 2 1\n");
+			break;
+		case VID_OPT_WATERWARP:
+			Cbuf_AddText ("cycle r_waterwarp 0 1 2\n");
+			break;
+		case VID_OPT_DLIGHTS:
+			Cbuf_AddText ("toggle r_dynamic\n");
+			break;
+		case VID_OPT_SOFTEMU:
+			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
+			break;
+		case VID_OPT_FPSLIMIT:
+			VID_Menu_ChooseNextFPSLimit (-1);
+			break;
+		case VID_OPT_SHOWFPS:
+			Cbuf_AddText ("toggle scr_showfps\n");
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		m_entersound = true;
+		switch (video_options_cursor)
+		{
+		case VID_OPT_MODE:
+			VID_Menu_ChooseNextMode (1);
+			break;
+		case VID_OPT_BPP:
+			VID_Menu_ChooseNextBpp (1);
+			break;
+		case VID_OPT_REFRESHRATE:
+			VID_Menu_ChooseNextRate (1);
+			break;
+		case VID_OPT_FULLSCREEN:
+			Cbuf_AddText ("toggle vid_fullscreen\n");
+			break;
+		case VID_OPT_VSYNC:
+			Cbuf_AddText ("toggle vid_vsync\n");
+			break;
+		case VID_OPT_FSAA:
+			VID_Menu_ChooseNextAA (-1);
+			break;
+		case VID_OPT_FSAA_MODE:
+			Cbuf_AddText ("toggle vid_fsaamode\n");
+			break;
+		case VID_OPT_SCALE:
+			VID_Menu_ChooseNextScale (-1);
+			break;
+		case VID_OPT_ANISO:
+			VID_Menu_ChooseNextAnisotropy (-1);
+			break;
+		case VID_OPT_TEXFILTER:
+			VID_Menu_ChooseNextTexFilter ();
+			break;
+		case VID_OPT_PARTICLES:
+			Cbuf_AddText ("cycle r_particles 0 2 1\n");
+			break;
+		case VID_OPT_WATERWARP:
+			Cbuf_AddText ("cycle r_waterwarp 0 1 2\n");
+			break;
+		case VID_OPT_DLIGHTS:
+			Cbuf_AddText ("toggle r_dynamic\n");
+			break;
+		case VID_OPT_SOFTEMU:
+			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
+			break;
+		case VID_OPT_FPSLIMIT:
+			VID_Menu_ChooseNextFPSLimit (-1);
+			break;
+		case VID_OPT_SHOWFPS:
+			Cbuf_AddText ("toggle scr_showfps\n");
+			break;
+		case VID_OPT_TEST:
+			Cbuf_AddText ("vid_test\n");
+			break;
+		case VID_OPT_APPLY:
+			Cbuf_AddText ("vid_restart\n");
+			key_dest = key_game;
+			m_state = m_none;
+			IN_Activate();
+			break;
+		default:
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+================
+VID_MenuMouse
+================
+*/
+static void M_Video_Mousemove (int cx, int cy)
+{
+	int cursor = (cy - 48) / 8;
+	// Handle the visual gap between the last option and "Test changes"
+	if (cursor > VID_OPT_TEST)
+		--cursor; // past the gap, correct the index
+	else if (cursor == VID_OPT_TEST)
+		return; // inside the gap, do nothing
+	cursor = CLAMP (0, cursor, VIDEO_OPTIONS_ITEMS - 1);
+	video_options_cursor = cursor;
+}
+
+/*
+================
+VID_MenuDraw
+================
+*/
+static void M_Video_Draw (void)
+{
+	int i, x0, x1, y;
+	qpic_t *p;
+	const char *title;
+
+	y = 4;
+
+	// plaque
+	p = Draw_CachePic ("gfx/qplaque.lmp");
+	M_DrawTransPic (16, y, p);
+
+	//p = Draw_CachePic ("gfx/vidmodes.lmp");
+	p = Draw_CachePic ("gfx/p_option.lmp");
+	M_DrawPic ( (320-p->width)/2, y, p);
+
+	y += 28;
+
+	// title
+	title = "Video Options";
+	M_PrintWhite ((320-8*strlen(title))/2, y, title);
+
+	y += 16;
+
+	x0 = 32;
+	x1 = x0 + 168;
+
+	// options
+	for (i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
+	{
+		switch (i)
+		{
+		case VID_OPT_MODE:
+			M_Print (x0, y, "        Video mode");
+			M_Print (x1, y, va("%ix%i", (int)vid_width.value, (int)vid_height.value));
+			break;
+		case VID_OPT_BPP:
+			M_Print (x0, y, "       Color depth");
+			M_Print (x1, y, va("%i", (int)vid_bpp.value));
+			break;
+		case VID_OPT_REFRESHRATE:
+			M_Print (x0, y, "      Refresh rate");
+			M_Print (x1, y, va("%i", (int)vid_refreshrate.value));
+			break;
+		case VID_OPT_FULLSCREEN:
+			M_Print (x0, y, "        Fullscreen");
+			M_DrawCheckbox (x1, y, (int)vid_fullscreen.value);
+			break;
+		case VID_OPT_VSYNC:
+			M_Print (x0, y, "     Vertical sync");
+			M_DrawCheckbox (x1, y, (int)vid_vsync.value);
+			break;
+		case VID_OPT_FSAA:
+			M_Print (x0, y, "      Antialiasing");
+			M_Print (x1, y, framebufs.scene.samples >= 2 ? va("%ix", framebufs.scene.samples) : "Off");
+			break;
+		case VID_OPT_FSAA_MODE:
+			M_Print (x0, y, "           AA mode");
+			M_Print (x1, y, vid_fsaamode.value ? "Full" : "Edges only");
+			break;
+		case VID_OPT_SCALE:
+			M_Print (x0, y, "      Render scale");
+			M_Print (x1, y, r_refdef.scale >= 2 ? va("1/%i", r_refdef.scale) : "Off");
+			break;
+		case VID_OPT_ANISO:
+			M_Print (x0, y, "       Anisotropic");
+			M_Print (x1, y, gl_texture_anisotropy.value >= 2.f ?
+				va("%ix", q_min ((int)gl_texture_anisotropy.value, (int)gl_max_anisotropy)) :
+				"Off"
+			);
+			break;
+		case VID_OPT_TEXFILTER:
+			M_Print (x0, y, "          Textures");
+			M_Print (x1, y, VID_Menu_GetTexFilterDesc ());
+			break;
+		case VID_OPT_PARTICLES:
+			M_Print (x0, y, "         Particles");
+			M_Print (x1, y, VID_Menu_GetParticlesDesc ());
+			break;
+		case VID_OPT_WATERWARP:
+			M_Print (x0, y, "     Underwater FX");
+			M_Print (x1, y, VID_Menu_GetWaterWarpDesc ());
+			break;
+		case VID_OPT_DLIGHTS:
+			M_Print (x0, y, "    Dynamic lights");
+			M_Print (x1, y, r_dynamic.value ? "On" : "Off");
+			break;
+		case VID_OPT_SOFTEMU:
+			M_Print (x0, y, "        8-bit mode");
+			M_Print (x1, y, VID_Menu_GetSoftEmuDesc ());
+			break;
+		case VID_OPT_FPSLIMIT:
+			M_Print (x0, y, "         FPS Limit");
+			M_Print (x1, y, host_maxfps.value ? va("%i", (int)host_maxfps.value): "Off");
+			break;
+		case VID_OPT_SHOWFPS:
+			M_Print (x0, y, "          Show FPS");
+			M_Print (x1, y, scr_showfps.value ? "On" : "Off");
+			break;
+		case VID_OPT_TEST:
+			y += 8; //separate the test and apply items
+			M_Print (x0, y, "      Test changes");
+			break;
+		case VID_OPT_APPLY:
+			M_Print (x0, y, "     Apply changes");
+			break;
+		}
+
+		if (video_options_cursor == i)
+			M_DrawCharacter (x1 - 16, y, 12+((int)(realtime*4)&1));
+
+		y += 8;
+	}
+}
+
+/*
+================
+VID_Menu_f
+================
+*/
+static void M_Menu_Video_f (void)
+{
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = m_video;
+	m_entersound = true;
+
+	//set all the cvars to match the current mode when entering the menu
+	VID_SyncCvars ();
+
+	//set up bpp and rate lists based on current cvars
+	VID_Menu_RebuildBppList ();
+	VID_Menu_RebuildRateList ();
 }
 
 //=============================================================================
