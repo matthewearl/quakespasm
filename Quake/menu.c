@@ -163,6 +163,7 @@ char		m_return_reason [32];
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
 void M_Options_SelectMods (void);
+void M_Options_Init (enum m_state_e state);
 
 #define DESCRIPTION_SCROLL_WAIT_TIME	1.0
 
@@ -2416,91 +2417,7 @@ void M_Net_Mousemove (int cx, int cy)
 }
 
 //=============================================================================
-/* OPTIONS MENU */
-
-////////////////////////////////////////////////////
-#define OPTIONS_LIST(def)							\
-	def (OPT_VIDEO,			"Video Options")		\
-	def (OPT_CUSTOMIZE,		"Controls")				\
-	def (OPT_MODS,			"Mods")					\
-	def (OPT_CONSOLE,		"Go To Console")		\
-	def (OPT_DEFAULTS,		"Reset Config")			\
-													\
-	def (OPT_SPACE1,		"")						\
-													\
-	def (OPT_GAMMA,			"Brightness")			\
-	def (OPT_CONTRAST,		"Contrast")				\
-	def (OPT_SCALE,			"UI Scale")				\
-	def (OPT_PIXELASPECT,	"UI Pixels")			\
-	def (OPT_UIMOUSE,		"UI Mouse")				\
-	def (OPT_HUDSTYLE,		"HUD")					\
-	def (OPT_SBALPHA,		"HUD alpha")			\
-	def (OPT_SCRSIZE,		"Screen Size")			\
-	def (OPT_CROSSHAIR,		"Crosshair")			\
-													\
-	def (OPT_SPACE2,		"")						\
-													\
-	def (OPT_MOUSESPEED,	"Mouse Speed")			\
-	def (OPT_INVMOUSE,		"Invert Mouse")			\
-	def (OPT_ALWAYSMLOOK,	"Mouse Look")			\
-	def (OPT_FOV,			"Field Of View")		\
-	def (OPT_FOVDISTORT,	"Gun Distortion")		\
-	def (OPT_RECOIL,		"Recoil")				\
-	def (OPT_VIEWBOB,		"View Bob")				\
-	def (OPT_ALWAYRUN,		"Always Run")			\
-													\
-	def (OPT_SPACE3,		"")						\
-													\
-	def (OPT_SNDVOL,		"Sound Volume")			\
-	def (OPT_MUSICVOL,		"Music Volume")			\
-	def (OPT_MUSICEXT,		"External Music")		\
-////////////////////////////////////////////////////
-#define VIDEO_OPTIONS_LIST(def)						\
-	def (VID_OPT_MODE,			"Video Mode")		\
-	def (VID_OPT_BPP,			"Color Depth")		\
-	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
-	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
-	def (VID_OPT_VSYNC,			"Vertical Sync")	\
-	def (VID_OPT_FSAA,			"Antialiasing")		\
-	def (VID_OPT_FSAA_MODE,		"AA Mode")			\
-	def (VID_OPT_SCALE,			"Render Scale")		\
-	def (VID_OPT_ANISO,			"Anisotropic")		\
-	def (VID_OPT_TEXFILTER,		"Textures")			\
-	def (VID_OPT_PARTICLES,		"Particles")		\
-	def (VID_OPT_WATERWARP,		"Underwater FX")	\
-	def (VID_OPT_DLIGHTS,		"Dynamic Lights")	\
-	def (VID_OPT_SOFTEMU,		"8-bit Mode")		\
-	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
-	def (VID_OPT_SHOWFPS,		"Show FPS")			\
-													\
-	def (VID_OPT_SPACE1,		"")					\
-													\
-	def (VID_OPT_TEST,			"Test changes")		\
-	def (VID_OPT_APPLY,			"Apply changes")	\
-////////////////////////////////////////////////////
-
-enum
-{
-	#define ADD_OPTION_ENUM(id, name) id,
-	OPTIONS_LIST (ADD_OPTION_ENUM)
-	VIDEO_OPTIONS_LIST(ADD_OPTION_ENUM)
-	#undef ADD_OPTION_ENUM
-
-	#define COUNT_OPTION(id, name) +1
-	OPTIONS_FIRST			= 0,
-	OPTIONS_ITEMS			= OPTIONS_LIST (COUNT_OPTION),
-	VIDEO_OPTIONS_FIRST		= OPTIONS_ITEMS,
-	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
-	#undef COUNT_OPTION
-};
-
-static const char *const options_names[] =
-{
-	#define ADD_OPTION_NAME(id, name) name,
-	OPTIONS_LIST (ADD_OPTION_NAME)
-	VIDEO_OPTIONS_LIST(ADD_OPTION_NAME)
-	#undef ADD_OPTION_NAME
-};
+/* VIDEO MENU */
 
 //TODO: replace these fixed-length arrays with hunk_allocated buffers
 #define MAX_BPPS_LIST	5
@@ -2956,6 +2873,103 @@ static const char *VID_Menu_GetParticlesDesc (void)
 	default: return "";
 	}
 }
+
+/*
+================
+M_Menu_Video_f
+================
+*/
+void M_Menu_Video_f (void)
+{
+	M_Options_Init (m_video);
+}
+
+//=============================================================================
+/* OPTIONS MENU */
+
+////////////////////////////////////////////////////
+#define OPTIONS_LIST(def)							\
+	def (OPT_VIDEO,			"Video Options")		\
+	def (OPT_CUSTOMIZE,		"Controls")				\
+	def (OPT_MODS,			"Mods")					\
+	def (OPT_CONSOLE,		"Go To Console")		\
+	def (OPT_DEFAULTS,		"Reset Config")			\
+													\
+	def (OPT_SPACE1,		"")						\
+													\
+	def (OPT_GAMMA,			"Brightness")			\
+	def (OPT_CONTRAST,		"Contrast")				\
+	def (OPT_SCALE,			"UI Scale")				\
+	def (OPT_PIXELASPECT,	"UI Pixels")			\
+	def (OPT_UIMOUSE,		"UI Mouse")				\
+	def (OPT_HUDSTYLE,		"HUD")					\
+	def (OPT_SBALPHA,		"HUD alpha")			\
+	def (OPT_SCRSIZE,		"Screen Size")			\
+	def (OPT_CROSSHAIR,		"Crosshair")			\
+													\
+	def (OPT_SPACE2,		"")						\
+													\
+	def (OPT_MOUSESPEED,	"Mouse Speed")			\
+	def (OPT_INVMOUSE,		"Invert Mouse")			\
+	def (OPT_ALWAYSMLOOK,	"Mouse Look")			\
+	def (OPT_FOV,			"Field Of View")		\
+	def (OPT_FOVDISTORT,	"Gun Distortion")		\
+	def (OPT_RECOIL,		"Recoil")				\
+	def (OPT_VIEWBOB,		"View Bob")				\
+	def (OPT_ALWAYRUN,		"Always Run")			\
+													\
+	def (OPT_SPACE3,		"")						\
+													\
+	def (OPT_SNDVOL,		"Sound Volume")			\
+	def (OPT_MUSICVOL,		"Music Volume")			\
+	def (OPT_MUSICEXT,		"External Music")		\
+////////////////////////////////////////////////////
+#define VIDEO_OPTIONS_LIST(def)						\
+	def (VID_OPT_MODE,			"Video Mode")		\
+	def (VID_OPT_BPP,			"Color Depth")		\
+	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
+	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
+	def (VID_OPT_VSYNC,			"Vertical Sync")	\
+	def (VID_OPT_FSAA,			"Antialiasing")		\
+	def (VID_OPT_FSAA_MODE,		"AA Mode")			\
+	def (VID_OPT_SCALE,			"Render Scale")		\
+	def (VID_OPT_ANISO,			"Anisotropic")		\
+	def (VID_OPT_TEXFILTER,		"Textures")			\
+	def (VID_OPT_PARTICLES,		"Particles")		\
+	def (VID_OPT_WATERWARP,		"Underwater FX")	\
+	def (VID_OPT_DLIGHTS,		"Dynamic Lights")	\
+	def (VID_OPT_SOFTEMU,		"8-bit Mode")		\
+	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
+	def (VID_OPT_SHOWFPS,		"Show FPS")			\
+													\
+	def (VID_OPT_SPACE1,		"")					\
+													\
+	def (VID_OPT_TEST,			"Test changes")		\
+	def (VID_OPT_APPLY,			"Apply changes")	\
+////////////////////////////////////////////////////
+
+enum
+{
+	#define ADD_OPTION_ENUM(id, name) id,
+	OPTIONS_LIST (ADD_OPTION_ENUM)
+	VIDEO_OPTIONS_LIST(ADD_OPTION_ENUM)
+	#undef ADD_OPTION_ENUM
+
+	#define COUNT_OPTION(id, name) +1
+	OPTIONS_FIRST			= 0,
+	OPTIONS_ITEMS			= OPTIONS_LIST (COUNT_OPTION),
+	VIDEO_OPTIONS_FIRST		= OPTIONS_ITEMS,
+	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
+	#undef COUNT_OPTION
+};
+
+static const char *const options_names[] =
+{
+	#define ADD_OPTION_NAME(id, name) name,
+	OPTIONS_LIST (ADD_OPTION_NAME)
+	VIDEO_OPTIONS_LIST(ADD_OPTION_NAME)
+	#undef ADD_OPTION_NAME
+};
 
 enum
 {
@@ -4110,19 +4124,6 @@ qboolean M_Keys_TextEntry (void)
 void M_Keys_Char (int key)
 {
 	M_List_Char (&keysmenu.list, key);
-}
-
-//=============================================================================
-/* VIDEO MENU */
-
-/*
-================
-VID_Menu_f
-================
-*/
-void M_Menu_Video_f (void)
-{
-	M_Options_Init (m_video);
 }
 
 //=============================================================================
