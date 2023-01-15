@@ -3361,7 +3361,7 @@ void M_Keys_Draw (void)
 
 		y += 8;
 	}
-	M_List_DrawSearch (&keysmenu.list, x - 8, y + 4, 16);
+	M_List_DrawSearch (&keysmenu.list, 0, y + 4, 16);
 }
 
 
