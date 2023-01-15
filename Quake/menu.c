@@ -3004,7 +3004,10 @@ float target_scale_frac;
 
 void M_Options_SelectMods (void)
 {
-	optionsmenu.list.cursor = OPT_MODS;
+	if (m_state == m_options)
+		optionsmenu.list.cursor = OPT_MODS;
+	else
+		optionsmenu.options_cursor = OPT_MODS;
 }
 
 static void M_Options_UpdateLayout (void)
