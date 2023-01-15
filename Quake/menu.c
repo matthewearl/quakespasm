@@ -3922,7 +3922,7 @@ static const char *VID_Menu_GetParticlesDesc (void)
 VID_MenuKey
 ================
 */
-static void M_Video_Key (int key)
+void M_Video_Key (int key)
 {
 	switch (key)
 	{
@@ -4145,7 +4145,7 @@ static void M_Video_Key (int key)
 VID_MenuMouse
 ================
 */
-static void M_Video_Mousemove (int cx, int cy)
+void M_Video_Mousemove (int cx, int cy)
 {
 	int cursor = (cy - 48) / 8;
 	// Handle the visual gap between the last option and "Test changes"
@@ -4162,7 +4162,7 @@ static void M_Video_Mousemove (int cx, int cy)
 VID_MenuDraw
 ================
 */
-static void M_Video_Draw (void)
+void M_Video_Draw (void)
 {
 	int i, x0, x1, y;
 	qpic_t *p;
@@ -4282,7 +4282,7 @@ static void M_Video_Draw (void)
 VID_Menu_f
 ================
 */
-static void M_Menu_Video_f (void)
+void M_Menu_Video_f (void)
 {
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
