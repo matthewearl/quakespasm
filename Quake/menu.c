@@ -3105,7 +3105,7 @@ void M_Menu_Options_f (void)
 typedef enum
 {
 	UI_MOUSE_OFF,
-	UI_MOUSE_SILENT,
+	UI_MOUSE_QUIET,
 	UI_MOUSE_NOISY,
 
 	UI_MOUSE_NUMSETTINGS,
@@ -3115,7 +3115,7 @@ static uimouse_t M_Options_GetUIMouse (void)
 {
 	if (!ui_mouse.value)
 		return UI_MOUSE_OFF;
-	return ui_mouse_sound.value ? UI_MOUSE_NOISY : UI_MOUSE_SILENT;
+	return ui_mouse_sound.value ? UI_MOUSE_NOISY : UI_MOUSE_QUIET;
 }
 
 static void M_Options_SetUIMouse (uimouse_t opt)
@@ -3125,7 +3125,7 @@ static void M_Options_SetUIMouse (uimouse_t opt)
 	case UI_MOUSE_OFF:
 		Cvar_SetValueQuick (&ui_mouse, 0.f);
 		break;
-	case UI_MOUSE_SILENT:
+	case UI_MOUSE_QUIET:
 		Cvar_SetValueQuick (&ui_mouse, 1.f);
 		Cvar_SetValueQuick (&ui_mouse_sound, 0.f);
 		break;
@@ -3526,7 +3526,7 @@ static void M_Options_DrawItem (int y, int item)
 		switch (M_Options_GetUIMouse ())
 		{
 		case UI_MOUSE_OFF:		M_Print (x, y, "Off"); break;
-		case UI_MOUSE_SILENT:	M_Print (x, y, "Silent"); break;
+		case UI_MOUSE_QUIET:	M_Print (x, y, "Quiet"); break;
 		case UI_MOUSE_NOISY:	M_Print (x, y, "Noisy"); break;
 		default:
 			break;
