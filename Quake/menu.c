@@ -3425,7 +3425,9 @@ qboolean M_SetSliderValue (int option, float f)
 		return true;
 	case OPT_FOV:	// field of view
 		f = LERP (FOV_MIN, FOV_MAX, f);
-		f = floor (f / 5 + 0.5) * 5;
+		f = floor (f + 0.5f);
+		if (fabs (f - 90.f) < 5.f)
+			f = 90.f;
 		Cvar_SetValue ("fov", f);
 		return true;
 	case OPT_FOVDISTORT:	// FOV distortion
