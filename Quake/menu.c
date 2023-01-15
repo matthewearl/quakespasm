@@ -2418,64 +2418,66 @@ void M_Net_Mousemove (int cx, int cy)
 //=============================================================================
 /* OPTIONS MENU */
 
-#define OPTIONS_LIST(def)\
-	def (OPT_VIDEO,			"Video Options")\
-	def (OPT_CUSTOMIZE,		"Controls")\
-	def (OPT_MODS,			"Mods")\
-	def (OPT_CONSOLE,		"Go To Console")\
-	def (OPT_DEFAULTS,		"Reset Config")\
-	\
-	def (OPT_SPACE1,		"")\
-	\
-	def (OPT_GAMMA,			"Brightness")\
-	def (OPT_CONTRAST,		"Contrast")\
-	def (OPT_SCALE,			"UI Scale")\
-	def (OPT_PIXELASPECT,	"UI Pixels")\
-	def (OPT_UIMOUSE,		"UI Mouse")\
-	def (OPT_HUDSTYLE,		"HUD")\
-	def (OPT_SBALPHA,		"HUD alpha")\
-	def (OPT_SCRSIZE,		"Screen Size")\
-	def (OPT_CROSSHAIR,		"Crosshair")\
-	\
-	def (OPT_SPACE2,		"")\
-	\
-	def (OPT_MOUSESPEED,	"Mouse Speed")\
-	def (OPT_INVMOUSE,		"Invert Mouse")\
-	def (OPT_ALWAYSMLOOK,	"Mouse Look")\
-	def (OPT_FOV,			"Field Of View")\
-	def (OPT_FOVDISTORT,	"Gun Distortion")\
-	def (OPT_RECOIL,		"Recoil")\
-	def (OPT_VIEWBOB,		"View Bob")\
-	def (OPT_ALWAYRUN,		"Always Run")\
-	\
-	def (OPT_SPACE3,		"")\
-	\
-	def (OPT_SNDVOL,		"Sound Volume")\
-	def (OPT_MUSICVOL,		"Music Volume")\
-	def (OPT_MUSICEXT,		"External Music")\
-
-#define VIDEO_OPTIONS_LIST(def)\
-	def (VID_OPT_MODE,			"Video Mode")\
-	def (VID_OPT_BPP,			"Color Depth")\
-	def (VID_OPT_REFRESHRATE,	"Refresh Rate")\
-	def (VID_OPT_FULLSCREEN,	"Fullscreen")\
-	def (VID_OPT_VSYNC,			"Vertical Sync")\
-	def (VID_OPT_FSAA,			"Antialiasing")\
-	def (VID_OPT_FSAA_MODE,		"AA Mode")\
-	def (VID_OPT_SCALE,			"Render Scale")\
-	def (VID_OPT_ANISO,			"Anisotropic")\
-	def (VID_OPT_TEXFILTER,		"Textures")\
-	def (VID_OPT_PARTICLES,		"Particles")\
-	def (VID_OPT_WATERWARP,		"Underwater FX")\
-	def (VID_OPT_DLIGHTS,		"Dynamic Lights")\
-	def (VID_OPT_SOFTEMU,		"8-bit Mode")\
-	def (VID_OPT_FPSLIMIT,		"FPS Limit")\
-	def (VID_OPT_SHOWFPS,		"Show FPS")\
-	\
-	def (VID_OPT_SPACE1,		"")\
-	\
-	def (VID_OPT_TEST,			"Test changes")\
-	def (VID_OPT_APPLY,			"Apply changes")\
+////////////////////////////////////////////////////
+#define OPTIONS_LIST(def)							\
+	def (OPT_VIDEO,			"Video Options")		\
+	def (OPT_CUSTOMIZE,		"Controls")				\
+	def (OPT_MODS,			"Mods")					\
+	def (OPT_CONSOLE,		"Go To Console")		\
+	def (OPT_DEFAULTS,		"Reset Config")			\
+													\
+	def (OPT_SPACE1,		"")						\
+													\
+	def (OPT_GAMMA,			"Brightness")			\
+	def (OPT_CONTRAST,		"Contrast")				\
+	def (OPT_SCALE,			"UI Scale")				\
+	def (OPT_PIXELASPECT,	"UI Pixels")			\
+	def (OPT_UIMOUSE,		"UI Mouse")				\
+	def (OPT_HUDSTYLE,		"HUD")					\
+	def (OPT_SBALPHA,		"HUD alpha")			\
+	def (OPT_SCRSIZE,		"Screen Size")			\
+	def (OPT_CROSSHAIR,		"Crosshair")			\
+													\
+	def (OPT_SPACE2,		"")						\
+													\
+	def (OPT_MOUSESPEED,	"Mouse Speed")			\
+	def (OPT_INVMOUSE,		"Invert Mouse")			\
+	def (OPT_ALWAYSMLOOK,	"Mouse Look")			\
+	def (OPT_FOV,			"Field Of View")		\
+	def (OPT_FOVDISTORT,	"Gun Distortion")		\
+	def (OPT_RECOIL,		"Recoil")				\
+	def (OPT_VIEWBOB,		"View Bob")				\
+	def (OPT_ALWAYRUN,		"Always Run")			\
+													\
+	def (OPT_SPACE3,		"")						\
+													\
+	def (OPT_SNDVOL,		"Sound Volume")			\
+	def (OPT_MUSICVOL,		"Music Volume")			\
+	def (OPT_MUSICEXT,		"External Music")		\
+////////////////////////////////////////////////////
+#define VIDEO_OPTIONS_LIST(def)						\
+	def (VID_OPT_MODE,			"Video Mode")		\
+	def (VID_OPT_BPP,			"Color Depth")		\
+	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
+	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
+	def (VID_OPT_VSYNC,			"Vertical Sync")	\
+	def (VID_OPT_FSAA,			"Antialiasing")		\
+	def (VID_OPT_FSAA_MODE,		"AA Mode")			\
+	def (VID_OPT_SCALE,			"Render Scale")		\
+	def (VID_OPT_ANISO,			"Anisotropic")		\
+	def (VID_OPT_TEXFILTER,		"Textures")			\
+	def (VID_OPT_PARTICLES,		"Particles")		\
+	def (VID_OPT_WATERWARP,		"Underwater FX")	\
+	def (VID_OPT_DLIGHTS,		"Dynamic Lights")	\
+	def (VID_OPT_SOFTEMU,		"8-bit Mode")		\
+	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
+	def (VID_OPT_SHOWFPS,		"Show FPS")			\
+													\
+	def (VID_OPT_SPACE1,		"")					\
+													\
+	def (VID_OPT_TEST,			"Test changes")		\
+	def (VID_OPT_APPLY,			"Apply changes")	\
+////////////////////////////////////////////////////
 
 enum
 {
