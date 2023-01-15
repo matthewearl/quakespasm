@@ -3144,6 +3144,7 @@ void M_AdjustSliders (int dir)
 	float	f, l;
 
 	M_ThrottledSound ("misc/menu3.wav");
+	M_List_ClearSearch (&optionsmenu.list);
 
 	switch (optionsmenu.list.cursor + optionsmenu.first_item)
 	{
@@ -3807,6 +3808,7 @@ void M_Options_Key (int k)
 		break;
 
 	case K_MOUSE1:
+		M_List_ClearSearch (&optionsmenu.list);
 		if (!M_SliderClick (m_mousex, m_mousey))
 			goto enter;
 		break;
