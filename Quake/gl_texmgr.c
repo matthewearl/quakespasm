@@ -37,7 +37,7 @@ static const struct {
 	{{GL_COMPRESSED_RGBA_BPTC_UNORM, 4},	{GL_COMPRESSED_RGBA_BPTC_UNORM, 4}},
 };
 
-static cvar_t	r_softemu = {"r_softemu", "0", CVAR_ARCHIVE};
+cvar_t			r_softemu = {"r_softemu", "0", CVAR_ARCHIVE};
 cvar_t			r_softemu_metric = {"r_softemu_metric", "-1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};

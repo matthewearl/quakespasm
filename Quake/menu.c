@@ -49,6 +49,8 @@ extern cvar_t vid_fullscreen;
 extern cvar_t vid_vsync;
 extern cvar_t vid_fsaamode;
 extern cvar_t vid_fsaa;
+extern cvar_t r_softemu;
+extern cvar_t r_waterwarp;
 
 extern qboolean quake64;
 
@@ -2433,1043 +2435,60 @@ void M_Net_Mousemove (int cx, int cy)
 	def (OPT_MUSICVOL,		"Music Volume")\
 	def (OPT_MUSICEXT,		"External Music")\
 
+#define VIDEO_OPTIONS_LIST(def)\
+	def (VID_OPT_MODE,			"Video Mode")\
+	def (VID_OPT_BPP,			"Color Depth")\
+	def (VID_OPT_REFRESHRATE,	"Refresh Rate")\
+	def (VID_OPT_FULLSCREEN,	"Fullscreen")\
+	def (VID_OPT_VSYNC,			"Vertical Sync")\
+	def (VID_OPT_FSAA,			"Antialiasing")\
+	def (VID_OPT_FSAA_MODE,		"AA Mode")\
+	def (VID_OPT_SCALE,			"Render Scale")\
+	def (VID_OPT_ANISO,			"Anisotropic")\
+	def (VID_OPT_TEXFILTER,		"Textures")\
+	def (VID_OPT_PARTICLES,		"Particles")\
+	def (VID_OPT_WATERWARP,		"Underwater FX")\
+	def (VID_OPT_DLIGHTS,		"Dynamic Lights")\
+	def (VID_OPT_SOFTEMU,		"8-bit Mode")\
+	def (VID_OPT_FPSLIMIT,		"FPS Limit")\
+	def (VID_OPT_SHOWFPS,		"Show FPS")\
+	\
+	def (VID_OPT_SPACE1,		"")\
+	\
+	def (VID_OPT_TEST,			"Test changes")\
+	def (VID_OPT_APPLY,			"Apply changes")\
+
 enum
 {
 	#define ADD_OPTION_ENUM(id, name) id,
 	OPTIONS_LIST (ADD_OPTION_ENUM)
+	VIDEO_OPTIONS_LIST(ADD_OPTION_ENUM)
 	#undef ADD_OPTION_ENUM
 
-	OPTIONS_ITEMS
+	#define COUNT_OPTION(id, name) +1
+	OPTIONS_FIRST			= 0,
+	OPTIONS_ITEMS			= OPTIONS_LIST (COUNT_OPTION),
+	VIDEO_OPTIONS_FIRST		= OPTIONS_ITEMS,
+	VIDEO_OPTIONS_ITEMS		= VIDEO_OPTIONS_LIST (COUNT_OPTION),
+	#undef COUNT_OPTION
 };
 
 static const char *const options_names[] =
 {
 	#define ADD_OPTION_NAME(id, name) name,
 	OPTIONS_LIST (ADD_OPTION_NAME)
+	VIDEO_OPTIONS_LIST(ADD_OPTION_NAME)
 	#undef ADD_OPTION_NAME
 };
 
-enum
-{
-	ALWAYSRUN_OFF = 0,
-	ALWAYSRUN_VANILLA,
-	ALWAYSRUN_QUAKESPASM,
-	ALWAYSRUN_ITEMS
-};
-
-#define	SLIDER_RANGE		10
-
-#define OPTIONS_LISTOFS		36
-#define OPTIONS_MIDPOS		204
-
-#define FOV_MIN				50.f
-#define FOV_MAX				130.f
-
-struct
-{
-	menulist_t		list;
-	int				y;
-} optionsmenu;
-
-qboolean slider_grab;
-float target_scale_frac;
-
-void M_Options_SelectMods (void)
-{
-	optionsmenu.list.cursor = OPT_MODS;
-}
-
-static void M_Options_UpdateLayout (void)
-{
-	int height;
-
-	M_UpdateBounds ();
-
-	height = OPTIONS_LISTOFS + optionsmenu.list.numitems * 8;
-	if (height <= m_height)
-	{
-		optionsmenu.y = (m_top + (m_height - height) / 2) & ~7;
-		optionsmenu.list.viewsize = optionsmenu.list.numitems;
-	}
-	else
-	{
-		optionsmenu.y = m_top;
-		// Note: -8 for the bottom ellipsis bar
-		optionsmenu.list.viewsize = (m_height - OPTIONS_LISTOFS - 8) / 8;
-	}
-
-	M_List_Rescroll (&optionsmenu.list);
-}
-
-static qboolean M_Options_IsSelectable (int index)
-{
-	return
-		index != OPT_SPACE1 &&
-		index != OPT_SPACE2 &&
-		index != OPT_SPACE3
-	;
-}
-
-static qboolean M_Options_Match (int index)
-{
-	const char *name = options_names[index];
-	if (!*name)
-		return false;
-	return q_strcasestr (name, optionsmenu.list.search.text) != NULL;
-}
-
-void M_Menu_Options_f (void)
-{
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_options;
-	m_entersound = true;
-	slider_grab = false;
-
-	optionsmenu.list.numitems = OPTIONS_ITEMS;
-	optionsmenu.list.isactive_fn = M_Options_IsSelectable;
-	optionsmenu.list.search.match_fn = M_Options_Match;
-
-	M_List_ClearSearch (&optionsmenu.list);
-
-	M_Options_UpdateLayout ();
-}
-
-typedef enum
-{
-	UI_MOUSE_OFF,
-	UI_MOUSE_SILENT,
-	UI_MOUSE_NOISY,
-
-	UI_MOUSE_NUMSETTINGS,
-} uimouse_t;
-
-static uimouse_t M_Options_GetUIMouse (void)
-{
-	if (!ui_mouse.value)
-		return UI_MOUSE_OFF;
-	return ui_mouse_sound.value ? UI_MOUSE_NOISY : UI_MOUSE_SILENT;
-}
-
-static void M_Options_SetUIMouse (uimouse_t opt)
-{
-	switch (opt)
-	{
-	case UI_MOUSE_OFF:
-		Cvar_SetValueQuick (&ui_mouse, 0.f);
-		break;
-	case UI_MOUSE_SILENT:
-		Cvar_SetValueQuick (&ui_mouse, 1.f);
-		Cvar_SetValueQuick (&ui_mouse_sound, 0.f);
-		break;
-	case UI_MOUSE_NOISY:
-		Cvar_SetValueQuick (&ui_mouse, 1.f);
-		Cvar_SetValueQuick (&ui_mouse_sound, 1.f);
-		break;
-	default:
-		break;
-	}
-}
-
-void M_AdjustSliders (int dir)
-{
-	int	curr_alwaysrun, target_alwaysrun;
-	float	f, l;
-
-	M_ThrottledSound ("misc/menu3.wav");
-
-	switch (optionsmenu.list.cursor)
-	{
-	case OPT_SCALE:	// console and menu scale
-		l = ((vid.width + 31) / 32) / 10.0;
-		f = scr_conscale.value + dir * .1;
-		if (f < 1)	f = 1;
-		else if(f > l)	f = l;
-		Cvar_SetValue ("scr_conscale", f);
-		Cvar_SetValue ("scr_menuscale", f);
-		Cvar_SetValue ("scr_sbarscale", f);
-		Cvar_SetValue ("scr_crosshairscale", f);
-		break;
-	case OPT_SCRSIZE:	// screen size
-		f = scr_viewsize.value + dir * 10;
-		if (f > 130)	f = 130;
-		else if(f < 30)	f = 30;
-		Cvar_SetValue ("viewsize", f);
-		break;
-	case OPT_PIXELASPECT:	// 2D pixel aspect ratio
-		Cvar_Set ("scr_pixelaspect", vid.guipixelaspect == 1.f ? "5:6" : "1");
-		break;
-	case OPT_CROSSHAIR:		// crosshair
-		Cvar_SetValueQuick (&crosshair, ((int) q_max (crosshair.value, 0.f) + 3 + dir) % 3);
-		break;
-	case OPT_UIMOUSE:	// UI mouse support
-		M_Options_SetUIMouse ((M_Options_GetUIMouse () + UI_MOUSE_NUMSETTINGS + dir) % UI_MOUSE_NUMSETTINGS);
-		break;
-	case OPT_GAMMA:	// gamma
-		f = vid_gamma.value - dir * 0.05;
-		if (f < 0.5)	f = 0.5;
-		else if (f > 1)	f = 1;
-		Cvar_SetValue ("gamma", f);
-		break;
-	case OPT_CONTRAST:	// contrast
-		f = vid_contrast.value + dir * 0.1;
-		if (f < 1)	f = 1;
-		else if (f > 2)	f = 2;
-		Cvar_SetValue ("contrast", f);
-		break;
-	case OPT_MOUSESPEED:	// mouse speed
-		f = sensitivity.value + dir * 0.5;
-		if (f > 11)	f = 11;
-		else if (f < 1)	f = 1;
-		Cvar_SetValue ("sensitivity", f);
-		break;
-	case OPT_SBALPHA:	// statusbar alpha
-		f = scr_sbaralpha.value - dir * 0.05;
-		if (f < 0)	f = 0;
-		else if (f > 1)	f = 1;
-		Cvar_SetValue ("scr_sbaralpha", f);
-		break;
-	case OPT_MUSICVOL:	// music volume
-		f = bgmvolume.value + dir * 0.1;
-		if (f < 0)	f = 0;
-		else if (f > 1)	f = 1;
-		Cvar_SetValue ("bgmvolume", f);
-		break;
-	case OPT_MUSICEXT:	// enable external music vs cdaudio
-		Cvar_Set ("bgm_extmusic", bgm_extmusic.value ? "0" : "1");
-		break;
-	case OPT_SNDVOL:	// sfx volume
-		f = sfxvolume.value + dir * 0.1;
-		if (f < 0)	f = 0;
-		else if (f > 1)	f = 1;
-		Cvar_SetValue ("volume", f);
-		break;
-
-	case OPT_HUDSTYLE:	// hud style
-		Cvar_SetValueQuick (&scr_hudstyle, ((int) q_max (scr_hudstyle.value, 0.f) + 3 + dir) % 3);
-		break;
-
-	case OPT_ALWAYRUN:	// always run
-		if (cl_alwaysrun.value)
-			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
-		else if (cl_forwardspeed.value > 200)
-			curr_alwaysrun = ALWAYSRUN_VANILLA;
-		else
-			curr_alwaysrun = ALWAYSRUN_OFF;
-			
-		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
-			
-		if (target_alwaysrun == ALWAYSRUN_VANILLA)
-		{
-			Cvar_SetValue ("cl_alwaysrun", 0);
-			Cvar_SetValue ("cl_forwardspeed", 400);
-			Cvar_SetValue ("cl_backspeed", 400);
-		}
-		else if (target_alwaysrun == ALWAYSRUN_QUAKESPASM)
-		{
-			Cvar_SetValue ("cl_alwaysrun", 1);
-			Cvar_SetValue ("cl_forwardspeed", 200);
-			Cvar_SetValue ("cl_backspeed", 200);
-		}
-		else // ALWAYSRUN_OFF
-		{
-			Cvar_SetValue ("cl_alwaysrun", 0);
-			Cvar_SetValue ("cl_forwardspeed", 200);
-			Cvar_SetValue ("cl_backspeed", 200);
-		}
-		break;
-
-	case OPT_VIEWBOB:	// view bob+roll
-		if (cl_bob.value)
-		{
-			Cvar_SetValueQuick (&cl_bob, 0.f);
-			Cvar_SetValueQuick (&cl_rollangle, 0.f);
-		}
-		else
-		{
-			Cvar_SetQuick (&cl_bob, cl_bob.default_string);
-			Cvar_SetQuick (&cl_rollangle, cl_rollangle.default_string);
-		}
-		break;
-
-	case OPT_RECOIL:	// gun kick
-		Cvar_SetValueQuick (&v_gunkick, ((int) q_max (v_gunkick.value, 0.f) + 3 + dir) % 3);
-		break;
-
-	case OPT_FOV:	// field of view
-		Cvar_SetValueQuick (&scr_fov, CLAMP (FOV_MIN, scr_fov.value + dir * 5.f, FOV_MAX));
-		break;
-
-	case OPT_FOVDISTORT:	// FOV distortion
-		Cvar_SetValueQuick (&cl_gun_fovscale, CLAMP (0.0, cl_gun_fovscale.value - dir * 0.1, 1.0));
-		break;
-
-	case OPT_INVMOUSE:	// invert mouse
-		Cvar_SetValue ("m_pitch", -m_pitch.value);
-		break;
-
-	case OPT_ALWAYSMLOOK:
-		if ((in_mlook.state & 1) || freelook.value)
-		{
-			Cvar_SetValueQuick (&freelook, 0.f);
-			Cbuf_AddText("-mlook");
-		}
-		else
-		{
-			Cvar_SetValueQuick (&freelook, 1.f);
-		}
-		break;
-	}
-}
-
-
-void M_DrawSlider (int x, int y, float range)
-{
-	int	i;
-
-	if (range < 0)
-		range = 0;
-	if (range > 1)
-		range = 1;
-	M_DrawCharacter (x-8, y, 128);
-	for (i = 0; i < SLIDER_RANGE; i++)
-		M_DrawCharacter (x + i*8, y, 129);
-	M_DrawCharacter (x+i*8, y, 130);
-	M_DrawCharacter (x + (SLIDER_RANGE-1)*8 * range, y, 131);
-}
-
-void M_DrawCheckbox (int x, int y, int on)
-{
-#if 0
-	if (on)
-		M_DrawCharacter (x, y, 131);
-	else
-		M_DrawCharacter (x, y, 129);
-#endif
-	if (on)
-		M_Print (x, y, "on");
-	else
-		M_Print (x, y, "off");
-}
-
-qboolean M_SetSliderValue (int option, float f)
-{
-	float l;
-	f = CLAMP (0.f, f, 1.f);
-
-	switch (option)
-	{
-	case OPT_SCALE:	// console and menu scale
-		target_scale_frac = f;
-		l = (vid.width / 320.0) - 1;
-		f = l > 0 ? f * l + 1 : 0;
-		Cvar_SetValue ("scr_conscale", f);
-		Cvar_SetValue ("scr_sbarscale", f);
-		Cvar_SetValue ("scr_crosshairscale", f);
-		// Delay the actual update until we release the mouse button
-		// to keep the UI layout stable while adjusting the scale
-		if (!slider_grab)
-		{
-			Cvar_SetValue ("scr_menuscale", f);
-			M_Options_UpdateLayout ();
-		}
-		return true;
-	case OPT_SCRSIZE:	// screen size
-		f = f * (130 - 30) + 30;
-		if (f >= 100)
-			f = floor (f / 10 + 0.5) * 10;
-		Cvar_SetValue ("viewsize", f);
-		return true;
-	case OPT_GAMMA:	// gamma
-		f = 1.f - f * 0.5f;
-		Cvar_SetValue ("gamma", f);
-		return true;
-	case OPT_CONTRAST:	// contrast
-		f += 1.f;
-		Cvar_SetValue ("contrast", f);
-		return true;
-	case OPT_MOUSESPEED:	// mouse speed
-		f = f * 10.f + 1.f;
-		Cvar_SetValue ("sensitivity", f);
-		return true;
-	case OPT_SBALPHA:	// statusbar alpha
-		f = 1.f - f;
-		Cvar_SetValue ("scr_sbaralpha", f);
-		return true;
-	case OPT_MUSICVOL:	// music volume
-		Cvar_SetValue ("bgmvolume", f);
-		return true;
-	case OPT_SNDVOL:	// sfx volume
-		Cvar_SetValue ("volume", f);
-		return true;
-	case OPT_FOV:	// field of view
-		f = LERP (FOV_MIN, FOV_MAX, f);
-		f = floor (f / 5 + 0.5) * 5;
-		Cvar_SetValue ("fov", f);
-		return true;
-	case OPT_FOVDISTORT:	// FOV distortion
-		Cvar_SetValue ("cl_gun_fovscale", 1.f - f);
-		return true;
-	default:
-		return false;
-	}
-}
-
-float M_MouseToRawSliderFraction (int cx)
-{
-	return (cx - 4) / (float)((SLIDER_RANGE - 1) * 8);
-}
-
-float M_MouseToSliderFraction (int cx)
-{
-	float f = M_MouseToRawSliderFraction (cx);
-	return CLAMP (0.f, f, 1.f);
-}
-
-void M_ReleaseSliderGrab (void)
-{
-	if (!slider_grab)
-		return;
-	slider_grab = false;
-	M_ThrottledSound ("misc/menu1.wav");
-	if (optionsmenu.list.cursor == OPT_SCALE)
-		M_SetSliderValue (OPT_SCALE, target_scale_frac);
-}
-
-qboolean M_SliderClick (int cx, int cy)
-{
-	cx -= OPTIONS_MIDPOS;
-	if (cx < -12 || cx > SLIDER_RANGE*8+4)
-		return false;
-	// HACK: we set the flag to true before updating the slider
-	// to avoid changing the UI scale and implicitly the layout
-	if (optionsmenu.list.cursor == OPT_SCALE)
-		slider_grab = true;
-	if (!M_SetSliderValue (optionsmenu.list.cursor, M_MouseToSliderFraction (cx)))
-		return false;
-	slider_grab = true;
-	M_ThrottledSound ("misc/menu3.wav");
-	return true;
-}
-
-static void M_Options_DrawItem (int y, int item)
-{
-	char		buf[256];
-	int			x = OPTIONS_MIDPOS;
-	float		r, l;
-
-	if (item < 0 || item >= OPTIONS_ITEMS)
-		return;
-
-	COM_TintSubstring (options_names[item], optionsmenu.list.search.text, buf, sizeof (buf));
-	M_PrintAligned (x - 28, y, ALIGN_RIGHT, buf);
-
-	switch (item)
-	{
-	case OPT_VIDEO:
-	case OPT_CUSTOMIZE:
-	case OPT_MODS:
-		M_Print (x - 4, y, "...");
-		break;
-
-	case OPT_SCALE:
-		l = (vid.width / 320.0) - 1;
-		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
-		if (slider_grab && optionsmenu.list.cursor == OPT_SCALE)
-			r = target_scale_frac;
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_SCRSIZE:
-		r = (scr_viewsize.value - 30) / (130 - 30);
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_PIXELASPECT:
-		M_Print (x, y, vid.guipixelaspect == 1.f ? "Square" : "Stretched");
-		break;
-
-	case OPT_CROSSHAIR:
-		if (!crosshair.value)
-			M_Print (x, y, "Off");
-		else if (crosshair.value > 1)
-			M_PrintWhite (x, y, "\x0f");
-		else
-			M_PrintWhite (x, y, "+");
-		break;
-
-	case OPT_UIMOUSE:
-		switch (M_Options_GetUIMouse ())
-		{
-		case UI_MOUSE_OFF:		M_Print (x, y, "Off"); break;
-		case UI_MOUSE_SILENT:	M_Print (x, y, "Silent"); break;
-		case UI_MOUSE_NOISY:	M_Print (x, y, "Noisy"); break;
-		default:
-			break;
-		}
-		break;
-
-	case OPT_GAMMA:
-		r = (1.0 - vid_gamma.value) / 0.5;
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_CONTRAST:
-		r = vid_contrast.value - 1.0;
-		M_DrawSlider (x, y, r);
-		break;
-	
-	case OPT_MOUSESPEED:
-		r = (sensitivity.value - 1)/10;
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_SBALPHA:
-		r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_HUDSTYLE:
-		if (scr_hudstyle.value < 1)
-			M_Print (x, y, "Classic");
-		else if (scr_hudstyle.value < 2)
-			M_Print (x, y, "Modern 1");
-		else
-			M_Print (x, y, "Modern 2");
-		break;
-
-	case OPT_SNDVOL:
-		r = sfxvolume.value;
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_MUSICVOL:
-		r = bgmvolume.value;
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_MUSICEXT:
-		M_DrawCheckbox (x, y, bgm_extmusic.value);
-		break;
-
-	case OPT_ALWAYRUN:
-		if (cl_alwaysrun.value)
-			M_Print (x, y, "QuakeSpasm");
-		else if (cl_forwardspeed.value > 200.0)
-			M_Print (x, y, "Vanilla");
-		else
-			M_Print (x, y, "Off");
-		break;
-
-	case OPT_VIEWBOB:
-		M_Print (x, y, cl_bob.value ? "On" : "Off");
-		break;
-
-	case OPT_RECOIL:
-		if ((int)v_gunkick.value == 2)
-			M_Print (x, y, "Smooth");
-		else if ((int)v_gunkick.value == 1)
-			M_Print (x, y, "Classic");
-		else
-			M_Print (x, y, "Off");
-		break;
-
-	case OPT_INVMOUSE:
-		M_DrawCheckbox (x, y, m_pitch.value < 0);
-		break;
-
-	case OPT_ALWAYSMLOOK:
-		M_DrawCheckbox (x, y, (in_mlook.state & 1) || freelook.value);
-		break;
-
-	case OPT_FOV:
-		r = (scr_fov.value - FOV_MIN) / (FOV_MAX - FOV_MIN);
-		M_DrawSlider (x, y, r);
-		break;
-
-	case OPT_FOVDISTORT:
-		r = 1.f - cl_gun_fovscale.value;
-		M_DrawSlider (x, y, r);
-		break;
-
-	default:
-		break;
-	}
-}
-
-void M_Options_Draw (void)
-{
-	int firstvis, numvis;
-	int i, x, y, cols;
-	qpic_t	*p;
-
-	if (slider_grab && !keydown[K_MOUSE1])
-		M_ReleaseSliderGrab ();
-
-	M_Options_UpdateLayout ();
-	M_List_Update (&optionsmenu.list);
-
-	x = 56;
-	y = optionsmenu.y;
-	cols = 32;
-
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
-	p = Draw_CachePic ("gfx/p_option.lmp");
-	M_DrawPic ( (320-p->width)/2, y + 4, p);
-
-	y += OPTIONS_LISTOFS;
-
-	if (M_List_GetOverflow (&optionsmenu.list) > 0)
-	{
-		if (optionsmenu.list.scroll > 0)
-			M_DrawEllipsisBar (x, y - 8, cols);
-		if (optionsmenu.list.scroll + optionsmenu.list.viewsize < optionsmenu.list.numitems)
-			M_DrawEllipsisBar (x, y + optionsmenu.list.viewsize*8, cols);
-	}
-
-	M_List_GetVisibleRange (&optionsmenu.list, &firstvis, &numvis);
-	while (numvis-- > 0)
-	{
-		i = firstvis++;
-		M_Options_DrawItem (y, i);
-
-		// cursor
-		if (i == optionsmenu.list.cursor)
-			M_DrawCharacter (OPTIONS_MIDPOS - 20, y, 12+((int)(realtime*4)&1));
-
-		y += 8;
-	}
-}
-
-void M_Options_Key (int k)
-{
-	if (!keydown[K_MOUSE1])
-		M_ReleaseSliderGrab ();
-
-	if (slider_grab)
-	{
-		switch (k)
-		{
-		case K_ESCAPE:
-		case K_BBUTTON:
-		case K_MOUSE4:
-		case K_MOUSE2:
-			M_ReleaseSliderGrab ();
-			break;
-		}
-		return;
-	}
-
-	if (M_List_Key (&optionsmenu.list, k))
-		return;
-
-	switch (k)
-	{
-	case K_ESCAPE:
-	case K_BBUTTON:
-	case K_MOUSE4:
-	case K_MOUSE2:
-		M_Menu_Main_f ();
-		break;
-
-	case K_ENTER:
-	case K_KP_ENTER:
-	case K_ABUTTON:
-	enter:
-		m_entersound = true;
-		M_List_ClearSearch (&optionsmenu.list);
-		switch (optionsmenu.list.cursor)
-		{
-		case OPT_CUSTOMIZE:
-			M_Menu_Keys_f ();
-			break;
-		case OPT_CONSOLE:
-			m_state = m_none;
-			Con_ToggleConsole_f ();
-			break;
-		case OPT_DEFAULTS:
-			if (SCR_ModalMessage("This will reset all controls\n"
-					"and stored cvars. Continue? (y/n)\n", 15.0f))
-			{
-				Cbuf_AddText ("resetcfg\n");
-				Cbuf_AddText ("exec default.cfg\n");
-			}
-			break;
-		case OPT_MODS:
-			M_Menu_Mods_f ();
-			break;
-		case OPT_VIDEO:
-			M_Menu_Video_f ();
-			break;
-		default:
-			M_AdjustSliders (1);
-			break;
-		}
-		return;
-
-	case K_LEFTARROW:
-	case K_MWHEELDOWN:
-	//case K_MOUSE2:
-		M_AdjustSliders (-1);
-		break;
-
-	case K_RIGHTARROW:
-	case K_MWHEELUP:
-		M_AdjustSliders (1);
-		break;
-
-	case K_MOUSE1:
-		if (!M_SliderClick (m_mousex, m_mousey))
-			goto enter;
-		break;
-	}
-}
-
-qboolean M_Options_TextEntry (void)
-{
-	return !slider_grab;
-}
-
-void M_Options_Char (int key)
-{
-	M_List_Char (&optionsmenu.list, key);
-}
-
-void M_Options_Mousemove (int cx, int cy)
-{
-	if (slider_grab)
-	{
-		float frac;
-		if (!keydown[K_MOUSE1])
-		{
-			M_ReleaseSliderGrab ();
-			return;
-		}
-		frac = M_MouseToRawSliderFraction (cx - OPTIONS_MIDPOS);
-		M_SetSliderValue (optionsmenu.list.cursor, frac);
-		if (frac >= 0.f && frac <= 1.f)
-			M_MouseSound ("misc/menu1.wav");
-		return;
-	}
-
-	M_List_Mousemove (&optionsmenu.list, cy - optionsmenu.y - OPTIONS_LISTOFS);
-}
-
-//=============================================================================
-/* KEYS MENU */
-
-static const char* const bindnames[][2] =
-{
-	{"+forward",		"Move forward"},
-	{"+back",			"Move backward"},
-	{"+moveleft",		"Move left"},
-	{"+moveright",		"Move right"},
-	{"+jump",			"Jump / swim up"},
-	{"+moveup",			"Swim up"},
-	{"+movedown",		"Swim down"},
-	{"+speed",			"Run"},
-	{"+strafe",			"Sidestep"},
-	{"",				""},
-	{"+left",			"Turn left"},
-	{"+right",			"Turn right"},
-	{"+lookup",			"Look up"},
-	{"+lookdown",		"Look down"},
-	{"centerview",		"Center view"},
-	{"+mlook",			"Mouse look"},
-	{"+klook",			"Keyboard look"},
-	{"zoom_in",			"Toggle zoom"},
-	{"+zoom",			"Quick zoom"},
-	{"",				""},
-	{"+attack",			"Attack"},
-	{"impulse 10",		"Next weapon"},
-	{"impulse 12",		"Previous weapon"},
-	{"impulse 1",		"Axe"},
-	{"impulse 2",		"Shotgun"},
-	{"impulse 3",		"Super Shotgun"},
-	{"impulse 4",		"Nailgun"},
-	{"impulse 5",		"Super Nailgun"},
-	{"impulse 6",		"Grenade Launcher"},
-	{"impulse 7",		"Rocket Launcher"},
-	{"impulse 8",		"Thunderbolt"},
-	{"impulse 225",		"Laser Cannon"},
-	{"impulse 226",		"Mjolnir"},
-};
-
-#define	NUMCOMMANDS		(sizeof(bindnames)/sizeof(bindnames[0]))
-#define KEYLIST_OFS		48
-
-static struct
-{
-	menulist_t			list;
-	int					y;
-} keysmenu;
-
-static qboolean	bind_grab;
-
-static void M_Keys_UpdateLayout (void)
-{
-	int height;
-
-	M_UpdateBounds ();
-	height = keysmenu.list.numitems * 8 + KEYLIST_OFS + 12;
-	height = q_min (height, m_height);
-	keysmenu.y = m_top + (((m_height - height) / 2) & ~7);
-	keysmenu.list.viewsize = (height - KEYLIST_OFS - 12) / 8;
-}
-
-static qboolean M_Keys_IsSelectable (int index)
-{
-	return bindnames[index][0][0] != 0;
-}
-
-static qboolean M_Keys_Match (int index)
-{
-	const char *name = bindnames[index][1];
-	if (!*name)
-		return false;
-	return q_strcasestr (name, keysmenu.list.search.text) != NULL;
-}
-
-void M_Menu_Keys_f (void)
-{
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_keys;
-	m_entersound = true;
-	keysmenu.list.cursor = 0;
-	keysmenu.list.scroll = 0;
-	keysmenu.list.numitems = hipnotic ? NUMCOMMANDS : NUMCOMMANDS - 2;
-	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
-	keysmenu.list.search.match_fn = M_Keys_Match;
-
-	M_List_ClearSearch (&keysmenu.list);
-
-	M_Keys_UpdateLayout ();
-}
-
-
-void M_FindKeysForCommand (const char *command, int *threekeys)
-{
-	Key_GetKeysForCommand (command, threekeys, 3);
-}
-
-void M_UnbindCommand (const char *command)
-{
-	int		j;
-	char	*b;
-
-	for (j = 0; j < MAX_KEYS; j++)
-	{
-		b = keybindings[j];
-		if (!b)
-			continue;
-		if (!strcmp (b, command) )
-			Key_SetBinding (j, NULL);
-	}
-}
-
-extern qpic_t	*pic_up, *pic_down;
-
-void M_Keys_Draw (void)
-{
-	int		firstvis, numvis;
-	int		i, x, y, cols;
-	int		keys[3];
-	const char	*name;
-	qpic_t	*p;
-
-	M_Keys_UpdateLayout ();
-	M_List_Update (&keysmenu.list);
-
-	x = 0;
-	y = keysmenu.y;
-	cols = 40;
-
-	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
-	M_DrawPic ( (320-p->width)/2, y + 4, p);
-
-	if (bind_grab)
-		M_Print (12, y + 32, "Press a key or button for this action");
-	else
-		M_Print (18, y + 32, "Enter to change, backspace to clear");
-
-	y += KEYLIST_OFS;
-
-	if (M_List_GetOverflow (&keysmenu.list) > 0)
-	{
-		if (keysmenu.list.scroll > 0)
-			M_DrawEllipsisBar (x, y - 8, cols);
-		if (keysmenu.list.scroll + keysmenu.list.viewsize < keysmenu.list.numitems)
-			M_DrawEllipsisBar (x, y + keysmenu.list.viewsize*8, cols);
-	}
-
-	// search for known bindings
-	M_List_GetVisibleRange (&keysmenu.list, &firstvis, &numvis);
-	while (numvis-- > 0)
-	{
-		i = firstvis++;
-
-		if (bindnames[i][0][0])
-		{
-			char buf[64];
-			void (*print_fn) (int cx, int cy, const char *text) =
-				(i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
-
-			COM_TintSubstring (bindnames[i][1], keysmenu.list.search.text, buf, sizeof (buf));
-			print_fn (0, y, buf);
-
-			M_FindKeysForCommand (bindnames[i][0], keys);
-			// If we already have 3 keys bound to this action
-			// they will all be unbound when a new one is assigned.
-			// We show this outcome to the user before it actually
-			// occurs so they have a chance to abort the process
-			// and keep the existing key bindings.
-			if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
-				keys[0] = -1;
-
-			if (keys[0] == -1)
-			{
-				print_fn (136, y, "???");
-			}
-			else
-			{
-				name = Key_KeynumToString (keys[0]);
-				print_fn (136, y, name);
-				x = strlen(name) * 8;
-				if (keys[1] != -1)
-				{
-					name = Key_KeynumToString (keys[1]);
-					print_fn (136 + x + 8, y, "or");
-					print_fn (136 + x + 32, y, name);
-					x = x + 32 + strlen(name) * 8;
-					if (keys[2] != -1)
-					{
-						print_fn (136 + x + 8, y, "or");
-						print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
-					}
-				}
-			}
-		}
-
-		if (i == keysmenu.list.cursor)
-		{
-			if (bind_grab)
-				M_DrawCharacter (128, y, '=');
-			else
-				M_DrawCharacter (128, y, 12+((int)(realtime*4)&1));
-		}
-
-		y += 8;
-	}
-	M_List_DrawSearch (&keysmenu.list, 0, y + 4, 16);
-}
-
-
-void M_Keys_Key (int k)
-{
-	char	cmd[80];
-	int		keys[3];
-
-	if (bind_grab)
-	{	// defining a key
-		M_ThrottledSound ("misc/menu1.wav");
-		if ((k != K_ESCAPE) && (k != '`'))
-		{
-			M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
-			if (keys[2] != -1)
-				M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
-			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keysmenu.list.cursor][0]);
-			Cbuf_InsertText (cmd);
-		}
-
-		bind_grab = false;
-		IN_DeactivateForMenu(); // deactivate because we're returning to the menu
-		return;
-	}
-
-	if (M_List_Key (&keysmenu.list, k))
-		return;
-
-	switch (k)
-	{
-	case K_ESCAPE:
-	case K_BBUTTON:
-	case K_MOUSE4:
-	case K_MOUSE2:
-		M_Menu_Options_f ();
-		break;
-
-	case K_ENTER:		// go into bind mode
-	case K_KP_ENTER:
-	case K_ABUTTON:
-	case K_MOUSE1:
-		M_List_ClearSearch (&keysmenu.list);
-		M_ThrottledSound ("misc/menu2.wav");
-		bind_grab = true;
-		M_List_AutoScroll (&keysmenu.list);
-		IN_Activate(); // activate to allow mouse key binding
-		break;
-
-	case K_BACKSPACE:	// delete bindings
-	case K_DEL:
-		M_ThrottledSound ("misc/menu2.wav");
-		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
-		break;
-	}
-}
-
-
-void M_Keys_Mousemove (int cx, int cy)
-{
-	M_List_Mousemove (&keysmenu.list, cy - keysmenu.y - KEYLIST_OFS);
-}
-
-qboolean M_Keys_TextEntry (void)
-{
-	return !bind_grab;
-}
-
-void M_Keys_Char (int key)
-{
-	M_List_Char (&keysmenu.list, key);
-}
-
-//=============================================================================
-/* VIDEO MENU */
-
-enum
-{
-	VID_OPT_MODE,
-	VID_OPT_BPP,
-	VID_OPT_REFRESHRATE,
-	VID_OPT_FULLSCREEN,
-	VID_OPT_VSYNC,
-	VID_OPT_FSAA,
-	VID_OPT_FSAA_MODE,
-	VID_OPT_SCALE,
-	VID_OPT_ANISO,
-	VID_OPT_TEXFILTER,
-	VID_OPT_PARTICLES,
-	VID_OPT_WATERWARP,
-	VID_OPT_DLIGHTS,
-	VID_OPT_SOFTEMU,
-	VID_OPT_FPSLIMIT,
-	VID_OPT_SHOWFPS,
-	VID_OPT_TEST,
-	VID_OPT_APPLY,
-	VIDEO_OPTIONS_ITEMS
-};
-
-static int	video_options_cursor = 0;
+//TODO: replace these fixed-length arrays with hunk_allocated buffers
+#define MAX_BPPS_LIST	5
+#define MAX_RATES_LIST	20
 
 typedef struct
 {
 	int width,height;
 } vid_menu_mode;
-
-//TODO: replace these fixed-length arrays with hunk_allocated buffers
-#define MAX_BPPS_LIST	5
-#define MAX_RATES_LIST	20
 
 static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
 static int vid_menu_nummodes = 0;
@@ -3917,210 +2936,817 @@ static const char *VID_Menu_GetParticlesDesc (void)
 	}
 }
 
-/*
-================
-VID_MenuKey
-================
-*/
-void M_Video_Key (int key)
+enum
 {
-	switch (key)
+	ALWAYSRUN_OFF = 0,
+	ALWAYSRUN_VANILLA,
+	ALWAYSRUN_QUAKESPASM,
+	ALWAYSRUN_ITEMS
+};
+
+#define	SLIDER_RANGE		10
+
+#define OPTIONS_LISTOFS		36
+#define OPTIONS_MIDPOS		204
+
+#define FOV_MIN				50.f
+#define FOV_MAX				130.f
+
+struct
+{
+	menulist_t		list;
+	int				y;
+	int				yofs;
+	const char		*subtitle;
+	int				first_item;
+	int				options_cursor;
+	int				video_cursor;
+	int				*last_cursor;
+} optionsmenu;
+
+qboolean slider_grab;
+float target_scale_frac;
+
+void M_Options_SelectMods (void)
+{
+	optionsmenu.list.cursor = OPT_MODS;
+}
+
+static void M_Options_UpdateLayout (void)
+{
+	int height;
+
+	M_UpdateBounds ();
+
+	if (optionsmenu.subtitle && optionsmenu.subtitle[0])
+		optionsmenu.yofs = 12;
+	else
+		optionsmenu.yofs = 0;
+
+	height = OPTIONS_LISTOFS + optionsmenu.yofs + optionsmenu.list.numitems * 8;
+	if (height <= m_height)
+	{
+		optionsmenu.y = (m_top + (m_height - height) / 2) & ~7;
+		optionsmenu.list.viewsize = optionsmenu.list.numitems;
+	}
+	else
+	{
+		optionsmenu.y = m_top;
+		// Note: -8 for the bottom ellipsis bar
+		optionsmenu.list.viewsize = (m_height - OPTIONS_LISTOFS - optionsmenu.yofs - 8) / 8;
+	}
+
+	M_List_Rescroll (&optionsmenu.list);
+}
+
+static qboolean M_Options_IsSelectable (int index)
+{
+	return
+		(unsigned int) index < countof (options_names) &&
+		options_names[index + optionsmenu.first_item][0] != '\0'
+	;
+}
+
+static qboolean M_Options_Match (int index)
+{
+	const char *name = options_names[index + optionsmenu.first_item];
+	if (!*name)
+		return false;
+	return q_strcasestr (name, optionsmenu.list.search.text) != NULL;
+}
+
+void M_Options_Init (enum m_state_e state)
+{
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = state;
+	m_entersound = true;
+	slider_grab = false;
+
+	if (state == m_options)
+	{
+		optionsmenu.first_item = OPTIONS_FIRST;
+		optionsmenu.list.numitems = OPTIONS_ITEMS;
+		optionsmenu.last_cursor = &optionsmenu.options_cursor;
+		optionsmenu.subtitle = "";
+	}
+	else if (state == m_video)
+	{
+		optionsmenu.first_item = VIDEO_OPTIONS_FIRST;
+		optionsmenu.list.numitems = VIDEO_OPTIONS_ITEMS;
+		optionsmenu.last_cursor = &optionsmenu.video_cursor;
+		optionsmenu.subtitle = "Video Options";
+
+		//set all the cvars to match the current mode when entering the menu
+		VID_SyncCvars ();
+
+		//set up bpp and rate lists based on current cvars
+		VID_Menu_RebuildBppList ();
+		VID_Menu_RebuildRateList ();
+	}
+	else
+	{
+		Sys_Error ("M_Options_Init: invalid state %d", state);
+	}
+
+	optionsmenu.list.cursor = *optionsmenu.last_cursor;
+	optionsmenu.list.isactive_fn = M_Options_IsSelectable;
+	optionsmenu.list.search.match_fn = M_Options_Match;
+
+	M_List_ClearSearch (&optionsmenu.list);
+
+	M_Options_UpdateLayout ();
+}
+
+void M_Menu_Options_f (void)
+{
+	M_Options_Init (m_options);
+}
+
+typedef enum
+{
+	UI_MOUSE_OFF,
+	UI_MOUSE_SILENT,
+	UI_MOUSE_NOISY,
+
+	UI_MOUSE_NUMSETTINGS,
+} uimouse_t;
+
+static uimouse_t M_Options_GetUIMouse (void)
+{
+	if (!ui_mouse.value)
+		return UI_MOUSE_OFF;
+	return ui_mouse_sound.value ? UI_MOUSE_NOISY : UI_MOUSE_SILENT;
+}
+
+static void M_Options_SetUIMouse (uimouse_t opt)
+{
+	switch (opt)
+	{
+	case UI_MOUSE_OFF:
+		Cvar_SetValueQuick (&ui_mouse, 0.f);
+		break;
+	case UI_MOUSE_SILENT:
+		Cvar_SetValueQuick (&ui_mouse, 1.f);
+		Cvar_SetValueQuick (&ui_mouse_sound, 0.f);
+		break;
+	case UI_MOUSE_NOISY:
+		Cvar_SetValueQuick (&ui_mouse, 1.f);
+		Cvar_SetValueQuick (&ui_mouse_sound, 1.f);
+		break;
+	default:
+		break;
+	}
+}
+
+void M_AdjustSliders (int dir)
+{
+	int	curr_alwaysrun, target_alwaysrun;
+	float	f, l;
+
+	M_ThrottledSound ("misc/menu3.wav");
+
+	switch (optionsmenu.list.cursor + optionsmenu.first_item)
+	{
+	case OPT_SCALE:	// console and menu scale
+		l = ((vid.width + 31) / 32) / 10.0;
+		f = scr_conscale.value + dir * .1;
+		if (f < 1)	f = 1;
+		else if(f > l)	f = l;
+		Cvar_SetValue ("scr_conscale", f);
+		Cvar_SetValue ("scr_menuscale", f);
+		Cvar_SetValue ("scr_sbarscale", f);
+		Cvar_SetValue ("scr_crosshairscale", f);
+		break;
+	case OPT_SCRSIZE:	// screen size
+		f = scr_viewsize.value + dir * 10;
+		if (f > 130)	f = 130;
+		else if(f < 30)	f = 30;
+		Cvar_SetValue ("viewsize", f);
+		break;
+	case OPT_PIXELASPECT:	// 2D pixel aspect ratio
+		Cvar_Set ("scr_pixelaspect", vid.guipixelaspect == 1.f ? "5:6" : "1");
+		break;
+	case OPT_CROSSHAIR:		// crosshair
+		Cvar_SetValueQuick (&crosshair, ((int) q_max (crosshair.value, 0.f) + 3 + dir) % 3);
+		break;
+	case OPT_UIMOUSE:	// UI mouse support
+		M_Options_SetUIMouse ((M_Options_GetUIMouse () + UI_MOUSE_NUMSETTINGS + dir) % UI_MOUSE_NUMSETTINGS);
+		break;
+	case OPT_GAMMA:	// gamma
+		f = vid_gamma.value - dir * 0.05;
+		if (f < 0.5)	f = 0.5;
+		else if (f > 1)	f = 1;
+		Cvar_SetValue ("gamma", f);
+		break;
+	case OPT_CONTRAST:	// contrast
+		f = vid_contrast.value + dir * 0.1;
+		if (f < 1)	f = 1;
+		else if (f > 2)	f = 2;
+		Cvar_SetValue ("contrast", f);
+		break;
+	case OPT_MOUSESPEED:	// mouse speed
+		f = sensitivity.value + dir * 0.5;
+		if (f > 11)	f = 11;
+		else if (f < 1)	f = 1;
+		Cvar_SetValue ("sensitivity", f);
+		break;
+	case OPT_SBALPHA:	// statusbar alpha
+		f = scr_sbaralpha.value - dir * 0.05;
+		if (f < 0)	f = 0;
+		else if (f > 1)	f = 1;
+		Cvar_SetValue ("scr_sbaralpha", f);
+		break;
+	case OPT_MUSICVOL:	// music volume
+		f = bgmvolume.value + dir * 0.1;
+		if (f < 0)	f = 0;
+		else if (f > 1)	f = 1;
+		Cvar_SetValue ("bgmvolume", f);
+		break;
+	case OPT_MUSICEXT:	// enable external music vs cdaudio
+		Cvar_Set ("bgm_extmusic", bgm_extmusic.value ? "0" : "1");
+		break;
+	case OPT_SNDVOL:	// sfx volume
+		f = sfxvolume.value + dir * 0.1;
+		if (f < 0)	f = 0;
+		else if (f > 1)	f = 1;
+		Cvar_SetValue ("volume", f);
+		break;
+
+	case OPT_HUDSTYLE:	// hud style
+		Cvar_SetValueQuick (&scr_hudstyle, ((int) q_max (scr_hudstyle.value, 0.f) + 3 + dir) % 3);
+		break;
+
+	case OPT_ALWAYRUN:	// always run
+		if (cl_alwaysrun.value)
+			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
+		else if (cl_forwardspeed.value > 200)
+			curr_alwaysrun = ALWAYSRUN_VANILLA;
+		else
+			curr_alwaysrun = ALWAYSRUN_OFF;
+			
+		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
+			
+		if (target_alwaysrun == ALWAYSRUN_VANILLA)
+		{
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 400);
+			Cvar_SetValue ("cl_backspeed", 400);
+		}
+		else if (target_alwaysrun == ALWAYSRUN_QUAKESPASM)
+		{
+			Cvar_SetValue ("cl_alwaysrun", 1);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
+		}
+		else // ALWAYSRUN_OFF
+		{
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
+		}
+		break;
+
+	case OPT_VIEWBOB:	// view bob+roll
+		if (cl_bob.value)
+		{
+			Cvar_SetValueQuick (&cl_bob, 0.f);
+			Cvar_SetValueQuick (&cl_rollangle, 0.f);
+		}
+		else
+		{
+			Cvar_SetQuick (&cl_bob, cl_bob.default_string);
+			Cvar_SetQuick (&cl_rollangle, cl_rollangle.default_string);
+		}
+		break;
+
+	case OPT_RECOIL:	// gun kick
+		Cvar_SetValueQuick (&v_gunkick, ((int) q_max (v_gunkick.value, 0.f) + 3 + dir) % 3);
+		break;
+
+	case OPT_FOV:	// field of view
+		Cvar_SetValueQuick (&scr_fov, CLAMP (FOV_MIN, scr_fov.value + dir * 5.f, FOV_MAX));
+		break;
+
+	case OPT_FOVDISTORT:	// FOV distortion
+		Cvar_SetValueQuick (&cl_gun_fovscale, CLAMP (0.0, cl_gun_fovscale.value - dir * 0.1, 1.0));
+		break;
+
+	case OPT_INVMOUSE:	// invert mouse
+		Cvar_SetValue ("m_pitch", -m_pitch.value);
+		break;
+
+	case OPT_ALWAYSMLOOK:
+		if ((in_mlook.state & 1) || freelook.value)
+		{
+			Cvar_SetValueQuick (&freelook, 0.f);
+			Cbuf_AddText("-mlook");
+		}
+		else
+		{
+			Cvar_SetValueQuick (&freelook, 1.f);
+		}
+		break;
+
+	//
+	// Video options
+	//
+	case VID_OPT_MODE:
+		VID_Menu_ChooseNextMode (-dir);
+		break;
+	case VID_OPT_BPP:
+		VID_Menu_ChooseNextBpp (-dir);
+		break;
+	case VID_OPT_REFRESHRATE:
+		VID_Menu_ChooseNextRate (-dir);
+		break;
+	case VID_OPT_FULLSCREEN:
+		Cbuf_AddText ("toggle vid_fullscreen\n");
+		break;
+	case VID_OPT_VSYNC:
+		Cbuf_AddText ("toggle vid_vsync\n"); // kristian
+		break;
+	case VID_OPT_FSAA:
+		VID_Menu_ChooseNextAA (-dir);
+		break;
+	case VID_OPT_FSAA_MODE:
+		Cbuf_AddText ("toggle vid_fsaamode\n");
+		break;
+	case VID_OPT_SCALE:
+		VID_Menu_ChooseNextScale (-dir);
+		break;
+	case VID_OPT_ANISO:
+		VID_Menu_ChooseNextAnisotropy (-dir);
+		break;
+	case VID_OPT_TEXFILTER:
+		VID_Menu_ChooseNextTexFilter ();
+		break;
+	case VID_OPT_PARTICLES:
+		Cvar_SetValueQuick (&r_particles, (int)(q_max (r_particles.value, 0.f) + 3 + dir) % 3);
+		break;
+	case VID_OPT_WATERWARP:
+		Cvar_SetValueQuick (&r_waterwarp, (int)(q_max (r_waterwarp.value, 0.f) + 3 + dir) % 3);
+		break;
+	case VID_OPT_DLIGHTS:
+		Cbuf_AddText ("toggle r_dynamic\n");
+		break;
+	case VID_OPT_SOFTEMU:
+		Cvar_SetValueQuick (&r_softemu, (int)(q_max (r_softemu.value, 0.f) + 4 + dir) % 4);
+		break;
+	case VID_OPT_FPSLIMIT:
+		VID_Menu_ChooseNextFPSLimit (-dir);
+		break;
+	case VID_OPT_SHOWFPS:
+		Cbuf_AddText ("toggle scr_showfps\n");
+		break;
+
+	default:
+		break;
+	}
+}
+
+
+void M_DrawSlider (int x, int y, float range)
+{
+	int	i;
+
+	if (range < 0)
+		range = 0;
+	if (range > 1)
+		range = 1;
+	M_DrawCharacter (x-8, y, 128);
+	for (i = 0; i < SLIDER_RANGE; i++)
+		M_DrawCharacter (x + i*8, y, 129);
+	M_DrawCharacter (x+i*8, y, 130);
+	M_DrawCharacter (x + (SLIDER_RANGE-1)*8 * range, y, 131);
+}
+
+void M_DrawCheckbox (int x, int y, int on)
+{
+#if 0
+	if (on)
+		M_DrawCharacter (x, y, 131);
+	else
+		M_DrawCharacter (x, y, 129);
+#endif
+	if (on)
+		M_Print (x, y, "on");
+	else
+		M_Print (x, y, "off");
+}
+
+qboolean M_SetSliderValue (int option, float f)
+{
+	float l;
+	f = CLAMP (0.f, f, 1.f);
+
+	switch (option)
+	{
+	case OPT_SCALE:	// console and menu scale
+		target_scale_frac = f;
+		l = (vid.width / 320.0) - 1;
+		f = l > 0 ? f * l + 1 : 0;
+		Cvar_SetValue ("scr_conscale", f);
+		Cvar_SetValue ("scr_sbarscale", f);
+		Cvar_SetValue ("scr_crosshairscale", f);
+		// Delay the actual update until we release the mouse button
+		// to keep the UI layout stable while adjusting the scale
+		if (!slider_grab)
+		{
+			Cvar_SetValue ("scr_menuscale", f);
+			M_Options_UpdateLayout ();
+		}
+		return true;
+	case OPT_SCRSIZE:	// screen size
+		f = f * (130 - 30) + 30;
+		if (f >= 100)
+			f = floor (f / 10 + 0.5) * 10;
+		Cvar_SetValue ("viewsize", f);
+		return true;
+	case OPT_GAMMA:	// gamma
+		f = 1.f - f * 0.5f;
+		Cvar_SetValue ("gamma", f);
+		return true;
+	case OPT_CONTRAST:	// contrast
+		f += 1.f;
+		Cvar_SetValue ("contrast", f);
+		return true;
+	case OPT_MOUSESPEED:	// mouse speed
+		f = f * 10.f + 1.f;
+		Cvar_SetValue ("sensitivity", f);
+		return true;
+	case OPT_SBALPHA:	// statusbar alpha
+		f = 1.f - f;
+		Cvar_SetValue ("scr_sbaralpha", f);
+		return true;
+	case OPT_MUSICVOL:	// music volume
+		Cvar_SetValue ("bgmvolume", f);
+		return true;
+	case OPT_SNDVOL:	// sfx volume
+		Cvar_SetValue ("volume", f);
+		return true;
+	case OPT_FOV:	// field of view
+		f = LERP (FOV_MIN, FOV_MAX, f);
+		f = floor (f / 5 + 0.5) * 5;
+		Cvar_SetValue ("fov", f);
+		return true;
+	case OPT_FOVDISTORT:	// FOV distortion
+		Cvar_SetValue ("cl_gun_fovscale", 1.f - f);
+		return true;
+	default:
+		return false;
+	}
+}
+
+float M_MouseToRawSliderFraction (int cx)
+{
+	return (cx - 4) / (float)((SLIDER_RANGE - 1) * 8);
+}
+
+float M_MouseToSliderFraction (int cx)
+{
+	float f = M_MouseToRawSliderFraction (cx);
+	return CLAMP (0.f, f, 1.f);
+}
+
+void M_ReleaseSliderGrab (void)
+{
+	if (!slider_grab)
+		return;
+	slider_grab = false;
+	M_ThrottledSound ("misc/menu1.wav");
+	if (optionsmenu.list.cursor == OPT_SCALE)
+		M_SetSliderValue (OPT_SCALE, target_scale_frac);
+}
+
+qboolean M_SliderClick (int cx, int cy)
+{
+	cx -= OPTIONS_MIDPOS;
+	if (cx < -12 || cx > SLIDER_RANGE*8+4)
+		return false;
+	// HACK: we set the flag to true before updating the slider
+	// to avoid changing the UI scale and implicitly the layout
+	if (optionsmenu.list.cursor == OPT_SCALE)
+		slider_grab = true;
+	if (!M_SetSliderValue (optionsmenu.list.cursor, M_MouseToSliderFraction (cx)))
+		return false;
+	slider_grab = true;
+	M_ThrottledSound ("misc/menu3.wav");
+	return true;
+}
+
+static void M_Options_DrawItem (int y, int item)
+{
+	char		buf[256];
+	int			x = OPTIONS_MIDPOS;
+	float		r, l;
+
+	if ((unsigned int) item >= countof (options_names))
+		return;
+
+	COM_TintSubstring (options_names[item], optionsmenu.list.search.text, buf, sizeof (buf));
+	M_PrintAligned (x - 28, y, ALIGN_RIGHT, buf);
+
+	switch (item)
+	{
+	case OPT_VIDEO:
+	case OPT_CUSTOMIZE:
+	case OPT_MODS:
+		M_Print (x - 4, y, "...");
+		break;
+
+	case OPT_SCALE:
+		l = (vid.width / 320.0) - 1;
+		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
+		if (slider_grab && optionsmenu.list.cursor == OPT_SCALE)
+			r = target_scale_frac;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_SCRSIZE:
+		r = (scr_viewsize.value - 30) / (130 - 30);
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_PIXELASPECT:
+		M_Print (x, y, vid.guipixelaspect == 1.f ? "Square" : "Stretched");
+		break;
+
+	case OPT_CROSSHAIR:
+		if (!crosshair.value)
+			M_Print (x, y, "Off");
+		else if (crosshair.value > 1)
+			M_PrintWhite (x, y, "\x0f");
+		else
+			M_PrintWhite (x, y, "+");
+		break;
+
+	case OPT_UIMOUSE:
+		switch (M_Options_GetUIMouse ())
+		{
+		case UI_MOUSE_OFF:		M_Print (x, y, "Off"); break;
+		case UI_MOUSE_SILENT:	M_Print (x, y, "Silent"); break;
+		case UI_MOUSE_NOISY:	M_Print (x, y, "Noisy"); break;
+		default:
+			break;
+		}
+		break;
+
+	case OPT_GAMMA:
+		r = (1.0 - vid_gamma.value) / 0.5;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_CONTRAST:
+		r = vid_contrast.value - 1.0;
+		M_DrawSlider (x, y, r);
+		break;
+	
+	case OPT_MOUSESPEED:
+		r = (sensitivity.value - 1)/10;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_SBALPHA:
+		r = (1.0 - scr_sbaralpha.value) ; // scr_sbaralpha range is 1.0 to 0.0
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_HUDSTYLE:
+		if (scr_hudstyle.value < 1)
+			M_Print (x, y, "Classic");
+		else if (scr_hudstyle.value < 2)
+			M_Print (x, y, "Modern 1");
+		else
+			M_Print (x, y, "Modern 2");
+		break;
+
+	case OPT_SNDVOL:
+		r = sfxvolume.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_MUSICVOL:
+		r = bgmvolume.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_MUSICEXT:
+		M_DrawCheckbox (x, y, bgm_extmusic.value);
+		break;
+
+	case OPT_ALWAYRUN:
+		if (cl_alwaysrun.value)
+			M_Print (x, y, "QuakeSpasm");
+		else if (cl_forwardspeed.value > 200.0)
+			M_Print (x, y, "Vanilla");
+		else
+			M_Print (x, y, "Off");
+		break;
+
+	case OPT_VIEWBOB:
+		M_Print (x, y, cl_bob.value ? "On" : "Off");
+		break;
+
+	case OPT_RECOIL:
+		if ((int)v_gunkick.value == 2)
+			M_Print (x, y, "Smooth");
+		else if ((int)v_gunkick.value == 1)
+			M_Print (x, y, "Classic");
+		else
+			M_Print (x, y, "Off");
+		break;
+
+	case OPT_INVMOUSE:
+		M_DrawCheckbox (x, y, m_pitch.value < 0);
+		break;
+
+	case OPT_ALWAYSMLOOK:
+		M_DrawCheckbox (x, y, (in_mlook.state & 1) || freelook.value);
+		break;
+
+	case OPT_FOV:
+		r = (scr_fov.value - FOV_MIN) / (FOV_MAX - FOV_MIN);
+		M_DrawSlider (x, y, r);
+		break;
+
+	case OPT_FOVDISTORT:
+		r = 1.f - cl_gun_fovscale.value;
+		M_DrawSlider (x, y, r);
+		break;
+
+	//
+	// Video Options
+	//
+	case VID_OPT_MODE:
+		M_Print (x, y, va("%ix%i", (int)vid_width.value, (int)vid_height.value));
+		break;
+	case VID_OPT_BPP:
+		M_Print (x, y, va("%i", (int)vid_bpp.value));
+		break;
+	case VID_OPT_REFRESHRATE:
+		M_Print (x, y, va("%i", (int)vid_refreshrate.value));
+		break;
+	case VID_OPT_FULLSCREEN:
+		M_DrawCheckbox (x, y, (int)vid_fullscreen.value);
+		break;
+	case VID_OPT_VSYNC:
+		M_DrawCheckbox (x, y, (int)vid_vsync.value);
+		break;
+	case VID_OPT_FSAA:
+		M_Print (x, y, framebufs.scene.samples >= 2 ? va("%ix", framebufs.scene.samples) : "Off");
+		break;
+	case VID_OPT_FSAA_MODE:
+		M_Print (x, y, vid_fsaamode.value ? "Full" : "Edges only");
+		break;
+	case VID_OPT_SCALE:
+		M_Print (x, y, r_refdef.scale >= 2 ? va("1/%i", r_refdef.scale) : "Off");
+		break;
+	case VID_OPT_ANISO:
+		M_Print (x, y, gl_texture_anisotropy.value >= 2.f ?
+			va("%ix", q_min ((int)gl_texture_anisotropy.value, (int)gl_max_anisotropy)) :
+			"Off"
+		);
+		break;
+	case VID_OPT_TEXFILTER:
+		M_Print (x, y, VID_Menu_GetTexFilterDesc ());
+		break;
+	case VID_OPT_PARTICLES:
+		M_Print (x, y, VID_Menu_GetParticlesDesc ());
+		break;
+	case VID_OPT_WATERWARP:
+		M_Print (x, y, VID_Menu_GetWaterWarpDesc ());
+		break;
+	case VID_OPT_DLIGHTS:
+		M_Print (x, y, r_dynamic.value ? "On" : "Off");
+		break;
+	case VID_OPT_SOFTEMU:
+		M_Print (x, y, VID_Menu_GetSoftEmuDesc ());
+		break;
+	case VID_OPT_FPSLIMIT:
+		M_Print (x, y, host_maxfps.value ? va("%i", (int)host_maxfps.value): "Off");
+		break;
+	case VID_OPT_SHOWFPS:
+		M_Print (x, y, scr_showfps.value ? "On" : "Off");
+		break;
+
+	default:
+		break;
+	}
+}
+
+void M_Options_Draw (void)
+{
+	int firstvis, numvis;
+	int i, x, y, cols;
+	qpic_t	*p;
+
+	if (slider_grab && !keydown[K_MOUSE1])
+		M_ReleaseSliderGrab ();
+
+	M_Options_UpdateLayout ();
+	M_List_Update (&optionsmenu.list);
+	*optionsmenu.last_cursor = optionsmenu.list.cursor;
+
+	x = 56;
+	y = optionsmenu.y;
+	cols = 32;
+
+	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	p = Draw_CachePic ("gfx/p_option.lmp");
+	M_DrawPic ( (320-p->width)/2, y + 4, p);
+
+	y += OPTIONS_LISTOFS + optionsmenu.yofs;
+
+	if (optionsmenu.subtitle && optionsmenu.subtitle[0])
+		M_PrintWhite ((320-8*strlen(optionsmenu.subtitle))/2, y - 16, optionsmenu.subtitle);
+
+	if (M_List_GetOverflow (&optionsmenu.list) > 0)
+	{
+		if (optionsmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (optionsmenu.list.scroll + optionsmenu.list.viewsize < optionsmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + optionsmenu.list.viewsize*8, cols);
+	}
+
+	M_List_GetVisibleRange (&optionsmenu.list, &firstvis, &numvis);
+	while (numvis-- > 0)
+	{
+		i = firstvis++;
+		M_Options_DrawItem (y, optionsmenu.first_item + i);
+
+		// cursor
+		if (i == optionsmenu.list.cursor)
+			M_DrawCharacter (OPTIONS_MIDPOS - 20, y, 12+((int)(realtime*4)&1));
+
+		y += 8;
+	}
+}
+
+void M_Options_Key (int k)
+{
+	if (!keydown[K_MOUSE1])
+		M_ReleaseSliderGrab ();
+
+	if (slider_grab)
+	{
+		switch (k)
+		{
+		case K_ESCAPE:
+		case K_BBUTTON:
+		case K_MOUSE4:
+		case K_MOUSE2:
+			M_ReleaseSliderGrab ();
+			break;
+		}
+		return;
+	}
+
+	if (M_List_Key (&optionsmenu.list, k))
+		return;
+
+	switch (k)
 	{
 	case K_ESCAPE:
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		VID_SyncCvars (); //sync cvars before leaving menu. FIXME: there are other ways to leave menu
-		S_LocalSound ("misc/menu1.wav");
-		M_Menu_Options_f ();
-		break;
-
-	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
-		video_options_cursor--;
-		if (video_options_cursor < 0)
-			video_options_cursor = VIDEO_OPTIONS_ITEMS-1;
-		break;
-
-	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
-		video_options_cursor++;
-		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
-			video_options_cursor = 0;
-		break;
-
-	case K_LEFTARROW:
-	//case K_MOUSE2:
-	case K_MWHEELDOWN:
-		S_LocalSound ("misc/menu3.wav");
-		switch (video_options_cursor)
-		{
-		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (1);
-			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (1);
-			break;
-		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (1);
-			break;
-		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
-			break;
-		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
-			break;
-		case VID_OPT_FSAA:
-			VID_Menu_ChooseNextAA (1);
-			break;
-		case VID_OPT_FSAA_MODE:
-			Cbuf_AddText ("toggle vid_fsaamode\n");
-			break;
-		case VID_OPT_SCALE:
-			VID_Menu_ChooseNextScale (1);
-			break;
-		case VID_OPT_ANISO:
-			VID_Menu_ChooseNextAnisotropy (1);
-			break;
-		case VID_OPT_TEXFILTER:
-			VID_Menu_ChooseNextTexFilter ();
-			break;
-		case VID_OPT_PARTICLES:
-			Cbuf_AddText ("cycle r_particles 1 2 0\n");
-			break;
-		case VID_OPT_WATERWARP:
-			Cbuf_AddText ("cycle r_waterwarp 2 1 0\n");
-			break;
-		case VID_OPT_DLIGHTS:
-			Cbuf_AddText ("toggle r_dynamic\n");
-			break;
-		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 3 2 1 0\n");
-			break;
-		case VID_OPT_FPSLIMIT:
-			VID_Menu_ChooseNextFPSLimit (1);
-			break;
-		case VID_OPT_SHOWFPS:
-			Cbuf_AddText ("toggle scr_showfps\n");
-			break;
-		default:
-			break;
-		}
-		break;
-
-	case K_RIGHTARROW:
-	case K_MWHEELUP:
-		S_LocalSound ("misc/menu3.wav");
-		switch (video_options_cursor)
-		{
-		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (-1);
-			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (-1);
-			break;
-		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (-1);
-			break;
-		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
-			break;
-		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n");
-			break;
-		case VID_OPT_FSAA:
-			VID_Menu_ChooseNextAA (-1);
-			break;
-		case VID_OPT_FSAA_MODE:
-			Cbuf_AddText ("toggle vid_fsaamode\n");
-			break;
-		case VID_OPT_SCALE:
-			VID_Menu_ChooseNextScale (-1);
-			break;
-		case VID_OPT_ANISO:
-			VID_Menu_ChooseNextAnisotropy (-1);
-			break;
-		case VID_OPT_TEXFILTER:
-			VID_Menu_ChooseNextTexFilter ();
-			break;
-		case VID_OPT_PARTICLES:
-			Cbuf_AddText ("cycle r_particles 0 2 1\n");
-			break;
-		case VID_OPT_WATERWARP:
-			Cbuf_AddText ("cycle r_waterwarp 0 1 2\n");
-			break;
-		case VID_OPT_DLIGHTS:
-			Cbuf_AddText ("toggle r_dynamic\n");
-			break;
-		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
-			break;
-		case VID_OPT_FPSLIMIT:
-			VID_Menu_ChooseNextFPSLimit (-1);
-			break;
-		case VID_OPT_SHOWFPS:
-			Cbuf_AddText ("toggle scr_showfps\n");
-			break;
-		default:
-			break;
-		}
+		if (m_state == m_options)
+			M_Menu_Main_f ();
+		else
+			M_Menu_Options_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
-	case K_MOUSE1:
+	enter:
 		m_entersound = true;
-		switch (video_options_cursor)
+		M_List_ClearSearch (&optionsmenu.list);
+		switch (optionsmenu.list.cursor + optionsmenu.first_item)
 		{
-		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (1);
+		case OPT_CUSTOMIZE:
+			M_Menu_Keys_f ();
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (1);
+		case OPT_CONSOLE:
+			m_state = m_none;
+			Con_ToggleConsole_f ();
 			break;
-		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (1);
+		case OPT_DEFAULTS:
+			if (SCR_ModalMessage("This will reset all controls\n"
+					"and stored cvars. Continue? (y/n)\n", 15.0f))
+			{
+				Cbuf_AddText ("resetcfg\n");
+				Cbuf_AddText ("exec default.cfg\n");
+			}
 			break;
-		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
+		case OPT_MODS:
+			M_Menu_Mods_f ();
 			break;
-		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n");
+		case OPT_VIDEO:
+			M_Menu_Video_f ();
 			break;
-		case VID_OPT_FSAA:
-			VID_Menu_ChooseNextAA (-1);
-			break;
-		case VID_OPT_FSAA_MODE:
-			Cbuf_AddText ("toggle vid_fsaamode\n");
-			break;
-		case VID_OPT_SCALE:
-			VID_Menu_ChooseNextScale (-1);
-			break;
-		case VID_OPT_ANISO:
-			VID_Menu_ChooseNextAnisotropy (-1);
-			break;
-		case VID_OPT_TEXFILTER:
-			VID_Menu_ChooseNextTexFilter ();
-			break;
-		case VID_OPT_PARTICLES:
-			Cbuf_AddText ("cycle r_particles 0 2 1\n");
-			break;
-		case VID_OPT_WATERWARP:
-			Cbuf_AddText ("cycle r_waterwarp 0 1 2\n");
-			break;
-		case VID_OPT_DLIGHTS:
-			Cbuf_AddText ("toggle r_dynamic\n");
-			break;
-		case VID_OPT_SOFTEMU:
-			Cbuf_AddText ("cycle r_softemu 0 1 2 3\n");
-			break;
-		case VID_OPT_FPSLIMIT:
-			VID_Menu_ChooseNextFPSLimit (-1);
-			break;
-		case VID_OPT_SHOWFPS:
-			Cbuf_AddText ("toggle scr_showfps\n");
-			break;
+
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
 			break;
@@ -4130,152 +3756,342 @@ void M_Video_Key (int key)
 			m_state = m_none;
 			IN_Activate();
 			break;
+
 		default:
+			M_AdjustSliders (1);
 			break;
 		}
+		return;
+
+	case K_LEFTARROW:
+	case K_MWHEELDOWN:
+	//case K_MOUSE2:
+		M_AdjustSliders (-1);
 		break;
 
-	default:
+	case K_RIGHTARROW:
+	case K_MWHEELUP:
+		M_AdjustSliders (1);
+		break;
+
+	case K_MOUSE1:
+		if (!M_SliderClick (m_mousex, m_mousey))
+			goto enter;
 		break;
 	}
 }
 
-/*
-================
-VID_MenuMouse
-================
-*/
-void M_Video_Mousemove (int cx, int cy)
+qboolean M_Options_TextEntry (void)
 {
-	int cursor = (cy - 48) / 8;
-	// Handle the visual gap between the last option and "Test changes"
-	if (cursor > VID_OPT_TEST)
-		--cursor; // past the gap, correct the index
-	else if (cursor == VID_OPT_TEST)
-		return; // inside the gap, do nothing
-	cursor = CLAMP (0, cursor, VIDEO_OPTIONS_ITEMS - 1);
-	video_options_cursor = cursor;
+	return !slider_grab;
 }
 
-/*
-================
-VID_MenuDraw
-================
-*/
-void M_Video_Draw (void)
+void M_Options_Char (int key)
 {
-	int i, x0, x1, y;
-	qpic_t *p;
-	const char *title;
+	M_List_Char (&optionsmenu.list, key);
+}
 
-	y = 4;
-
-	// plaque
-	p = Draw_CachePic ("gfx/qplaque.lmp");
-	M_DrawTransPic (16, y, p);
-
-	//p = Draw_CachePic ("gfx/vidmodes.lmp");
-	p = Draw_CachePic ("gfx/p_option.lmp");
-	M_DrawPic ( (320-p->width)/2, y, p);
-
-	y += 28;
-
-	// title
-	title = "Video Options";
-	M_PrintWhite ((320-8*strlen(title))/2, y, title);
-
-	y += 16;
-
-	x0 = 32;
-	x1 = x0 + 168;
-
-	// options
-	for (i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
+void M_Options_Mousemove (int cx, int cy)
+{
+	if (slider_grab)
 	{
-		switch (i)
+		float frac;
+		if (!keydown[K_MOUSE1])
 		{
-		case VID_OPT_MODE:
-			M_Print (x0, y, "        Video mode");
-			M_Print (x1, y, va("%ix%i", (int)vid_width.value, (int)vid_height.value));
-			break;
-		case VID_OPT_BPP:
-			M_Print (x0, y, "       Color depth");
-			M_Print (x1, y, va("%i", (int)vid_bpp.value));
-			break;
-		case VID_OPT_REFRESHRATE:
-			M_Print (x0, y, "      Refresh rate");
-			M_Print (x1, y, va("%i", (int)vid_refreshrate.value));
-			break;
-		case VID_OPT_FULLSCREEN:
-			M_Print (x0, y, "        Fullscreen");
-			M_DrawCheckbox (x1, y, (int)vid_fullscreen.value);
-			break;
-		case VID_OPT_VSYNC:
-			M_Print (x0, y, "     Vertical sync");
-			M_DrawCheckbox (x1, y, (int)vid_vsync.value);
-			break;
-		case VID_OPT_FSAA:
-			M_Print (x0, y, "      Antialiasing");
-			M_Print (x1, y, framebufs.scene.samples >= 2 ? va("%ix", framebufs.scene.samples) : "Off");
-			break;
-		case VID_OPT_FSAA_MODE:
-			M_Print (x0, y, "           AA mode");
-			M_Print (x1, y, vid_fsaamode.value ? "Full" : "Edges only");
-			break;
-		case VID_OPT_SCALE:
-			M_Print (x0, y, "      Render scale");
-			M_Print (x1, y, r_refdef.scale >= 2 ? va("1/%i", r_refdef.scale) : "Off");
-			break;
-		case VID_OPT_ANISO:
-			M_Print (x0, y, "       Anisotropic");
-			M_Print (x1, y, gl_texture_anisotropy.value >= 2.f ?
-				va("%ix", q_min ((int)gl_texture_anisotropy.value, (int)gl_max_anisotropy)) :
-				"Off"
-			);
-			break;
-		case VID_OPT_TEXFILTER:
-			M_Print (x0, y, "          Textures");
-			M_Print (x1, y, VID_Menu_GetTexFilterDesc ());
-			break;
-		case VID_OPT_PARTICLES:
-			M_Print (x0, y, "         Particles");
-			M_Print (x1, y, VID_Menu_GetParticlesDesc ());
-			break;
-		case VID_OPT_WATERWARP:
-			M_Print (x0, y, "     Underwater FX");
-			M_Print (x1, y, VID_Menu_GetWaterWarpDesc ());
-			break;
-		case VID_OPT_DLIGHTS:
-			M_Print (x0, y, "    Dynamic lights");
-			M_Print (x1, y, r_dynamic.value ? "On" : "Off");
-			break;
-		case VID_OPT_SOFTEMU:
-			M_Print (x0, y, "        8-bit mode");
-			M_Print (x1, y, VID_Menu_GetSoftEmuDesc ());
-			break;
-		case VID_OPT_FPSLIMIT:
-			M_Print (x0, y, "         FPS Limit");
-			M_Print (x1, y, host_maxfps.value ? va("%i", (int)host_maxfps.value): "Off");
-			break;
-		case VID_OPT_SHOWFPS:
-			M_Print (x0, y, "          Show FPS");
-			M_Print (x1, y, scr_showfps.value ? "On" : "Off");
-			break;
-		case VID_OPT_TEST:
-			y += 8; //separate the test and apply items
-			M_Print (x0, y, "      Test changes");
-			break;
-		case VID_OPT_APPLY:
-			M_Print (x0, y, "     Apply changes");
-			break;
+			M_ReleaseSliderGrab ();
+			return;
+		}
+		frac = M_MouseToRawSliderFraction (cx - OPTIONS_MIDPOS);
+		M_SetSliderValue (optionsmenu.list.cursor, frac);
+		if (frac >= 0.f && frac <= 1.f)
+			M_MouseSound ("misc/menu1.wav");
+		return;
+	}
+
+	M_List_Mousemove (&optionsmenu.list, cy - optionsmenu.y - OPTIONS_LISTOFS - optionsmenu.yofs);
+}
+
+//=============================================================================
+/* KEYS MENU */
+
+static const char* const bindnames[][2] =
+{
+	{"+forward",		"Move forward"},
+	{"+back",			"Move backward"},
+	{"+moveleft",		"Move left"},
+	{"+moveright",		"Move right"},
+	{"+jump",			"Jump / swim up"},
+	{"+moveup",			"Swim up"},
+	{"+movedown",		"Swim down"},
+	{"+speed",			"Run"},
+	{"+strafe",			"Sidestep"},
+	{"",				""},
+	{"+left",			"Turn left"},
+	{"+right",			"Turn right"},
+	{"+lookup",			"Look up"},
+	{"+lookdown",		"Look down"},
+	{"centerview",		"Center view"},
+	{"+mlook",			"Mouse look"},
+	{"+klook",			"Keyboard look"},
+	{"zoom_in",			"Toggle zoom"},
+	{"+zoom",			"Quick zoom"},
+	{"",				""},
+	{"+attack",			"Attack"},
+	{"impulse 10",		"Next weapon"},
+	{"impulse 12",		"Previous weapon"},
+	{"impulse 1",		"Axe"},
+	{"impulse 2",		"Shotgun"},
+	{"impulse 3",		"Super Shotgun"},
+	{"impulse 4",		"Nailgun"},
+	{"impulse 5",		"Super Nailgun"},
+	{"impulse 6",		"Grenade Launcher"},
+	{"impulse 7",		"Rocket Launcher"},
+	{"impulse 8",		"Thunderbolt"},
+	{"impulse 225",		"Laser Cannon"},
+	{"impulse 226",		"Mjolnir"},
+};
+
+#define	NUMCOMMANDS		(sizeof(bindnames)/sizeof(bindnames[0]))
+#define KEYLIST_OFS		48
+
+static struct
+{
+	menulist_t			list;
+	int					y;
+} keysmenu;
+
+static qboolean	bind_grab;
+
+static void M_Keys_UpdateLayout (void)
+{
+	int height;
+
+	M_UpdateBounds ();
+	height = keysmenu.list.numitems * 8 + KEYLIST_OFS + 12;
+	height = q_min (height, m_height);
+	keysmenu.y = m_top + (((m_height - height) / 2) & ~7);
+	keysmenu.list.viewsize = (height - KEYLIST_OFS - 12) / 8;
+}
+
+static qboolean M_Keys_IsSelectable (int index)
+{
+	return bindnames[index][0][0] != 0;
+}
+
+static qboolean M_Keys_Match (int index)
+{
+	const char *name = bindnames[index][1];
+	if (!*name)
+		return false;
+	return q_strcasestr (name, keysmenu.list.search.text) != NULL;
+}
+
+void M_Menu_Keys_f (void)
+{
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = m_keys;
+	m_entersound = true;
+	keysmenu.list.cursor = 0;
+	keysmenu.list.scroll = 0;
+	keysmenu.list.numitems = hipnotic ? NUMCOMMANDS : NUMCOMMANDS - 2;
+	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
+	keysmenu.list.search.match_fn = M_Keys_Match;
+
+	M_List_ClearSearch (&keysmenu.list);
+
+	M_Keys_UpdateLayout ();
+}
+
+
+void M_FindKeysForCommand (const char *command, int *threekeys)
+{
+	Key_GetKeysForCommand (command, threekeys, 3);
+}
+
+void M_UnbindCommand (const char *command)
+{
+	int		j;
+	char	*b;
+
+	for (j = 0; j < MAX_KEYS; j++)
+	{
+		b = keybindings[j];
+		if (!b)
+			continue;
+		if (!strcmp (b, command) )
+			Key_SetBinding (j, NULL);
+	}
+}
+
+extern qpic_t	*pic_up, *pic_down;
+
+void M_Keys_Draw (void)
+{
+	int		firstvis, numvis;
+	int		i, x, y, cols;
+	int		keys[3];
+	const char	*name;
+	qpic_t	*p;
+
+	M_Keys_UpdateLayout ();
+	M_List_Update (&keysmenu.list);
+
+	x = 0;
+	y = keysmenu.y;
+	cols = 40;
+
+	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
+	M_DrawPic ( (320-p->width)/2, y + 4, p);
+
+	if (bind_grab)
+		M_Print (12, y + 32, "Press a key or button for this action");
+	else
+		M_Print (18, y + 32, "Enter to change, backspace to clear");
+
+	y += KEYLIST_OFS;
+
+	if (M_List_GetOverflow (&keysmenu.list) > 0)
+	{
+		if (keysmenu.list.scroll > 0)
+			M_DrawEllipsisBar (x, y - 8, cols);
+		if (keysmenu.list.scroll + keysmenu.list.viewsize < keysmenu.list.numitems)
+			M_DrawEllipsisBar (x, y + keysmenu.list.viewsize*8, cols);
+	}
+
+	// search for known bindings
+	M_List_GetVisibleRange (&keysmenu.list, &firstvis, &numvis);
+	while (numvis-- > 0)
+	{
+		i = firstvis++;
+
+		if (bindnames[i][0][0])
+		{
+			char buf[64];
+			void (*print_fn) (int cx, int cy, const char *text) =
+				(i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
+
+			COM_TintSubstring (bindnames[i][1], keysmenu.list.search.text, buf, sizeof (buf));
+			print_fn (0, y, buf);
+
+			M_FindKeysForCommand (bindnames[i][0], keys);
+			// If we already have 3 keys bound to this action
+			// they will all be unbound when a new one is assigned.
+			// We show this outcome to the user before it actually
+			// occurs so they have a chance to abort the process
+			// and keep the existing key bindings.
+			if (i == keysmenu.list.cursor && bind_grab && keys[2] != -1)
+				keys[0] = -1;
+
+			if (keys[0] == -1)
+			{
+				print_fn (136, y, "???");
+			}
+			else
+			{
+				name = Key_KeynumToString (keys[0]);
+				print_fn (136, y, name);
+				x = strlen(name) * 8;
+				if (keys[1] != -1)
+				{
+					name = Key_KeynumToString (keys[1]);
+					print_fn (136 + x + 8, y, "or");
+					print_fn (136 + x + 32, y, name);
+					x = x + 32 + strlen(name) * 8;
+					if (keys[2] != -1)
+					{
+						print_fn (136 + x + 8, y, "or");
+						print_fn (136 + x + 32, y, Key_KeynumToString (keys[2]));
+					}
+				}
+			}
 		}
 
-		if (video_options_cursor == i)
-			M_DrawCharacter (x1 - 16, y, 12+((int)(realtime*4)&1));
+		if (i == keysmenu.list.cursor)
+		{
+			if (bind_grab)
+				M_DrawCharacter (128, y, '=');
+			else
+				M_DrawCharacter (128, y, 12+((int)(realtime*4)&1));
+		}
 
 		y += 8;
 	}
+	M_List_DrawSearch (&keysmenu.list, 0, y + 4, 16);
 }
+
+
+void M_Keys_Key (int k)
+{
+	char	cmd[80];
+	int		keys[3];
+
+	if (bind_grab)
+	{	// defining a key
+		M_ThrottledSound ("misc/menu1.wav");
+		if ((k != K_ESCAPE) && (k != '`'))
+		{
+			M_FindKeysForCommand (bindnames[keysmenu.list.cursor][0], keys);
+			if (keys[2] != -1)
+				M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
+			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keysmenu.list.cursor][0]);
+			Cbuf_InsertText (cmd);
+		}
+
+		bind_grab = false;
+		IN_DeactivateForMenu(); // deactivate because we're returning to the menu
+		return;
+	}
+
+	if (M_List_Key (&keysmenu.list, k))
+		return;
+
+	switch (k)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		M_Menu_Options_f ();
+		break;
+
+	case K_ENTER:		// go into bind mode
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		M_List_ClearSearch (&keysmenu.list);
+		M_ThrottledSound ("misc/menu2.wav");
+		bind_grab = true;
+		M_List_AutoScroll (&keysmenu.list);
+		IN_Activate(); // activate to allow mouse key binding
+		break;
+
+	case K_BACKSPACE:	// delete bindings
+	case K_DEL:
+		M_ThrottledSound ("misc/menu2.wav");
+		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
+		break;
+	}
+}
+
+
+void M_Keys_Mousemove (int cx, int cy)
+{
+	M_List_Mousemove (&keysmenu.list, cy - keysmenu.y - KEYLIST_OFS);
+}
+
+qboolean M_Keys_TextEntry (void)
+{
+	return !bind_grab;
+}
+
+void M_Keys_Char (int key)
+{
+	M_List_Char (&keysmenu.list, key);
+}
+
+//=============================================================================
+/* VIDEO MENU */
 
 /*
 ================
@@ -4284,17 +4100,7 @@ VID_Menu_f
 */
 void M_Menu_Video_f (void)
 {
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_video;
-	m_entersound = true;
-
-	//set all the cvars to match the current mode when entering the menu
-	VID_SyncCvars ();
-
-	//set up bpp and rate lists based on current cvars
-	VID_Menu_RebuildBppList ();
-	VID_Menu_RebuildRateList ();
+	M_Options_Init (m_video);
 }
 
 //=============================================================================
@@ -6150,15 +5956,12 @@ void M_Draw (void)
 		break;
 
 	case m_options:
+	case m_video:
 		M_Options_Draw ();
 		break;
 
 	case m_keys:
 		M_Keys_Draw ();
-		break;
-
-	case m_video:
-		M_Video_Draw ();
 		break;
 
 	case m_mods:
@@ -6257,15 +6060,12 @@ void M_Keydown (int key)
 		return;
 
 	case m_options:
+	case m_video:
 		M_Options_Key (key);
 		return;
 
 	case m_keys:
 		M_Keys_Key (key);
-		return;
-
-	case m_video:
-		M_Video_Key (key);
 		return;
 
 	case m_mods:
@@ -6362,15 +6162,12 @@ void M_Mousemove (int x, int y)
 		return;
 
 	case m_options:
+	case m_video:
 		M_Options_Mousemove (x, y);
 		return;
 
 	case m_keys:
 		M_Keys_Mousemove (x, y);
-		return;
-
-	case m_video:
-		M_Video_Mousemove (x, y);
 		return;
 
 	case m_mods:
@@ -6424,6 +6221,7 @@ void M_Charinput (int key)
 		M_Mods_Char (key);
 		return;
 	case m_options:
+	case m_video:
 		M_Options_Char (key);
 		return;
 	case m_keys:
@@ -6450,6 +6248,7 @@ qboolean M_TextEntry (void)
 	case m_mods:
 		return M_Mods_TextEntry ();
 	case m_options:
+	case m_video:
 		return M_Options_TextEntry ();
 	case m_keys:
 		return M_Keys_TextEntry ();
