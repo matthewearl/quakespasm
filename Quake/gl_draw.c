@@ -457,7 +457,10 @@ void Draw_LoadPics (void)
 	int			i, row, col;
 
 	data = (byte *) W_GetLumpName ("conchars", &info);
-	if (!data) Sys_Error ("Draw_LoadPics: couldn't load conchars");
+	if (!data)
+		Sys_Error ("Draw_LoadPics: couldn't load conchars");
+	if (info->disksize < 128*128)
+		Sys_Error ("Draw_LoadPics: truncated conchars");
 
 	for (i = 0; i < 256; i++)
 	{
