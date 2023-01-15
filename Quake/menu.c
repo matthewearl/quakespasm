@@ -3448,7 +3448,7 @@ void M_ReleaseSliderGrab (void)
 		return;
 	slider_grab = false;
 	M_ThrottledSound ("misc/menu1.wav");
-	if (optionsmenu.list.cursor == OPT_SCALE)
+	if (optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
 		M_SetSliderValue (OPT_SCALE, target_scale_frac);
 }
 
@@ -3459,7 +3459,7 @@ qboolean M_SliderClick (int cx, int cy)
 		return false;
 	// HACK: we set the flag to true before updating the slider
 	// to avoid changing the UI scale and implicitly the layout
-	if (optionsmenu.list.cursor == OPT_SCALE)
+	if (optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
 		slider_grab = true;
 	if (!M_SetSliderValue (optionsmenu.list.cursor, M_MouseToSliderFraction (cx)))
 		return false;
@@ -3491,7 +3491,7 @@ static void M_Options_DrawItem (int y, int item)
 	case OPT_SCALE:
 		l = (vid.width / 320.0) - 1;
 		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
-		if (slider_grab && optionsmenu.list.cursor == OPT_SCALE)
+		if (slider_grab && optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
 			r = target_scale_frac;
 		M_DrawSlider (x, y, r);
 		break;
