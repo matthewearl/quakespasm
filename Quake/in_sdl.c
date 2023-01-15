@@ -223,6 +223,8 @@ void IN_Deactivate (qboolean free_cursor)
 
 	if (free_cursor)
 		IN_ShowCursor();
+	else
+		IN_HideCursor();
 
 	/* discard all mouse events when input is deactivated */
 	IN_BeginIgnoringMouseEvents();

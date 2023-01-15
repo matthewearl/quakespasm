@@ -57,6 +57,7 @@ extern qboolean quake64;
 enum m_state_e m_state;
 extern qboolean	keydown[256];
 int m_mousex, m_mousey;
+qboolean m_ignoremouseframe;
 static int m_left, m_top, m_width, m_height;
 
 static void M_UpdateBounds (void);
@@ -5849,6 +5850,32 @@ void M_Menu_Credits_f (void)
 //=============================================================================
 /* Menu Subsystem */
 
+static void UI_Mouse_f (cvar_t *cvar)
+{
+	// Ignore first mouse move message after we re-enable the option.
+	// This makes it possible to cycle through the UI Mouse options
+	// in full-screen mode using the keyboard without having the
+	// selected item change due to the automatic mouse move message
+	// sent when the cursor is shown again.
+	if (modestate == MS_FULLSCREEN)
+		m_ignoremouseframe = true;
+
+	switch (key_dest)
+	{
+	case key_menu:
+		IN_DeactivateForMenu ();
+		break;
+	case key_console:
+		IN_DeactivateForConsole ();
+		break;
+	case key_game:
+	case key_message:
+		IN_Activate ();
+		break;
+	default:
+		break;
+	}
+}
 
 void M_Init (void)
 {
@@ -5870,6 +5897,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_maps", M_Menu_Maps_f);
 
 	Cvar_RegisterVariable (&ui_mouse);
+	Cvar_SetCallback (&ui_mouse, UI_Mouse_f);
 	Cvar_RegisterVariable (&ui_mouse_sound);
 	Cvar_RegisterVariable (&ui_sound_throttle);
 	Cvar_RegisterVariable (&ui_search_timeout);
@@ -6128,6 +6156,12 @@ void M_Mousemove (int x, int y)
 	py = (py - transform.offset[1]) / transform.scale[1];
 	m_mousex = x = (int) (px + 0.5f);
 	m_mousey = y = (int) (py + 0.5f);
+
+	if (m_ignoremouseframe)
+	{
+		m_ignoremouseframe = false;
+		return;
+	}
 
 	switch (m_state)
 	{
