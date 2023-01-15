@@ -3362,16 +3362,7 @@ void M_DrawSlider (int x, int y, float range)
 
 void M_DrawCheckbox (int x, int y, int on)
 {
-#if 0
-	if (on)
-		M_DrawCharacter (x, y, 131);
-	else
-		M_DrawCharacter (x, y, 129);
-#endif
-	if (on)
-		M_Print (x, y, "on");
-	else
-		M_Print (x, y, "off");
+	M_Print (x, y, on ? "On" : "Off");
 }
 
 qboolean M_SetSliderValue (int option, float f)
