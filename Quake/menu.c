@@ -283,6 +283,25 @@ static void M_PrintSubstring (int x, int y, const char *text, int numchars, qboo
 	}
 }
 
+static void M_PrintDotFill (int x, int y, const char *text, int cols, qboolean color)
+{
+	char mask = color ? 0x80 : 0;
+	while (*text && cols >= 2)
+	{
+		M_DrawCharacter (x, y, *text++ ^ mask);
+		x += 8;
+		--cols;
+	}
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 0.375f);
+	while (cols --> 0)
+	{
+		M_DrawCharacter (x, y, '.' ^ mask);
+		x += 8;
+	}
+	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+}
+
 static int M_WordLength (const char *text)
 {
 	const char *start = text;
@@ -3968,11 +3987,12 @@ void M_Keys_Draw (void)
 		if (bindnames[i][0][0])
 		{
 			char buf[64];
+			qboolean active = (i == keysmenu.list.cursor && bind_grab);
 			void (*print_fn) (int cx, int cy, const char *text) =
-				(i == keysmenu.list.cursor && bind_grab) ? M_PrintWhite : M_Print;
+				active ? M_PrintWhite : M_Print;
 
 			COM_TintSubstring (bindnames[i][1], keysmenu.list.search.text, buf, sizeof (buf));
-			print_fn (0, y, buf);
+			M_PrintDotFill (0, y, buf, 17, !active);
 
 			M_FindKeysForCommand (bindnames[i][0], keys);
 			// If we already have 3 keys bound to this action
@@ -5717,25 +5737,6 @@ void M_Menu_ModInfo_f (const filelist_item_t *item)
 	M_ModInfo_UpdateLayout ();
 }
 
-static void M_ModInfo_PrintHeader (int x, int y, const char *text, int cols, qboolean color)
-{
-	char mask = color ? 0x80 : 0;
-	while (*text && cols >= 2)
-	{
-		M_DrawCharacter (x, y, *text++ ^ mask);
-		x += 8;
-		--cols;
-	}
-
-	GL_SetCanvasColor (1.f, 1.f, 1.f, 0.375f);
-	while (cols --> 0)
-	{
-		M_DrawCharacter (x, y, '.' ^ mask);
-		x += 8;
-	}
-	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
-}
-
 void M_ModInfo_Draw (void)
 {
 	const char	*str;
@@ -5767,14 +5768,14 @@ void M_ModInfo_Draw (void)
 	if (*str)
 	{
 		int maxlines = MODINFO_MAXAUTHORLINES;
-		M_ModInfo_PrintHeader (x, y, "Created by", namecols, false);
+		M_PrintDotFill (x, y, "Created by", namecols, false);
 		y += M_PrintWordWrap (x2, y, str, MODINFO_INFOCOLS * 8, maxlines * 8, false) * 8 + 8;
 	}
 
 	str = Modlist_GetDate (modinfomenu.item);
 	if (str)
 	{
-		M_ModInfo_PrintHeader (x, y, "Release date", namecols, false);
+		M_PrintDotFill (x, y, "Release date", namecols, false);
 		M_PrintWhite (x2, y, str);
 		y += 16;
 	}
@@ -5782,7 +5783,7 @@ void M_ModInfo_Draw (void)
 	size = Modlist_GetDownloadSize (modinfomenu.item);
 	if (size)
 	{
-		M_ModInfo_PrintHeader (x, y, "Download size", namecols, false);
+		M_PrintDotFill (x, y, "Download size", namecols, false);
 		M_PrintWhite (x2, y, va ("%.1f MB", size / (double) 0x100000));
 		y += 16;
 	}
