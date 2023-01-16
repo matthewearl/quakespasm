@@ -114,7 +114,8 @@
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -147,7 +148,8 @@ copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Comm
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -180,7 +182,8 @@ copy "$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Comm
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -215,7 +218,8 @@ copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Com
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
