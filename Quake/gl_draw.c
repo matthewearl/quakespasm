@@ -514,8 +514,8 @@ static void Draw_CreateWinQuakeMenuBgTex (void)
 {
 	static unsigned winquakemenubg_pixels[4*2] =
 	{
-		0x00ffffffu, 0xffffffffu, 0xffffffffu, 0xffffffffu,
-		0xffffffffu, 0xffffffffu, 0x00ffffffu, 0xffffffffu,
+		0x00ffffffu, 0xff000000u, 0xff000000u, 0xff000000u,
+		0xff000000u, 0xff000000u, 0x00ffffffu, 0xff000000u,
 	};
 
 	winquakemenubg = TexMgr_LoadImage (NULL, "winquakemenubg", 4, 2, SRC_RGBA,
@@ -945,13 +945,21 @@ void Draw_FadeScreen (void)
 	guivertex_t *verts;
 	float smax = 0.f, tmax = 0.f, s;
 
+	if (scr_menubgalpha.value <= 0.f)
+		return;
+
 	GL_SetCanvas (CANVAS_DEFAULT);
 	if (softemu >= SOFTEMU_BANDED)
 	{
+		float clr[3];
 		Draw_SetTexture (whitetexture);
 		/* first pass */
 		Draw_SetBlending (GLS_BLEND_MULTIPLY);
-		GL_SetCanvasColor (0.56f, 0.43f, 0.13f, 1.f);
+		s = 1.f - CLAMP (0.f, scr_menubgalpha.value, 0.5f) * 2.f;
+		clr[0] = LERP (0.56f, 1.f, s);
+		clr[1] = LERP (0.43f, 1.f, s);
+		clr[2] = LERP (0.13f, 1.f, s);
+		GL_SetCanvasColor (clr[0], clr[1], clr[2], 1.f);
 		verts = Draw_AllocQuad ();
 		Draw_SetVertex (verts++, glcanvas.left,  glcanvas.bottom, 0.f,  0.f);
 		Draw_SetVertex (verts++, glcanvas.right, glcanvas.bottom, smax, 0.f);
@@ -959,7 +967,9 @@ void Draw_FadeScreen (void)
 		Draw_SetVertex (verts++, glcanvas.left,  glcanvas.top,    0.f,  tmax);
 		/* second pass */
 		Draw_SetBlending (GLS_BLEND_ALPHA);
-		GL_SetCanvasColor (0.095f, 0.08f, 0.045f, 0.6f);
+		s = CLAMP (0.f, scr_menubgalpha.value, 1.f);
+		s = (sqrt (s) + s) * 0.5f;	// ~0.6 with scr_menubgalpha 0.5
+		GL_SetCanvasColor (0.095f, 0.08f, 0.045f, s);
 	}
 	else if (softemu == SOFTEMU_COARSE)
 	{
@@ -969,14 +979,24 @@ void Draw_FadeScreen (void)
 		smax = glwidth / (winquakemenubg->width * s);
 		tmax = glheight / (winquakemenubg->height * s);
 		Draw_SetTexture (winquakemenubg);
-		Draw_SetBlending (GLS_BLEND_ALPHA);
-		GL_SetCanvasColor (0.f, 0.f, 0.f, 1.f);
+		if (scr_menubgalpha.value >= 0.5f)
+		{
+			Draw_SetBlending (GLS_BLEND_MULTIPLY);
+			s = 2.f - q_min (1.f, scr_menubgalpha.value) * 2.f;
+			GL_SetCanvasColor (s, s, s, 1.f);
+		}
+		else
+		{
+			Draw_SetBlending (GLS_BLEND_ALPHA);
+			s = q_max (0.f, scr_menubgalpha.value) * 2.f;
+			GL_SetCanvasColor (0.f, 0.f, 0.f, s);
+		}
 	}
 	else
 	{
 		Draw_SetTexture (whitetexture);
 		Draw_SetBlending (GLS_BLEND_ALPHA);
-		GL_SetCanvasColor (0.f, 0.f, 0.f, 0.5f);
+		GL_SetCanvasColor (0.f, 0.f, 0.f, scr_menubgalpha.value);
 	}
 
 	verts = Draw_AllocQuad ();

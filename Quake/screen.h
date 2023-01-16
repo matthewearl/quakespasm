@@ -85,6 +85,7 @@ typedef struct glcanvas_s {
 extern	glcanvas_t	glcanvas;
 
 extern	cvar_t		scr_menuscale;
+extern	cvar_t		scr_menubgalpha;
 extern	cvar_t		scr_sbarscale;
 extern	cvar_t		scr_conwidth;
 extern	cvar_t		scr_conscale;
