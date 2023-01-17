@@ -109,22 +109,32 @@ FILE *Sys_fopen (const char *path, const char *mode)
 
 	UTF8ToWideString (path, wpath, countof (wpath));
 
-	if (strchr (mode, 'w'))
+	if (wpath[0] && strchr (mode, 'w'))
 	{
 		// create directory structure
 		for (i = 1; wpath[i]; i++)
 		{
-			wchar_t wc = wpath[i];
-			if (wc != L'\\' && wc != L'/')
+			DWORD attr;
+			wchar_t wc;
+			if (wpath[i] != L'\\' && wpath[i] != L'/')
 				continue;
-			wpath[i] = L'\0';
-			if (!CreateDirectoryW (wpath, NULL))
+
+			// keep the trailing slash
+			wc = wpath[i + 1];
+			wpath[i + 1] = L'\0';
+
+			attr = GetFileAttributesW (wpath);
+			if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
+				return NULL;
+
+			if (attr == INVALID_FILE_ATTRIBUTES && !CreateDirectoryW (wpath, NULL))
 			{
 				DWORD err = GetLastError ();
 				if (err != ERROR_ALREADY_EXISTS)
 					return NULL;
 			}
-			wpath[i] = wc;
+
+			wpath[i + 1] = wc;
 		}
 	}
 
