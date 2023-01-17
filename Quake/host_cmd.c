@@ -945,23 +945,29 @@ static void Modlist_FinishInstalling (void *param)
 	}
 }
 
+static void Modlist_OnInstallFileCreationError (void *param)
+{
+	Modlist_FinishInstalling (NULL);
+	Con_Warning ("Couldn't create temporary file for add-on\n");
+}
+
 static void Modlist_OnInstallHTTPError (void *param)
 {
 	uintptr_t status = (uintptr_t) param;
 	Modlist_FinishInstalling (NULL);
-	Con_Printf ("Couldn't download add-on (HTTP status %d)\n", (int) status);
+	Con_Warning ("Couldn't download add-on (HTTP status %d)\n", (int) status);
 }
 
 static void Modlist_OnInstallCurlError (void *param)
 {
 	Modlist_FinishInstalling (NULL);
-	Con_Printf ("Couldn't download add-on (%s)\n", (const char *) param);
+	Con_Warning ("Couldn't download add-on (%s)\n", (const char *) param);
 }
 
 static void Modlist_OnInstallRenameError (void *param)
 {
 	Modlist_FinishInstalling (NULL);
-	Con_Printf ("Couldn't download add-on (rename error)\n");
+	Con_Warning ("Couldn't install add-on (rename error)\n");
 }
 
 static int Modlist_InstallerThread (void *param)
@@ -989,7 +995,7 @@ static int Modlist_InstallerThread (void *param)
 
 	if (!file)
 	{
-		Host_InvokeOnMainThread (Modlist_FinishInstalling, NULL);
+		Host_InvokeOnMainThread (Modlist_OnInstallFileCreationError, NULL);
 		return 1;
 	}
 
