@@ -3403,6 +3403,28 @@ void LOC_Language_f (cvar_t *cvar)
 
 /*
 ================
+LOC_LanguageCompletion_f
+================
+*/
+void LOC_LanguageCompletion_f (cvar_t *cvar, const char *partial)
+{
+	static const char *const langs[] =
+	{
+		"english",
+		"french",
+		"german",
+		"italian",
+		"spanish",
+	};
+	size_t i;
+
+	for (i = 0; i < countof (langs); i++)
+		if (Con_Match (langs[i], partial))
+			Con_AddToTabList (langs[i], partial, NULL);
+}
+
+/*
+================
 LOC_Init
 ================
 */
@@ -3412,6 +3434,7 @@ void LOC_Init(void)
 
 	Cvar_RegisterVariable (&language);
 	Cvar_SetCallback (&language, LOC_Language_f);
+	Cvar_SetCompletion (&language, LOC_LanguageCompletion_f);
 	language.callback (&language);
 }
 
