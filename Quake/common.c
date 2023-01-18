@@ -37,6 +37,7 @@ int		safemode;
 
 cvar_t	registered = {"registered","1",CVAR_ROM}; /* set to correct value in COM_CheckRegistered() */
 cvar_t	cmdline = {"cmdline","",CVAR_ROM/*|CVAR_SERVERINFO*/}; /* sending cmdline upon CCREQ_RULE_INFO is evil */
+cvar_t	language = {"language","english",CVAR_ARCHIVE}; /* for 2021 rerelease text */
 
 static qboolean		com_modified;	// set true if using non-id files
 
@@ -3115,7 +3116,7 @@ static size_t mz_zip_file_read_func(void *opaque, mz_uint64 ofs, void *buf, size
 LOC_LoadFile
 ================
 */
-void LOC_LoadFile (const char *file)
+qboolean LOC_LoadFile (const char *file)
 {
 	char path[1024];
 	int i,lineno;
@@ -3136,9 +3137,7 @@ void LOC_LoadFile (const char *file)
 	localization.numindices = 0;
 
 	if (!file || !*file)
-		return;
-
-	Con_Printf("\nLanguage initialization\n");
+		return false;
 
 	memset(&archive, 0, sizeof(archive));
 	for (i = com_numbasedirs - 1; i >= 0; i--)
@@ -3209,7 +3208,7 @@ void LOC_LoadFile (const char *file)
 fail:			mz_zip_reader_end(&archive);
 			if (rw) SDL_RWclose(rw);
 			Con_Printf("Couldn't load '%s'\n", file);
-			return;
+			return false;
 		}
 		SDL_RWread(rw, localization.text, 1, sz);
 		SDL_RWclose(rw);
@@ -3220,6 +3219,8 @@ fail:			mz_zip_reader_end(&archive);
 	// skip BOM
 	if ((unsigned char)(cursor[0]) == 0xEF && (unsigned char)(cursor[1]) == 0xBB && (unsigned char)(cursor[2]) == 0xBF)
 		cursor += 3;
+
+	UTF8_ToQuake (cursor, strlen (cursor) + 1, cursor);
 
 	lineno = 0;
 	while (*cursor)
@@ -3344,7 +3345,7 @@ fail:			mz_zip_reader_end(&archive);
 	if (localization.numindices == 0)
 	{
 		Con_Printf("No localized strings in file '%s'\n", file);
-		return;
+		return false;
 	}
 
 	localization.indices = (unsigned*) realloc(localization.indices, localization.numindices * sizeof(*localization.indices));
@@ -3373,6 +3374,31 @@ fail:			mz_zip_reader_end(&archive);
 	}
 
 	Con_Printf("Loaded %d strings from '%s'\n", localization.numentries, file);
+
+	return true;
+}
+
+/*
+================
+LOC_Load
+================
+*/
+void LOC_Load(void)
+{
+	if (!LOC_LoadFile(va("localization/loc_%s.txt", language.string)))
+		LOC_LoadFile("localization/loc_english.txt");
+}
+
+/*
+================
+LOC_Language_f
+
+Called when language changes
+================
+*/
+void LOC_Language_f (cvar_t *cvar)
+{
+	LOC_Load ();
 }
 
 /*
@@ -3382,7 +3408,11 @@ LOC_Init
 */
 void LOC_Init(void)
 {
-	LOC_LoadFile("localization/loc_english.txt");
+	Con_Printf("\nLanguage initialization\n");
+
+	Cvar_RegisterVariable (&language);
+	Cvar_SetCallback (&language, LOC_Language_f);
+	language.callback (&language);
 }
 
 /*
