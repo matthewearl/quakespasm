@@ -43,7 +43,6 @@ extern cvar_t host_maxfps;
 extern cvar_t scr_showfps;
 extern cvar_t vid_width;
 extern cvar_t vid_height;
-extern cvar_t vid_bpp;
 extern cvar_t vid_refreshrate;
 extern cvar_t vid_fullscreen;
 extern cvar_t vid_vsync;
@@ -2432,9 +2431,6 @@ typedef struct
 static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
 static int vid_menu_nummodes = 0;
 
-static int vid_menu_bpps[MAX_BPPS_LIST];
-static int vid_menu_numbpps = 0;
-
 static int vid_menu_rates[MAX_RATES_LIST];
 static int vid_menu_numrates=0;
 
@@ -2470,63 +2466,9 @@ void VID_Menu_Init (void)
 
 /*
 ================
-VID_Menu_RebuildBppList
-
-regenerates bpp list based on current vid_width and vid_height
-================
-*/
-static void VID_Menu_RebuildBppList (void)
-{
-	int i, j, b;
-
-	vid_menu_numbpps = 0;
-
-	for (i = 0; i < nummodes; i++)
-	{
-		if (vid_menu_numbpps >= MAX_BPPS_LIST)
-			break;
-
-		//bpp list is limited to bpps available with current width/height
-		if (modelist[i].width != vid_width.value ||
-			modelist[i].height != vid_height.value)
-			continue;
-
-		b = modelist[i].bpp;
-
-		for (j = 0; j < vid_menu_numbpps; j++)
-		{
-			if (vid_menu_bpps[j] == b)
-				break;
-		}
-
-		if (j == vid_menu_numbpps)
-		{
-			vid_menu_bpps[j] = b;
-			vid_menu_numbpps++;
-		}
-	}
-
-	//if there are no valid fullscreen bpps for this width/height, just pick one
-	if (vid_menu_numbpps == 0)
-	{
-		Cvar_SetValueQuick (&vid_bpp, (float)modelist[0].bpp);
-		return;
-	}
-
-	//if vid_bpp is not in the new list, change vid_bpp
-	for (i = 0; i < vid_menu_numbpps; i++)
-		if (vid_menu_bpps[i] == (int)(vid_bpp.value))
-			break;
-
-	if (i == vid_menu_numbpps)
-		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[0]);
-}
-
-/*
-================
 VID_Menu_RebuildRateList
 
-regenerates rate list based on current vid_width, vid_height and vid_bpp
+regenerates rate list based on current vid_width and vid_height
 ================
 */
 static void VID_Menu_RebuildRateList (void)
@@ -2537,10 +2479,10 @@ static void VID_Menu_RebuildRateList (void)
 
 	for (i = 0; i < nummodes; i++)
 	{
-		//rate list is limited to rates available with current width/height/bpp
+		//rate list is limited to rates available with current width/height
 		if (modelist[i].width != vid_width.value ||
 		    modelist[i].height != vid_height.value ||
-		    modelist[i].bpp != vid_bpp.value)
+		    modelist[i].bpp < 24)
 			continue;
 
 		r = modelist[i].refreshrate;
@@ -2579,7 +2521,7 @@ static void VID_Menu_RebuildRateList (void)
 VID_Menu_ChooseNextMode
 
 chooses next resolution in order, then updates vid_width and
-vid_height cvars, then updates bpp and refreshrate lists
+vid_height cvars, then updates refreshrate list
 ================
 */
 static void VID_Menu_ChooseNextMode (int dir)
@@ -2610,44 +2552,7 @@ static void VID_Menu_ChooseNextMode (int dir)
 
 		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[i].width);
 		Cvar_SetValueQuick (&vid_height, (float)vid_menu_modes[i].height);
-		VID_Menu_RebuildBppList ();
 		VID_Menu_RebuildRateList ();
-	}
-}
-
-/*
-================
-VID_Menu_ChooseNextBpp
-
-chooses next bpp in order, then updates vid_bpp cvar
-================
-*/
-static void VID_Menu_ChooseNextBpp (int dir)
-{
-	int i;
-
-	if (vid_menu_numbpps)
-	{
-		for (i = 0; i < vid_menu_numbpps; i++)
-		{
-			if (vid_menu_bpps[i] == vid_bpp.value)
-				break;
-		}
-
-		if (i == vid_menu_numbpps) //can't find it in list
-		{
-			i = 0;
-		}
-		else
-		{
-			i += dir;
-			if (i >= vid_menu_numbpps)
-				i = 0;
-			else if (i < 0)
-				i = vid_menu_numbpps-1;
-		}
-
-		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[i]);
 	}
 }
 
@@ -2927,7 +2832,6 @@ void M_Menu_Video_f (void)
 ////////////////////////////////////////////////////
 #define VIDEO_OPTIONS_LIST(def)						\
 	def (VID_OPT_MODE,			"Video Mode")		\
-	def (VID_OPT_BPP,			"Color Depth")		\
 	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
 	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
 	def (VID_OPT_VSYNC,			"Vertical Sync")	\
@@ -3079,8 +2983,7 @@ void M_Options_Init (enum m_state_e state)
 		//set all the cvars to match the current mode when entering the menu
 		VID_SyncCvars ();
 
-		//set up bpp and rate lists based on current cvars
-		VID_Menu_RebuildBppList ();
+		//set up rate list based on current cvars
 		VID_Menu_RebuildRateList ();
 	}
 	else
@@ -3293,9 +3196,6 @@ void M_AdjustSliders (int dir)
 	//
 	case VID_OPT_MODE:
 		VID_Menu_ChooseNextMode (-dir);
-		break;
-	case VID_OPT_BPP:
-		VID_Menu_ChooseNextBpp (-dir);
 		break;
 	case VID_OPT_REFRESHRATE:
 		VID_Menu_ChooseNextRate (-dir);
@@ -3613,9 +3513,6 @@ static void M_Options_DrawItem (int y, int item)
 	//
 	case VID_OPT_MODE:
 		M_Print (x, y, va("%ix%i", (int)vid_width.value, (int)vid_height.value));
-		break;
-	case VID_OPT_BPP:
-		M_Print (x, y, va("%i", (int)vid_bpp.value));
 		break;
 	case VID_OPT_REFRESHRATE:
 		M_Print (x, y, va("%i", (int)vid_refreshrate.value));

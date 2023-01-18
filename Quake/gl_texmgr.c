@@ -489,7 +489,7 @@ float TexMgr_FrameUsage (void)
 		}
 	}
 
-	mb = texels * (Cvar_VariableValue("vid_bpp") / 8.0f) / 0x100000;
+	mb = texels * 4.0f / 0x100000;
 	return mb;
 }
 
