@@ -832,20 +832,28 @@ void Cmd_RemoveCommand (cmd_function_t *cmd)
 
 /*
 ============
-Cmd_Exists
+Cmd_Find
 ============
 */
-qboolean	Cmd_Exists (const char *cmd_name)
+cmd_function_t *Cmd_FindCommand (const char *cmd_name)
 {
 	cmd_function_t	*cmd;
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-	{
-		if (!Q_strcmp (cmd_name,cmd->name))
-			return true;
-	}
+		if (!q_strcasecmp (cmd_name,cmd->name))
+			return cmd;
 
-	return false;
+	return NULL;
+}
+
+/*
+============
+Cmd_Exists
+============
+*/
+qboolean Cmd_Exists (const char *cmd_name)
+{
+	return Cmd_FindCommand (cmd_name) != NULL;
 }
 
 

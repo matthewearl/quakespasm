@@ -743,7 +743,7 @@ extern	cmdalias_t	*cmd_alias;
 
 /*
 ============
-AddToTabList -- johnfitz
+Con_AddToTabList -- johnfitz
 
 tablist is a doubly-linked loop, alphabetized by name
 ============
@@ -754,7 +754,7 @@ tablist is a doubly-linked loop, alphabetized by name
 static char	bash_partial[80];
 static qboolean	bash_singlematch;
 
-static void AddToTabList (const char *name, const char *partial, const char *type)
+void Con_AddToTabList (const char *name, const char *partial, const char *type)
 {
 	tab_t	*t,*insert;
 	char	*i_bash, *i_bash2;
@@ -841,6 +841,16 @@ static void AddToTabList (const char *name, const char *partial, const char *typ
 
 /*
 ============
+Con_Match
+============
+*/
+qboolean Con_Match (const char *str, const char *partial)
+{
+	return q_strcasestr (str, partial) != NULL;
+}
+
+/*
+============
 ParseCommand
 ============
 */
@@ -895,8 +905,8 @@ static qboolean CompleteFileList (const char *partial, void *param)
 {
 	filelist_item_t *file, **list = (filelist_item_t **) param;
 	for (file = *list; file; file = file->next)
-		if (q_strcasestr (file->name, partial))
-			AddToTabList (file->name, partial, NULL);
+		if (Con_Match (file->name, partial))
+			Con_AddToTabList (file->name, partial, NULL);
 	return true;
 }
 
@@ -917,8 +927,8 @@ static qboolean CompleteClassnames (const char *partial, void *unused)
 		if (ed == sv_player || ed->free || !ed->v.classname)
 			continue;
 		name = PR_GetString (ed->v.classname);
-		if (*name && q_strcasestr (name, partial))
-			AddToTabList (name, partial, "#");
+		if (*name && Con_Match (name, partial))
+			Con_AddToTabList (name, partial, "#");
 	}
 
 	PR_PopQCVM (oldvm);
@@ -936,8 +946,8 @@ static qboolean CompleteBindKeys (const char *partial, void *unused)
 	for (i = 0; i < MAX_KEYS; i++)
 	{
 		const char *name = Key_KeynumToString (i);
-		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && q_strcasestr (name, partial))
-			AddToTabList (name, partial, keybindings[i]);
+		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && Con_Match (name, partial))
+			Con_AddToTabList (name, partial, keybindings[i]);
 	}
 
 	return true;
@@ -952,8 +962,8 @@ static qboolean CompleteUnbindKeys (const char *partial, void *unused)
 		if (keybindings[i])
 		{
 			const char *name = Key_KeynumToString (i);
-			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && q_strcasestr (name, partial))
-				AddToTabList (name, partial, keybindings[i]);
+			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && Con_Match (name, partial))
+				Con_AddToTabList (name, partial, keybindings[i]);
 		}
 	}
 
@@ -969,18 +979,18 @@ typedef struct arg_completion_type_s
 
 static const arg_completion_type_t arg_completion_types[] =
 {
-	{ "map ",					CompleteFileList,		&extralevels },
-	{ "changelevel ",			CompleteFileList,		&extralevels },
-	{ "game ",					CompleteFileList,		&modlist },
-	{ "record ",				CompleteFileList,		&demolist },
-	{ "playdemo ",				CompleteFileList,		&demolist },
-	{ "timedemo ",				CompleteFileList,		&demolist },
-	{ "load ",					CompleteFileList,		&savelist },
-	{ "save ",					CompleteFileList,		&savelist },
-	{ "sky ",					CompleteFileList,		&skylist },
-	{ "r_showbboxes_filter ",	CompleteClassnames,		NULL },
-	{ "bind ",					CompleteBindKeys,		NULL },
-	{ "unbind ",				CompleteUnbindKeys,		NULL },
+	{ "map",					CompleteFileList,		&extralevels },
+	{ "changelevel",			CompleteFileList,		&extralevels },
+	{ "game",					CompleteFileList,		&modlist },
+	{ "record",					CompleteFileList,		&demolist },
+	{ "playdemo",				CompleteFileList,		&demolist },
+	{ "timedemo",				CompleteFileList,		&demolist },
+	{ "load",					CompleteFileList,		&savelist },
+	{ "save",					CompleteFileList,		&savelist },
+	{ "sky",					CompleteFileList,		&skylist },
+	{ "r_showbboxes_filter",	CompleteClassnames,		NULL },
+	{ "bind",					CompleteBindKeys,		NULL },
+	{ "unbind",					CompleteUnbindKeys,		NULL },
 };
 
 static const int num_arg_completion_types =
@@ -996,7 +1006,6 @@ static void BuildTabList (const char *partial)
 	cmdalias_t		*alias;
 	cvar_t			*cvar;
 	cmd_function_t	*cmd;
-	const char		*str;
 	int				i;
 
 	tablist = NULL;
@@ -1004,22 +1013,36 @@ static void BuildTabList (const char *partial)
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
 
-	str = ParseCommand ();
+	ParseCommand ();
 
-// Map autocomplete function -- S.A
-// Since we don't have argument completion, this hack will do for now...
-	for (i=0; i<num_arg_completion_types; i++)
+	if (Cmd_Argc () >= 2)
 	{
-	// arg_completion contains a command we can complete the arguments
-	// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[i];
-		const char *command_name = arg_completion.command;
-
-		if (!q_strncasecmp (str, command_name, strlen(command_name)))
+		cvar = Cvar_FindVar (Cmd_Argv (0));
+		if (cvar && cvar->completion)
 		{
-			if (arg_completion.function (partial, arg_completion.param))
-				return;
-			break;
+			cvar->completion (cvar, partial);
+			return;
+		}
+
+		cmd = Cmd_FindCommand (Cmd_Argv (0));
+		if (cmd && cmd->completion)
+		{
+			cmd->completion ();
+			return;
+		}
+
+		for (i=0; i<num_arg_completion_types; i++)
+		{
+		// arg_completion contains a command we can complete the arguments
+		// for (like "map") and a list of all the maps.
+			arg_completion_type_t arg_completion = arg_completion_types[i];
+
+			if (!q_strcasecmp (Cmd_Argv (0), arg_completion.command))
+			{
+				if (arg_completion.function (partial, arg_completion.param))
+					return;
+				break;
+			}
 		}
 	}
 
@@ -1029,15 +1052,15 @@ static void BuildTabList (const char *partial)
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for ( ; cvar ; cvar=cvar->next)
 		if (q_strcasestr (cvar->name, partial))
-			AddToTabList (cvar->name, partial, "cvar");
+			Con_AddToTabList (cvar->name, partial, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial) && !Cmd_IsReservedName (cmd->name))
-			AddToTabList (cmd->name, partial, "command");
+			Con_AddToTabList (cmd->name, partial, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)
 		if (q_strcasestr (alias->name, partial))
-			AddToTabList (alias->name, partial, "alias");
+			Con_AddToTabList (alias->name, partial, "alias");
 }
 
 /*

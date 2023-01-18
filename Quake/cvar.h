@@ -78,6 +78,7 @@ interface from being ambiguous.
 
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
+typedef void (*cvarcompletion_t) (struct cvar_s *, const char *);
 
 typedef struct cvar_s
 {
@@ -87,6 +88,7 @@ typedef struct cvar_s
 	float		value;
 	const char	*default_string; //johnfitz -- remember defaults for reset function
 	cvarcallback_t	callback;
+	cvarcompletion_t	completion;
 	struct cvar_s	*next;
 } cvar_t;
 
@@ -98,6 +100,9 @@ cvar_t *Cvar_Create (const char *name, const char *value);
 //creates+registers a cvar, otherwise just returns it.
 
 void Cvar_SetCallback (cvar_t *var, cvarcallback_t func);
+// set a callback function to the var
+
+void Cvar_SetCompletion (cvar_t *var, cvarcompletion_t func);
 // set a callback function to the var
 
 void	Cvar_Set (const char *var_name, const char *value);

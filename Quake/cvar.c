@@ -612,6 +612,18 @@ void Cvar_SetCallback (cvar_t *var, cvarcallback_t func)
 
 /*
 ============
+Cvar_SetCompletion
+
+Set a completion function to the var
+============
+*/
+void Cvar_SetCompletion (cvar_t *var, cvarcompletion_t func)
+{
+	var->completion = func;
+}
+
+/*
+============
 Cvar_Command
 
 Handles variable inspection and changing from the console

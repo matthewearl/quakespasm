@@ -93,6 +93,7 @@ typedef struct cmd_function_s
 	struct cmd_function_s	*next;
 	const char		*name;
 	xcommand_t		function;
+	xcommand_t		completion;
 	cmd_source_t	srctype;
 	qboolean		dynamic;
 	qboolean		qcinterceptable;
@@ -113,6 +114,8 @@ void Cmd_RemoveCommand (cmd_function_t *cmd);
 qboolean Cmd_AliasExists (const char *aliasname);
 qboolean Cmd_Exists (const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
+
+cmd_function_t *Cmd_FindCommand (const char *cmd_name);
 
 int		Cmd_Argc (void);
 const char	*Cmd_Argv (int arg);
