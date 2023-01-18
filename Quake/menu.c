@@ -50,6 +50,8 @@ extern cvar_t vid_fsaamode;
 extern cvar_t vid_fsaa;
 extern cvar_t r_softemu;
 extern cvar_t r_waterwarp;
+extern cvar_t r_oit;
+extern cvar_t r_alphasort;
 
 extern qboolean quake64;
 
@@ -2780,6 +2782,65 @@ static const char *VID_Menu_GetParticlesDesc (void)
 	}
 }
 
+enum
+{
+	ALPHAMODE_BASIC,
+	ALPHAMODE_SORTED,
+	ALPHAMODE_OIT,
+
+	ALPHAMODE_COUNT
+};
+
+/*
+================
+VID_Menu_GetAlphaMode
+================
+*/
+static int VID_Menu_GetAlphaMode (void)
+{
+	if (r_oit.value)
+		return ALPHAMODE_OIT;
+	return r_alphasort.value ? ALPHAMODE_SORTED : ALPHAMODE_BASIC;
+}
+
+/*
+================
+VID_Menu_SetAlphaMode
+================
+*/
+static void VID_Menu_SetAlphaMode (int mode)
+{
+	Cvar_SetValueQuick (&r_oit, mode == ALPHAMODE_OIT);
+	if (mode != ALPHAMODE_OIT)
+		Cvar_SetValueQuick (&r_alphasort, mode == ALPHAMODE_SORTED);
+}
+
+/*
+================
+VID_Menu_ChooseNextAlphaMode
+================
+*/
+static void VID_Menu_ChooseNextAlphaMode (int dir)
+{
+	VID_Menu_SetAlphaMode ((VID_Menu_GetAlphaMode () + ALPHAMODE_COUNT + dir) % ALPHAMODE_COUNT);
+}
+
+/*
+================
+VID_Menu_GetAlphaModeDesc
+================
+*/
+static const char *VID_Menu_GetAlphaModeDesc (void)
+{
+	switch (VID_Menu_GetAlphaMode ())
+	{
+	case ALPHAMODE_BASIC:		return "Basic";
+	case ALPHAMODE_SORTED:		return "Dynamic";
+	case ALPHAMODE_OIT:		return "Modern";
+	default:					return "";
+	}
+}
+
 /*
 ================
 M_Menu_Video_f
@@ -2841,6 +2902,7 @@ void M_Menu_Video_f (void)
 	def (VID_OPT_ANISO,			"Anisotropic")		\
 	def (VID_OPT_TEXFILTER,		"Textures")			\
 	def (VID_OPT_PARTICLES,		"Particles")		\
+	def (VID_OPT_ALPHAMODE,		"Transparency")		\
 	def (VID_OPT_WATERWARP,		"Underwater FX")	\
 	def (VID_OPT_DLIGHTS,		"Dynamic Lights")	\
 	def (VID_OPT_SOFTEMU,		"8-bit Mode")		\
@@ -3227,6 +3289,9 @@ void M_AdjustSliders (int dir)
 	case VID_OPT_WATERWARP:
 		Cvar_SetValueQuick (&r_waterwarp, (int)(q_max (r_waterwarp.value, 0.f) + 3 + dir) % 3);
 		break;
+	case VID_OPT_ALPHAMODE:
+		VID_Menu_ChooseNextAlphaMode (dir);
+		break;
 	case VID_OPT_DLIGHTS:
 		Cbuf_AddText ("toggle r_dynamic\n");
 		break;
@@ -3546,6 +3611,9 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 	case VID_OPT_WATERWARP:
 		M_Print (x, y, VID_Menu_GetWaterWarpDesc ());
+		break;
+	case VID_OPT_ALPHAMODE:
+		M_Print (x, y, VID_Menu_GetAlphaModeDesc ());
 		break;
 	case VID_OPT_DLIGHTS:
 		M_Print (x, y, r_dynamic.value ? "On" : "Off");
