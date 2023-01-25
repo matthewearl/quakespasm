@@ -3004,17 +3004,27 @@ static void M_Options_UpdateLayout (void)
 	M_List_Rescroll (&optionsmenu.list);
 }
 
+static int M_Options_GetSelected (void)
+{
+	return optionsmenu.list.cursor + optionsmenu.first_item;
+}
+
 static qboolean M_Options_IsSelectable (int index)
 {
+	index += optionsmenu.first_item;
 	return
 		(unsigned int) index < countof (options_names) &&
-		options_names[index + optionsmenu.first_item][0] != '\0'
+		options_names[index][0] != '\0'
 	;
 }
 
 static qboolean M_Options_Match (int index)
 {
-	const char *name = options_names[index + optionsmenu.first_item];
+	const char *name;
+	index += optionsmenu.first_item;
+	if ((unsigned int) index >= countof (options_names))
+		return false;
+	name = options_names[index];
 	if (!*name)
 		return false;
 	return q_strcasestr (name, optionsmenu.list.search.text) != NULL;
@@ -3111,7 +3121,7 @@ void M_AdjustSliders (int dir)
 	M_ThrottledSound ("misc/menu3.wav");
 	M_List_ClearSearch (&optionsmenu.list);
 
-	switch (optionsmenu.list.cursor + optionsmenu.first_item)
+	switch (M_Options_GetSelected ())
 	{
 	case OPT_SCALE:	// console and menu scale
 		l = ((vid.width + 31) / 32) / 10.0;
@@ -3413,7 +3423,7 @@ void M_ReleaseSliderGrab (void)
 		return;
 	slider_grab = false;
 	M_ThrottledSound ("misc/menu1.wav");
-	if (optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
+	if (M_Options_GetSelected () == OPT_SCALE)
 		M_SetSliderValue (OPT_SCALE, target_scale_frac);
 }
 
@@ -3425,7 +3435,7 @@ qboolean M_SliderClick (int cx, int cy)
 		return false;
 	// HACK: we set the flag to true before updating the slider
 	// to avoid changing the UI scale and implicitly the layout
-	item = optionsmenu.list.cursor + optionsmenu.first_item;
+	item = M_Options_GetSelected ();
 	if (item == OPT_SCALE)
 		slider_grab = true;
 	if (!M_SetSliderValue (item, M_MouseToSliderFraction (cx)))
@@ -3458,7 +3468,7 @@ static void M_Options_DrawItem (int y, int item)
 	case OPT_SCALE:
 		l = (vid.width / 320.0) - 1;
 		r = l > 0 ? (scr_conscale.value - 1) / l : 0;
-		if (slider_grab && optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
+		if (slider_grab && M_Options_GetSelected () == OPT_SCALE)
 			r = target_scale_frac;
 		M_DrawSlider (x, y, r);
 		break;
@@ -3723,7 +3733,7 @@ void M_Options_Key (int k)
 	enter:
 		m_entersound = true;
 		M_List_ClearSearch (&optionsmenu.list);
-		switch (optionsmenu.list.cursor + optionsmenu.first_item)
+		switch (M_Options_GetSelected ())
 		{
 		case OPT_CUSTOMIZE:
 			M_Menu_Keys_f ();
@@ -3803,7 +3813,7 @@ void M_Options_Mousemove (int cx, int cy)
 			return;
 		}
 		frac = M_MouseToRawSliderFraction (cx - OPTIONS_MIDPOS);
-		M_SetSliderValue (optionsmenu.list.cursor + optionsmenu.first_item, frac);
+		M_SetSliderValue (M_Options_GetSelected (), frac);
 		if (frac >= 0.f && frac <= 1.f)
 			M_MouseSound ("misc/menu1.wav");
 		return;
