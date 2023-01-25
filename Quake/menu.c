@@ -3419,14 +3419,16 @@ void M_ReleaseSliderGrab (void)
 
 qboolean M_SliderClick (int cx, int cy)
 {
+	int item;
 	cx -= OPTIONS_MIDPOS;
 	if (cx < -12 || cx > SLIDER_RANGE*8+4)
 		return false;
 	// HACK: we set the flag to true before updating the slider
 	// to avoid changing the UI scale and implicitly the layout
-	if (optionsmenu.list.cursor + optionsmenu.first_item == OPT_SCALE)
+	item = optionsmenu.list.cursor + optionsmenu.first_item;
+	if (item == OPT_SCALE)
 		slider_grab = true;
-	if (!M_SetSliderValue (optionsmenu.list.cursor, M_MouseToSliderFraction (cx)))
+	if (!M_SetSliderValue (item, M_MouseToSliderFraction (cx)))
 		return false;
 	slider_grab = true;
 	M_ThrottledSound ("misc/menu3.wav");
@@ -3801,7 +3803,7 @@ void M_Options_Mousemove (int cx, int cy)
 			return;
 		}
 		frac = M_MouseToRawSliderFraction (cx - OPTIONS_MIDPOS);
-		M_SetSliderValue (optionsmenu.list.cursor, frac);
+		M_SetSliderValue (optionsmenu.list.cursor + optionsmenu.first_item, frac);
 		if (frac >= 0.f && frac <= 1.f)
 			M_MouseSound ("misc/menu1.wav");
 		return;
