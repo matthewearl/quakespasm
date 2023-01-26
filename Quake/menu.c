@@ -203,6 +203,16 @@ void M_DrawCharacter (int cx, int line, int num)
 	Draw_Character (cx, line, num);
 }
 
+void M_DrawArrowCursor (int cx, int cy)
+{
+	M_DrawCharacter (cx, cy, 12+((int)(realtime*4)&1));
+}
+
+void M_DrawTextCursor (int cx, int cy)
+{
+	M_DrawCharacter (cx, cy, 10+((int)(realtime*4)&1));
+}
+
 void M_PrintEx (int cx, int cy, int dim, const char *str)
 {
 	while (*str)
@@ -449,6 +459,12 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	}
 	p = Draw_CachePic ("gfx/box_br.lmp");
 	M_DrawTransPic (cx, cy+8, p);
+}
+
+void M_DrawQuakeCursor (int cx, int cy)
+{
+	qpic_t *pic = Draw_CachePic( va("gfx/menudot%i.lmp", (int)(realtime*10)%6+1 ) );
+	M_DrawTransPic (cx, cy, pic);
 }
 
 void M_DrawQuakeBar (int x, int y, int cols)
@@ -1098,7 +1114,7 @@ void M_Menu_Main_f (void)
 
 void M_Main_Draw (void)
 {
-	int		cursor, f;
+	int		cursor;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
@@ -1119,11 +1135,10 @@ void M_Main_Draw (void)
 	else
 		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
 
-	f = (int)(realtime * 10)%6;
 	cursor = m_main_cursor;
 	if (!m_main_mods && cursor > MAIN_MODS)
 		--cursor;
-	M_DrawTransPic (54, 32 + cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	M_DrawQuakeCursor (54, 32 + cursor * 20);
 }
 
 
@@ -1226,7 +1241,6 @@ void M_Menu_SinglePlayer_f (void)
 
 void M_SinglePlayer_Draw (void)
 {
-	int		f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
@@ -1236,9 +1250,7 @@ void M_SinglePlayer_Draw (void)
 	if (m_singleplayer_showlevels)
 		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
 
-	f = (int)(realtime * 10)%6;
-
-	M_DrawTransPic (54, 32 + m_singleplayer_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
 
 
@@ -1396,7 +1408,7 @@ void M_Load_Draw (void)
 		M_Print (16, 32 + 8*i, m_filenames[i]);
 
 // line cursor
-	M_DrawCharacter (8, 32 + load_cursor*8, 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (8, 32 + load_cursor*8);
 }
 
 
@@ -1412,7 +1424,7 @@ void M_Save_Draw (void)
 		M_Print (16, 32 + 8*i, m_filenames[i]);
 
 // line cursor
-	M_DrawCharacter (8, 32 + load_cursor*8, 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (8, 32 + load_cursor*8);
 }
 
 
@@ -1774,7 +1786,7 @@ void M_Maps_Draw (void)
 		}
 
 		if (selected)
-			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
+			M_DrawArrowCursor (x - 8, y + i*8);
 	}
 
 	str = va("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
@@ -1931,8 +1943,7 @@ void M_Skill_Draw (void)
 	if (m_skill_usegfx)
 	{
 		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/skillmenu.lmp") );
-		f = (int)(realtime * 10)%6;
-		M_DrawTransPic (54, 32 + m_skill_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+		M_DrawQuakeCursor (54, 32 + m_skill_cursor * 20);
 	}
 	else
 	{
@@ -1946,7 +1957,7 @@ void M_Skill_Draw (void)
 
 		for (f = 0; f < 4; f++)
 			M_Print (88, 44+4 + f*16, skills[f]);
-		M_DrawCharacter (72, 44+4 + m_skill_cursor*16, 12+((int)(realtime*4)&1));
+		M_DrawArrowCursor (72, 44+4 + m_skill_cursor*16);
 	}
 }
 
@@ -2020,7 +2031,6 @@ void M_Menu_MultiPlayer_f (void)
 
 void M_MultiPlayer_Draw (void)
 {
-	int		f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
@@ -2028,9 +2038,7 @@ void M_MultiPlayer_Draw (void)
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mp_menu.lmp") );
 
-	f = (int)(realtime * 10)%6;
-
-	M_DrawTransPic (54, 32 + m_multiplayer_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
 
 	if (ipxAvailable || tcpipAvailable)
 		return;
@@ -2149,13 +2157,13 @@ void M_Setup_Draw (void)
 	p = Draw_CachePic ("gfx/menuplyr.lmp");
 	M_DrawTransPicTranslate (172, 72, p, setup_top, setup_bottom);
 
-	M_DrawCharacter (56, setup_cursor_table [setup_cursor], 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (56, setup_cursor_table [setup_cursor]);
 
 	if (setup_cursor == 0)
-		M_DrawCharacter (168 + 8*strlen(setup_hostname), setup_cursor_table [setup_cursor], 10+((int)(realtime*4)&1));
+		M_DrawTextCursor (168 + 8*strlen(setup_hostname), setup_cursor_table [setup_cursor]);
 
 	if (setup_cursor == 1)
-		M_DrawCharacter (168 + 8*strlen(setup_myname), setup_cursor_table [setup_cursor], 10+((int)(realtime*4)&1));
+		M_DrawTextCursor (168 + 8*strlen(setup_myname), setup_cursor_table [setup_cursor]);
 }
 
 
@@ -2361,8 +2369,7 @@ void M_Net_Draw (void)
 	M_Print (f, 120, net_helpMessage[m_net_cursor*4+2]);
 	M_Print (f, 128, net_helpMessage[m_net_cursor*4+3]);
 
-	f = (int)(realtime * 10)%6;
-	M_DrawTransPic (54, 32 + m_net_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+	M_DrawQuakeCursor (54, 32 + m_net_cursor * 20);
 }
 
 
@@ -3687,7 +3694,7 @@ void M_Options_Draw (void)
 
 		// cursor
 		if (i == optionsmenu.list.cursor)
-			M_DrawCharacter (OPTIONS_MIDPOS - 20, y, 12+((int)(realtime*4)&1));
+			M_DrawArrowCursor (OPTIONS_MIDPOS - 20, y);
 
 		y += 8;
 	}
@@ -4024,7 +4031,7 @@ void M_Keys_Draw (void)
 			if (bind_grab)
 				M_DrawCharacter (128, y, '=');
 			else
-				M_DrawCharacter (128, y, 12+((int)(realtime*4)&1));
+				M_DrawArrowCursor (128, y);
 		}
 
 		y += 8;
@@ -4399,13 +4406,13 @@ void M_LanConfig_Draw (void)
 		M_Print (basex+8, lanConfig_cursor_table[1], "OK");
 	}
 
-	M_DrawCharacter (basex-8, lanConfig_cursor_table [lanConfig_cursor], 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (basex-8, lanConfig_cursor_table [lanConfig_cursor]);
 
 	if (lanConfig_cursor == 0)
-		M_DrawCharacter (basex+9*8 + 8*strlen(lanConfig_portname), lanConfig_cursor_table [0], 10+((int)(realtime*4)&1));
+		M_DrawTextCursor (basex+9*8 + 8*strlen(lanConfig_portname), lanConfig_cursor_table [0]);
 
 	if (lanConfig_cursor == 2)
-		M_DrawCharacter (basex+16 + 8*strlen(lanConfig_joinname), lanConfig_cursor_table [2], 10+((int)(realtime*4)&1));
+		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_joinname), lanConfig_cursor_table [2]);
 
 	if (*m_return_reason)
 		M_PrintWhite (basex, 148, m_return_reason);
@@ -4821,7 +4828,7 @@ void M_GameOptions_Draw (void)
 	}
 
 // line cursor
-	M_DrawCharacter (144, gameoptions_cursor_table[gameoptions_cursor], 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (144, gameoptions_cursor_table[gameoptions_cursor]);
 
 	if (m_serverInfoMessage)
 	{
@@ -5112,7 +5119,7 @@ void M_ServerList_Draw (void)
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	for (n = 0; n < hostCacheCount; n++)
 		M_Print (16, 32 + 8*n, NET_SlistPrintServer (n));
-	M_DrawCharacter (0, 32 + slist_cursor*8, 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (0, 32 + slist_cursor*8);
 
 	if (*m_return_reason)
 		M_PrintWhite (16, 148, m_return_reason);
@@ -5476,7 +5483,7 @@ void M_Mods_Draw (void)
 		}
 
 		if (idx == modsmenu.list.cursor)
-			M_DrawCharacter (x - 8, y + i*8, 12+((int)(realtime*4)&1));
+			M_DrawArrowCursor (x - 8, y + i*8);
 	}
 
 	str = va("%d-%d of %d", firstvismod + 1, firstvismod + numvismods, modsmenu.modcount);
@@ -5774,7 +5781,7 @@ void M_ModInfo_Draw (void)
 	M_DrawTextBox (x - 8, y - 8, len, 1);
 
 	M_Print (x, y, str);
-	M_DrawCharacter (x - 16, y, 12+((int)(realtime*4)&1));
+	M_DrawArrowCursor (x - 16, y);
 }
 
 void M_ModInfo_Key (int key)
