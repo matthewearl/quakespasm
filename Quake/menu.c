@@ -3738,6 +3738,8 @@ void M_Options_Key (int k)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
+		if (m_state == m_video)
+			VID_SyncCvars (); //sync cvars before leaving menu. FIXME: there are other ways to leave menu
 		if (m_state == m_options)
 			M_Menu_Main_f ();
 		else
