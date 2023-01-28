@@ -3606,7 +3606,7 @@ static void M_Options_DrawItem (int y, int item)
 	// Video Options
 	//
 	case VID_OPT_MODE:
-		M_Print (x, y, va("%ix%i", (int)vid_width.value, (int)vid_height.value));
+		M_Print (x, y, va("%i x %i", (int)vid_width.value, (int)vid_height.value));
 		break;
 	case VID_OPT_REFRESHRATE:
 		M_Print (x, y, va("%i", (int)vid_refreshrate.value));
