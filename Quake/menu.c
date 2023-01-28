@@ -1531,6 +1531,9 @@ void M_Save_Mousemove (int cx, int cy)
 //=============================================================================
 /* Maps menu */
 
+#define MAPLIST_OFS			32
+#define MAPLIST_MAXCOLS		64
+
 typedef struct
 {
 	const char				*name;
@@ -1622,12 +1625,17 @@ static qboolean M_Maps_IsSelectable (int index)
 
 static void M_Maps_UpdateLayout (void)
 {
+	int height;
+
 	M_UpdateBounds ();
 
-	mapsmenu.x = m_left + 8;
-	mapsmenu.y = m_top + 32;
+	height = mapsmenu.list.numitems * 8 + MAPLIST_OFS + 16;
+	height = q_min (height, m_height);
 	mapsmenu.cols = m_width / 8 - 2;
-	mapsmenu.list.viewsize = m_height / 8 - 6;
+	mapsmenu.cols = q_min (mapsmenu.cols, MAPLIST_MAXCOLS);
+	mapsmenu.x = m_left + (m_width - mapsmenu.cols * 8) / 2;
+	mapsmenu.y = m_top + (((m_height - height) / 2) & ~7);
+	mapsmenu.list.viewsize = (height - MAPLIST_OFS - 16) / 8;
 }
 
 static void M_Maps_Init (void)
@@ -1725,9 +1733,11 @@ void M_Maps_Draw (void)
 	y = mapsmenu.y;
 	cols = mapsmenu.cols;
 
-	Draw_StringEx (x, y - 28, 12, "Levels");
-	M_DrawQuakeBar (x - 8, y - 16, namecols + 1);
-	M_DrawQuakeBar (x + namecols * 8, y - 16, cols + 1 - namecols);
+	Draw_StringEx (x, y + 4, 12, "Levels");
+	M_DrawQuakeBar (x - 8, y + 16, namecols + 1);
+	M_DrawQuakeBar (x + namecols * 8, y + 16, cols + 1 - namecols);
+
+	y += MAPLIST_OFS;
 
 	firstvismap = -1;
 	numvismaps = 0;
@@ -5190,6 +5200,7 @@ void M_ServerList_Mousemove (int cx, int cy)
 /* Mods menu */
 
 #define MODLIST_OFS				32
+#define MODLIST_MAXCOLS			56
 #define DOWNLOAD_FLASH_TIME		1.0
 
 typedef struct
@@ -5318,7 +5329,7 @@ static void M_Mods_UpdateLayout (void)
 	height = modsmenu.list.numitems * 8 + MODLIST_OFS + 16;
 	height = q_min (height, m_height);
 	modsmenu.cols = m_width / 8 - 2;
-	modsmenu.cols = q_min (modsmenu.cols, 44);
+	modsmenu.cols = q_min (modsmenu.cols, MODLIST_MAXCOLS);
 	modsmenu.x = m_left + (m_width - modsmenu.cols * 8) / 2;
 	modsmenu.y = m_top + (((m_height - height) / 2) & ~7);
 	modsmenu.list.viewsize = (height - MODLIST_OFS - 16) / 8;
