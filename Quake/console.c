@@ -1027,7 +1027,7 @@ static void BuildTabList (const char *partial)
 		cmd = Cmd_FindCommand (Cmd_Argv (0));
 		if (cmd && cmd->completion)
 		{
-			cmd->completion ();
+			cmd->completion (partial);
 			return;
 		}
 

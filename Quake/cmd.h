@@ -88,12 +88,13 @@ typedef enum
 extern	cmd_source_t	cmd_source;
 
 typedef void (*xcommand_t) (void);
+typedef void (*xtabcommand_t) (const char *partial);
 typedef struct cmd_function_s
 {
 	struct cmd_function_s	*next;
 	const char		*name;
 	xcommand_t		function;
-	xcommand_t		completion;
+	xtabcommand_t	completion;
 	cmd_source_t	srctype;
 	qboolean		dynamic;
 	qboolean		qcinterceptable;
