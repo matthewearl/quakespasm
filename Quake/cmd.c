@@ -811,9 +811,7 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 	}
 	//johnfitz
 
-	if (cmd->dynamic)
-		return cmd;
-	return NULL;
+	return cmd;
 }
 void Cmd_RemoveCommand (cmd_function_t *cmd)
 {
