@@ -758,6 +758,22 @@ void VID_Lock (void)
 
 /*
 ===============
+GL_Info_Completion_f
+===============
+*/
+static void GL_Info_Completion_f (const char *partial)
+{
+	int i;
+	for (i = 0; i < gl_num_extensions; i++)
+	{
+		const char *ext = (const char *) GL_GetStringiFunc (GL_EXTENSIONS, i);
+		if (Con_Match (ext, partial))
+			Con_AddToTabList (ext, partial, NULL);
+	}
+}
+
+/*
+===============
 GL_Info_f -- johnfitz
 ===============
 */
@@ -1432,6 +1448,7 @@ void	VID_Init (void)
 	int		p, width, height, refreshrate;
 	int		display_width, display_height, display_refreshrate, display_bpp;
 	qboolean	fullscreen;
+	cmd_function_t	*cmd;
 	const char	*read_vars[] =
 	{
 		"vid_fullscreen",
@@ -1592,7 +1609,9 @@ void	VID_Init (void)
 
 	GL_Init ();
 	GL_SetupState ();
-	Cmd_AddCommand ("gl_info", GL_Info_f); //johnfitz
+	cmd = Cmd_AddCommand ("gl_info", GL_Info_f); //johnfitz
+	if (cmd)
+		cmd->completion = GL_Info_Completion_f;
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
