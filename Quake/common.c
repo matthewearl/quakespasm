@@ -3220,8 +3220,6 @@ fail:			mz_zip_reader_end(&archive);
 	if ((unsigned char)(cursor[0]) == 0xEF && (unsigned char)(cursor[1]) == 0xBB && (unsigned char)(cursor[2]) == 0xBF)
 		cursor += 3;
 
-	UTF8_ToQuake (cursor, strlen (cursor) + 1, cursor);
-
 	lineno = 0;
 	while (*cursor)
 	{
@@ -3329,6 +3327,8 @@ fail:			mz_zip_reader_end(&archive);
 				localization.maxnumentries = q_max(localization.maxnumentries, 32);
 				localization.entries = (locentry_t*) realloc(localization.entries, sizeof(*localization.entries) * localization.maxnumentries);
 			}
+
+			UTF8_ToQuake (value, strlen (value) + 1, value);
 
 			entry = &localization.entries[localization.numentries++];
 			entry->key = line;
