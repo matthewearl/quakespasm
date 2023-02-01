@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 extern cvar_t ui_mouse;
+extern cvar_t language;
 
 static qboolean	textmode;
 
@@ -987,7 +988,12 @@ void IN_SendKeyEvents (void)
 		case SDL_CONTROLLERDEVICEREMAPPED:
 			Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
 			break;
-				
+
+		case SDL_LOCALECHANGED:
+			if (!q_strcasecmp (language.string, "auto"))
+				language.callback (&language);
+			break;
+
 		case SDL_QUIT:
 			CL_Disconnect ();
 			Sys_Quit ();

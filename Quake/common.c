@@ -37,7 +37,7 @@ int		safemode;
 
 cvar_t	registered = {"registered","1",CVAR_ROM}; /* set to correct value in COM_CheckRegistered() */
 cvar_t	cmdline = {"cmdline","",CVAR_ROM/*|CVAR_SERVERINFO*/}; /* sending cmdline upon CCREQ_RULE_INFO is evil */
-cvar_t	language = {"language","english",CVAR_ARCHIVE}; /* for 2021 rerelease text */
+cvar_t	language = {"language","auto",CVAR_ARCHIVE}; /* for 2021 rerelease text */
 
 static qboolean		com_modified;	// set true if using non-id files
 
@@ -3378,6 +3378,19 @@ fail:			mz_zip_reader_end(&archive);
 	return true;
 }
 
+static const char *const knownlangs[][2] =
+{
+	{"",   "auto"},
+	{"en", "english"},
+	{"fr", "french"},
+	{"de", "german"},
+	{"it", "italian"},
+	{"es", "spanish"},
+};
+
+// Different from language cvar if language is "auto"
+static const char *userlang = "english";
+
 /*
 ================
 LOC_Load
@@ -3385,8 +3398,37 @@ LOC_Load
 */
 void LOC_Load(void)
 {
-	if (!LOC_LoadFile(va("localization/loc_%s.txt", language.string)))
+	if (!LOC_LoadFile(va("localization/loc_%s.txt", userlang)))
 		LOC_LoadFile("localization/loc_english.txt");
+}
+
+/*
+================
+LOC_GetSystemLanguage
+================
+*/
+const char *LOC_GetSystemLanguage (void)
+{
+	size_t i, j;
+	SDL_Locale *prefs = SDL_GetPreferredLocales ();
+
+	if (!prefs)
+		return "english";
+
+	for (i = 0; prefs[i].language; i++)
+	{
+		for (j = 1; j < countof (knownlangs); j++) // start at 1, skipping "auto"
+		{
+			if (!q_strcasecmp (prefs[i].language, knownlangs[j][0]))
+			{
+				SDL_free (prefs);
+				return knownlangs[j][1];
+			}
+		}
+	}
+
+	SDL_free (prefs);
+	return "english";
 }
 
 /*
@@ -3398,6 +3440,10 @@ Called when language changes
 */
 void LOC_Language_f (cvar_t *cvar)
 {
+	if (!q_strcasecmp (cvar->string, "auto"))
+		userlang = LOC_GetSystemLanguage ();
+	else
+		userlang = cvar->string;
 	LOC_Load ();
 }
 
@@ -3408,19 +3454,11 @@ LOC_LanguageCompletion_f
 */
 void LOC_LanguageCompletion_f (cvar_t *cvar, const char *partial)
 {
-	static const char *const langs[] =
-	{
-		"english",
-		"french",
-		"german",
-		"italian",
-		"spanish",
-	};
 	size_t i;
 
-	for (i = 0; i < countof (langs); i++)
-		if (Con_Match (langs[i], partial))
-			Con_AddToTabList (langs[i], partial, NULL);
+	for (i = 0; i < countof (knownlangs); i++)
+		if (Con_Match (knownlangs[i][1], partial))
+			Con_AddToTabList (knownlangs[i][1], partial, NULL);
 }
 
 /*
