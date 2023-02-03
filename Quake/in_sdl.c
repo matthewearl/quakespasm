@@ -988,11 +988,12 @@ void IN_SendKeyEvents (void)
 		case SDL_CONTROLLERDEVICEREMAPPED:
 			Con_DPrintf("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
 			break;
-
+#if SDL_VERSION_ATLEAST (2, 0, 14)
 		case SDL_LOCALECHANGED:
 			if (!q_strcasecmp (language.string, "auto"))
 				language.callback (&language);
 			break;
+#endif
 
 		case SDL_QUIT:
 			CL_Disconnect ();

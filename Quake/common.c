@@ -3409,6 +3409,7 @@ LOC_GetSystemLanguage
 */
 const char *LOC_GetSystemLanguage (void)
 {
+#if SDL_VERSION_ATLEAST (2, 0, 14)
 	size_t i, j;
 	SDL_Locale *prefs = SDL_GetPreferredLocales ();
 
@@ -3428,6 +3429,9 @@ const char *LOC_GetSystemLanguage (void)
 	}
 
 	SDL_free (prefs);
+#else
+	#pragma message("Warning: automatic language detection disabled (needs SDL >= 2.0.14)")
+#endif
 	return "english";
 }
 
