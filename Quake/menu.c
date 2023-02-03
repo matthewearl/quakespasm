@@ -1900,7 +1900,7 @@ void M_Maps_Key (int key)
 
 void M_Maps_Mousemove (int cx, int cy)
 {
-	cy -= mapsmenu.y;
+	cy -= mapsmenu.y + MAPLIST_OFS;
 
 	if (mapsmenu.scrollbar_grab)
 	{
