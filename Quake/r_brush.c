@@ -765,10 +765,20 @@ void GL_BuildBModelMarkBuffers (void)
 	gl_bmodel_ibo_size = numtris * 3 * sizeof(idx[0]);
 	gl_bmodel_indirect_buffer_size = numtex * sizeof(cmds[0]);
 	cmds = (bmodel_draw_indirect_t *) calloc (numtex, sizeof(cmds[0]));
+	if (!cmds)
+		Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d cmds)", numtex);
 	idx = (GLuint *) calloc (numtris * 3, sizeof(idx[0]));
+	if (!idx)
+		Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d indices)", numtris * 3);
 	leafs = (bmodel_gpu_leaf_t *) calloc (cl.worldmodel->numleafs, sizeof(leafs[0]));
+	if (!leafs)
+		Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d leafs)", cl.worldmodel->numleafs);
 	surfs = (bmodel_gpu_surf_t *) calloc (cl.worldmodel->numsurfaces, sizeof(surfs[0]));
+	if (!surfs)
+		Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d surfs)", cl.worldmodel->numsurfaces);
 	texidx = (int *) calloc (maxnumtex, sizeof(texidx[0]));
+	if (!texidx)
+		Sys_Error ("GL_BuildBModelMarkBuffers: out of memory (%d tex indices)", maxnumtex);
 
 	// fill worldmodel leaf data
 	for (i = 0; i < cl.worldmodel->numleafs; i++)
