@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //extern unsigned char d_15to8table[65536]; //johnfitz -- never used
 
 cvar_t		scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; //johnfitz
+cvar_t		scr_conbrightness = {"scr_conbrightness", "1.0", CVAR_ARCHIVE};
 
 qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
@@ -534,6 +535,7 @@ void Draw_Init (void)
 	int i;
 
 	Cvar_RegisterVariable (&scr_conalpha);
+	Cvar_RegisterVariable (&scr_conbrightness);
 
 	// init quad indices
 	for (i = 0; i < MAX_BATCH_QUADS; i++)
@@ -849,19 +851,20 @@ Draw_ConsoleBackground -- johnfitz -- rewritten
 void Draw_ConsoleBackground (void)
 {
 	qpic_t *pic;
-	float alpha;
+	float alpha, luma;
 
 	pic = Draw_CachePic ("gfx/conback.lmp");
 	pic->width = vid.conwidth;
 	pic->height = vid.conheight;
 
 	alpha = (con_forcedup) ? 1.0f : scr_conalpha.value;
+	luma = scr_conbrightness.value;
 
 	GL_SetCanvas (CANVAS_CONSOLE); //in case this is called from weird places
 
 	if (alpha > 0.0f)
 	{
-		GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
+		GL_SetCanvasColor (luma, luma, luma, alpha);
 		Draw_Pic (0, 0, pic);
 		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 	}
