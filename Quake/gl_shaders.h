@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define LINEAR_SPACE_OIT			0
 #define SHOW_ACTIVE_LIGHT_CLUSTERS	0
+#define SHOW_WORLD_NORMALS			0
 
 ////////////////////////////////////////////////////////////////
 //
@@ -582,6 +583,10 @@ OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
+"#if " QS_STRINGIFY (SHOW_WORLD_NORMALS) "\n"
+"	out_fragcolor = vec4(0.5 + 0.5 * normalize(cross(dFdx(in_pos), dFdy(in_pos))), 0.75);\n"
+"	return;\n"
+"#endif\n"
 "	vec3 fullbright = vec3(0.);\n"
 "	vec2 uv = in_uv;\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
