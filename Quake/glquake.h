@@ -570,6 +570,21 @@ int GLPalette_Postprocess (void);
 
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
+typedef struct skybox_s
+{
+	char			name[256];
+	float			wind_dist;
+	float			wind_yaw;
+	float			wind_pitch;
+	float			wind_period;
+	gltexture_t		*textures[6];
+	gltexture_t		*cubemap;
+	byte			*cubemap_pixels;
+	void			*cubemap_offsets[6];
+} skybox_t;
+
+extern skybox_t		*skybox;
+
 void Sky_Init (void);
 void Sky_ClearAll (void);
 void Sky_DrawSky (void);

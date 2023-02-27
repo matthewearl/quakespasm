@@ -29,7 +29,6 @@ extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 extern cvar_t r_oit;
 
 extern gltexture_t *lightmap_texture;
-extern gltexture_t *skybox_cubemap;
 
 extern GLuint gl_bmodel_vbo;
 extern size_t gl_bmodel_vbo_size;
@@ -431,7 +430,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass <= BP_ALPHATEST)
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 	else if (pass == BP_SKYCUBEMAP)
-		GL_Bind (GL_TEXTURE2, skybox_cubemap);
+		GL_Bind (GL_TEXTURE2, skybox->cubemap);
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * count, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
