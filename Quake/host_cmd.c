@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t	pausable;
 extern cvar_t	nomonsters;
 
-// 0 = no, 1 = ask, 2 = always
+// 0 = no, 1 = ask, 2 = when dead, 3 = always
 cvar_t sv_autoload = {"sv_autoload", "2", CVAR_ARCHIVE};
 
 int	current_skill;
@@ -1913,12 +1913,16 @@ static qboolean Host_AutoLoad (void)
 	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1)
 		return false;
 
-	if (sv_autoload.value < 2.f &&
-		!SCR_ModalMessage ("Load last save? (y/n)", 0.f))
+	if (sv_autoload.value < 2.f)
 	{
-		sv.lastsave[0] = '\0';
-		return false;
+		if (!SCR_ModalMessage ("Load last save? (y/n)", 0.f))
+		{
+			sv.lastsave[0] = '\0';
+			return false;
+		}
 	}
+	else if (sv_autoload.value < 3.f && sv_player->v.health > 0.f)
+		return false;
 
 	sv.autoloading = true;
 	Con_Printf ("Autoloading...\n");
