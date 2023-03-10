@@ -32,7 +32,7 @@ extern cvar_t	pausable;
 extern cvar_t	nomonsters;
 
 // 0 = no, 1 = ask, 2 = always
-cvar_t sv_autoload = {"sv_autoload", "1", CVAR_ARCHIVE};
+cvar_t sv_autoload = {"sv_autoload", "2", CVAR_ARCHIVE};
 
 int	current_skill;
 
