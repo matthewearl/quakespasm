@@ -53,6 +53,8 @@ extern cvar_t r_waterwarp;
 extern cvar_t r_oit;
 extern cvar_t r_alphasort;
 
+extern char crosshair_char;
+
 extern qboolean quake64;
 
 enum m_state_e m_state;
@@ -3502,10 +3504,8 @@ static void M_Options_DrawItem (int y, int item)
 	case OPT_CROSSHAIR:
 		if (!crosshair.value)
 			M_Print (x, y, "Off");
-		else if (crosshair.value > 1)
-			M_PrintWhite (x, y, "\x0f");
 		else
-			M_PrintWhite (x, y, "+");
+			M_PrintWhite (x, y, va ("%c", crosshair_char));
 		break;
 
 	case OPT_UIMOUSE:

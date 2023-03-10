@@ -109,6 +109,7 @@ cvar_t		gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 
 cvar_t		cl_gun_fovscale = {"cl_gun_fovscale","1",CVAR_ARCHIVE}; // Qrack
 
+extern	char	crosshair_char;
 extern	cvar_t	crosshair;
 extern	cvar_t	con_notifyfade;
 extern	cvar_t	con_notifyfadetime;
@@ -848,14 +849,7 @@ void SCR_DrawCrosshair (void)
 		return;
 
 	GL_SetCanvas (CANVAS_CROSSHAIR);
-
-	if (crosshair.value > 1)
-	{
-		Draw_Character(-4, -4, 15); // Dot crosshair
-		return;
-	}
-
-	Draw_Character(-4, -4, '+'); // Standard Quake crosshair
+	Draw_Character(-4, -4, crosshair_char);
 }
 
 
