@@ -49,6 +49,8 @@ typedef struct edict_s
 	entity_state_t	baseline;
 	unsigned char	alpha;			/* johnfitz -- hack to support alpha since it's not part of entvars_t */
 	unsigned char	scale;			/* Quakespasm: added for model scale support. */
+	qboolean	forcewater;			/* mod overrides waterlevel */
+	qboolean	sendforcewater;		/* waterlevel override has changed and needs to be sent over to the client */
 	qboolean	sendinterval;		/* johnfitz -- send time until nextthink to client for better lerp timing */
 
 	float		freetime;		/* sv.time when the object was freed */

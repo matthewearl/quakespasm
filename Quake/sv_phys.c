@@ -904,6 +904,8 @@ Player character actions
 */
 void SV_Physics_Client (edict_t	*ent, int num)
 {
+	qboolean wasunderwater, forceunderwater;
+
 	if ( ! svs.clients[num-1].active )
 		return;		// unconnected slot
 
@@ -965,9 +967,18 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	SV_LinkEdict (ent, true);
 
+	wasunderwater = ent->v.waterlevel >= 3;
+
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
+
+	forceunderwater = !wasunderwater && ent->v.waterlevel >= 3;
+	if (forceunderwater != ent->forcewater)
+	{
+		ent->forcewater = forceunderwater;
+		ent->sendforcewater = true;
+	}
 }
 
 //============================================================================

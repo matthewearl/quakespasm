@@ -941,7 +941,7 @@ void R_SetupView (void)
 	if (r_waterwarp.value)
 	{
 		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
-		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
+		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA || cl.forceunderwater)
 		{
 			if (r_waterwarp.value > 1.f)
 			{

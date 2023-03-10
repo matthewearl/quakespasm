@@ -922,6 +922,18 @@ void CL_SetStatString_f (void)
 
 /*
 =================
+V_Water_f
+=================
+*/
+void V_Water_f (void)
+{
+	if (Cmd_Argc () < 2)
+		return;
+	cl.forceunderwater = atoi (Cmd_Argv (1));
+}
+
+/*
+=================
 CL_Init
 =================
 */
@@ -978,5 +990,7 @@ void CL_Init (void)
 
 	Cmd_AddCommand_ServerCommand ("st", CL_SetStat_f);
 	Cmd_AddCommand_ServerCommand ("sts", CL_SetStatString_f);
+
+	Cmd_AddCommand_ServerCommand ("v_water", V_Water_f);
 }
 

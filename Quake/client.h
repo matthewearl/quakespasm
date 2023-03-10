@@ -240,6 +240,8 @@ typedef struct
 
 	float		zoom;
 	float		zoomdir;
+
+	qboolean	forceunderwater;	// force underwater warping/sound distortion even when camera is not submerged (e.g. alk1.2 liquidbrush)
 } client_state_t;
 
 

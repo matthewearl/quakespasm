@@ -655,7 +655,7 @@ static void S_UpdateAmbientSounds (void)
 	mleaf_t			*l;
 	int				ambient_channel;
 	channel_t		*chan;
-	float			vol;
+	float			vol, underwater;
 	static float	levels[NUM_AMBIENTS];
 
 // no ambients when disconnected
@@ -668,7 +668,13 @@ static void S_UpdateAmbientSounds (void)
 
 // calc ambient sound levels
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
-	S_SetUnderwaterIntensity (l ? S_UnderwaterIntensityForContents (l->contents) : 0.f);
+	if (cl.forceunderwater)
+		underwater = 1.f;
+	else if (l)
+		underwater = S_UnderwaterIntensityForContents (l->contents);
+	else
+		underwater = 0.f;
+	S_SetUnderwaterIntensity (underwater);
 	if (!l || !ambient_level.value)
 	{
 		for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS; ambient_channel++)
