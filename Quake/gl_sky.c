@@ -35,7 +35,7 @@ extern cvar_t gl_farclip;
 cvar_t r_fastsky = {"r_fastsky", "0", CVAR_NONE};
 cvar_t r_skyalpha = {"r_skyalpha", "1", CVAR_NONE};
 cvar_t r_skyfog = {"r_skyfog","0.5",CVAR_NONE};
-cvar_t r_skyboxanim = {"r_skyboxanim","1",CVAR_ARCHIVE};
+cvar_t r_skywind = {"r_skywind","1",CVAR_ARCHIVE};
 
 static const int skytexorder[6] = {0,2,1,3,4,5}; //for skybox
 
@@ -594,7 +594,7 @@ void Sky_Init (void)
 	Cvar_RegisterVariable (&r_fastsky);
 	Cvar_RegisterVariable (&r_skyalpha);
 	Cvar_RegisterVariable (&r_skyfog);
-	Cvar_RegisterVariable (&r_skyboxanim);
+	Cvar_RegisterVariable (&r_skywind);
 	Cvar_SetCallback (&r_skyfog, R_SetSkyfog_f);
 
 	Cmd_AddCommand ("sky",Sky_SkyCommand_f);
@@ -749,7 +749,7 @@ Sky_IsAnimated
 */
 qboolean Sky_IsAnimated (void)
 {
-	return r_skyboxanim.value != 0.f && skybox && skybox->wind_dist > 0.f;
+	return r_skywind.value != 0.f && skybox && skybox->wind_dist > 0.f;
 }
 
 /*
@@ -766,7 +766,7 @@ void Sky_SetupFrame (void)
 	float cy = cos (yaw);
 	float cp = cos (pitch);
 	float dist = skybox ? CLAMP (-2.f, skybox->wind_dist, 2.f) : 0.f;
-	float period = r_skyboxanim.value && skybox ? skybox->wind_period / r_skyboxanim.value : 0.0;
+	float period = r_skywind.value && skybox ? skybox->wind_period / r_skywind.value : 0.0;
 	double phase = period ? cl.time * 0.5 / period : 0.5;
 
 	phase -= floor (phase) + 0.5; // [-0.5, 0.5)
