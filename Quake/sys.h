@@ -93,6 +93,10 @@ findfile_t *Sys_FindNext (findfile_t *find);
 // otherwise the last Sys_FindNext will also close the handle
 void Sys_FindClose (findfile_t *find);
 
+int Sys_FileType (const char *path);
+/* returns an FS entity type, i.e. FS_ENT_FILE or FS_ENT_DIRECTORY.
+ * returns FS_ENT_NONE (0) if no such file or directory is present. */
+
 //
 // system IO
 //

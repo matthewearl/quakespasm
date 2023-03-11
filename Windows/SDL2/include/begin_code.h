@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -51,7 +51,7 @@
 
 /* Some compilers use a special export keyword */
 #ifndef DECLSPEC
-# if defined(__WIN32__) || defined(__WINRT__) || defined(__CYGWIN__)
+# if defined(__WIN32__) || defined(__WINRT__) || defined(__CYGWIN__) || defined(__GDK__)
 #  ifdef DLL_EXPORT
 #   define DECLSPEC __declspec(dllexport)
 #  else
@@ -74,7 +74,7 @@
 
 /* By default SDL uses the C calling convention */
 #ifndef SDLCALL
-#if (defined(__WIN32__) || defined(__WINRT__)) && !defined(__GNUC__)
+#if (defined(__WIN32__) || defined(__WINRT__) || defined(__GDK__)) && !defined(__GNUC__)
 #define SDLCALL __cdecl
 #elif defined(__OS2__) || defined(__EMX__)
 #define SDLCALL _System

@@ -182,6 +182,24 @@ qboolean Sys_FileExists (const char *path)
 	return access (path, F_OK) == 0;
 }
 
+int Sys_FileType (const char *path)
+{
+	/*
+	if (access(path, R_OK) == -1)
+		return 0;
+	*/
+	struct stat	st;
+
+	if (stat(path, &st) != 0)
+		return FS_ENT_NONE;
+	if (S_ISDIR(st.st_mode))
+		return FS_ENT_DIRECTORY;
+	if (S_ISREG(st.st_mode))
+		return FS_ENT_FILE;
+
+	return FS_ENT_NONE;
+}
+
 qboolean Sys_GetFileTime (const char *path, time_t *out)
 {
 	struct stat st;

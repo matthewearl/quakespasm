@@ -1771,7 +1771,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 			}
 
 			q_snprintf (netpath, sizeof(netpath), "%s/%s",search->filename, filename);
-			if (!Sys_FileExists (netpath))
+			if (! (Sys_FileType(netpath) & FS_ENT_FILE))
 				continue;
 
 			if (path_id)

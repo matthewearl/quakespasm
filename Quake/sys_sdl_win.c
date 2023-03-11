@@ -230,6 +230,26 @@ int Sys_FileWrite (int handle, const void *data, int count)
 	return fwrite (data, 1, count, sys_handles[handle]);
 }
 
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES	((DWORD)-1)
+#endif
+
+int Sys_FileType (const char *path)
+{
+	wchar_t		wpath[MAX_PATH];
+	DWORD		result;
+
+	UTF8ToWideString (path, wpath, countof (wpath));
+	result = GetFileAttributesW (wpath);
+
+	if (result == INVALID_FILE_ATTRIBUTES)
+		return FS_ENT_NONE;
+	if (result & FILE_ATTRIBUTE_DIRECTORY)
+		return FS_ENT_DIRECTORY;
+
+	return FS_ENT_FILE;
+}
+
 qboolean Sys_FileExists (const char *path)
 {
 	wchar_t	wpath[MAX_PATH];
