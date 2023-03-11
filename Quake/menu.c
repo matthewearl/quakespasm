@@ -176,6 +176,7 @@ void M_Options_Init (enum m_state_e state);
 #define SEARCH_ERASE_TIMEOUT			1.5
 #define SEARCH_NAV_TIMEOUT				2.0
 #define SEARCH_ERROR_STATUS_TIMEOUT		0.25
+#define SEARCH_BACKSPACE_COOLDOWN		0.75
 
 static void M_ThrottledSound (const char *sound)
 {
@@ -553,6 +554,7 @@ typedef struct
 	qboolean		(*match_fn) (int index);
 	double			timeout;
 	double			errtimeout;
+	double			backspacecooldown;
 	char			text[256];
 } listsearch_t;
 
@@ -777,6 +779,7 @@ void M_List_UpdateMouseSelection (menulist_t *list)
 void M_List_Update (menulist_t *list)
 {
 	list->search.errtimeout = q_max (0.0, list->search.errtimeout - host_rawframetime);
+	list->search.backspacecooldown = q_max (0.0, list->search.backspacecooldown - host_rawframetime);
 	if (list->search.timeout && ui_search_timeout.value > 0.f)
 	{
 		list->search.timeout -= host_rawframetime / ui_search_timeout.value;
@@ -802,8 +805,11 @@ qboolean M_List_Key (menulist_t *list, int key)
 				list->search.text[list->search.len] = '\0';
 				list->search.timeout = SEARCH_ERASE_TIMEOUT;
 			}
+			list->search.backspacecooldown = SEARCH_BACKSPACE_COOLDOWN;
 			return true;
 		}
+		if (list->search.backspacecooldown)
+			list->search.backspacecooldown = SEARCH_BACKSPACE_COOLDOWN;
 		return false;
 
 	case K_ESCAPE:
@@ -4098,6 +4104,9 @@ void M_Keys_Key (int k)
 		break;
 
 	case K_BACKSPACE:	// delete bindings
+		if (keysmenu.list.search.backspacecooldown)
+			break;
+		/* fall-through */
 	case K_DEL:
 		M_ThrottledSound ("misc/menu2.wav");
 		M_UnbindCommand (bindnames[keysmenu.list.cursor][0]);
