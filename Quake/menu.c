@@ -2914,6 +2914,11 @@ void M_Menu_Video_f (void)
 	def (VID_OPT_MODE,			"Video Mode")		\
 	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
 	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
+	def (VID_OPT_TEST,			"Test changes")		\
+	def (VID_OPT_APPLY,			"Apply changes")	\
+													\
+	def (VID_OPT_SPACE1,		"")					\
+													\
 	def (VID_OPT_VSYNC,			"Vertical Sync")	\
 	def (VID_OPT_FSAA,			"Antialiasing")		\
 	def (VID_OPT_FSAA_MODE,		"AA Mode")			\
@@ -2927,11 +2932,6 @@ void M_Menu_Video_f (void)
 	def (VID_OPT_SOFTEMU,		"8-bit Mode")		\
 	def (VID_OPT_FPSLIMIT,		"FPS Limit")		\
 	def (VID_OPT_SHOWFPS,		"Show FPS")			\
-													\
-	def (VID_OPT_SPACE1,		"")					\
-													\
-	def (VID_OPT_TEST,			"Test changes")		\
-	def (VID_OPT_APPLY,			"Apply changes")	\
 ////////////////////////////////////////////////////
 
 enum
