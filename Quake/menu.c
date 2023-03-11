@@ -3609,7 +3609,7 @@ static void M_Options_DrawItem (int y, int item)
 		M_Print (x, y, va("%i x %i", (int)vid_width.value, (int)vid_height.value));
 		break;
 	case VID_OPT_REFRESHRATE:
-		M_Print (x, y, va("%i", (int)vid_refreshrate.value));
+		M_Print (x, y, va("%i Hz", (int)vid_refreshrate.value));
 		break;
 	case VID_OPT_FULLSCREEN:
 		M_DrawCheckbox (x, y, (int)vid_fullscreen.value);
