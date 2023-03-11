@@ -157,12 +157,14 @@ Con_Dump_f -- johnfitz -- adapted from quake2 source
 static void Con_Dump_f (void)
 {
 	int		l, x;
-	const char	*line, *relname;
+	const char	*line;
 	FILE	*f;
 	char	buffer[1024];
+	char	relname[MAX_OSPATH];
 	char	name[MAX_OSPATH];
 
-	relname = Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt";
+	q_strlcpy (relname, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt", sizeof (relname));
+	COM_AddExtension (relname, ".txt", sizeof (relname));
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 	COM_CreatePath (name);
 	f = Sys_fopen (name, "w");
