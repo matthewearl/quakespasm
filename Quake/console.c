@@ -761,7 +761,7 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 	tab_t	*t,*insert;
 	char	*i_bash, *i_bash2;
 	const char *i_name, *i_name2;
-	int mark;
+	int		len, mark;
 
 	if (!*bash_partial && bash_singlematch)
 	{
@@ -798,8 +798,10 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 	}
 
 	mark = Hunk_LowMark ();
-	t = (tab_t *) Hunk_Alloc(sizeof(tab_t));
-	t->name = name;
+	len = strlen (name);
+	t = (tab_t *) Hunk_AllocName (sizeof (tab_t) + len + 1, "tablist");
+	memcpy (t + 1, name, len + 1);
+	t->name = (const char *) (t + 1);
 	t->type = type;
 	t->count = 1;
 
@@ -1164,7 +1166,6 @@ void Con_TabComplete (void)
 			t = t->next;
 		} while (t != tablist);
 	}
-	Hunk_FreeToLowMark(mark); //it's okay to free it here because match is a pointer to persistent data
 
 // insert new match into edit line
 	q_strlcpy (partial, match, MAXCMDLINE); //first copy match string
@@ -1174,6 +1175,9 @@ void Con_TabComplete (void)
 	key_linepos = c - key_lines[edit_line] + Q_strlen(match); //set new cursor position
 	if (key_linepos >= MAXCMDLINE)
 		key_linepos = MAXCMDLINE - 1;
+
+	match = NULL;
+	Hunk_FreeToLowMark (mark);
 
 // if cursor is at end of string, let's append a space to make life easier
 	if (key_linepos < MAXCMDLINE - 1 &&
