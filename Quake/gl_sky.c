@@ -291,8 +291,14 @@ Sky_WindCommand_f
 */
 static void Sky_WindCommand_f (void)
 {
-	if (cls.state != ca_connected || !skybox)
+	if (cls.state != ca_connected)
 		return;
+
+	if (!skybox)
+	{
+		Con_Printf ("No skybox loaded\n");
+		return;
+	}
 
 	if (Cmd_Argc () < 2)
 	{
