@@ -452,7 +452,7 @@ void Sky_LoadSkyBox (const char *name)
 		newsky.cubemap = TexMgr_LoadImage (cl.worldmodel, filename,
 			samesize, samesize, SRC_RGBA,
 			(byte *)newsky.cubemap_offsets, "", (src_offset_t)newsky.cubemap_offsets,
-			TEXPREF_CUBEMAP | TEXPREF_NOPICMIP | TEXPREF_MIPMAP
+			TEXPREF_CUBEMAP | TEXPREF_NOPICMIP | TEXPREF_MIPMAP | TEXPREF_ALPHA
 		);
 	}
 	else // create a separate texture for each side
