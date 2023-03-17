@@ -321,7 +321,12 @@ NOISE_FUNCTIONS
 "\n"\
 "float GetLightStyle(int index)\n"\
 "{\n"\
-"	return index < " QS_STRINGIFY (MAX_LIGHTSTYLES) " ? LightStyles[index] : 1.0;\n"\
+"	float result;\n"\
+"	if (index < " QS_STRINGIFY (MAX_LIGHTSTYLES) ")\n"\
+"		result = LightStyles[index];\n"\
+"	else\n"\
+"		result = 1.0;\n"\
+"	return result;\n"\
 "}\n"\
 "\n"\
 
