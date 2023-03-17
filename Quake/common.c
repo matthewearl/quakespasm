@@ -3461,8 +3461,7 @@ void LOC_LanguageCompletion_f (cvar_t *cvar, const char *partial)
 	size_t i;
 
 	for (i = 0; i < countof (knownlangs); i++)
-		if (Con_Match (knownlangs[i][1], partial))
-			Con_AddToTabList (knownlangs[i][1], partial, NULL);
+		Con_AddToTabList (knownlangs[i][1], partial, NULL);
 }
 
 /*

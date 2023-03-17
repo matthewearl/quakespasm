@@ -767,8 +767,7 @@ static void GL_Info_Completion_f (const char *partial)
 	for (i = 0; i < gl_num_extensions; i++)
 	{
 		const char *ext = (const char *) GL_GetStringiFunc (GL_EXTENSIONS, i);
-		if (Con_Match (ext, partial))
-			Con_AddToTabList (ext, partial, NULL);
+		Con_AddToTabList (ext, partial, NULL);
 	}
 }
 

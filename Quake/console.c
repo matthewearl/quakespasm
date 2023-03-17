@@ -763,6 +763,9 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 	const char *i_name, *i_name2;
 	int		len, mark;
 
+	if (!Con_Match (name, partial))
+		return;
+
 	if (!*bash_partial && bash_singlematch)
 	{
 		q_strlcpy (bash_partial, name, sizeof (bash_partial));
@@ -909,8 +912,7 @@ static qboolean CompleteFileList (const char *partial, void *param)
 {
 	filelist_item_t *file, **list = (filelist_item_t **) param;
 	for (file = *list; file; file = file->next)
-		if (Con_Match (file->name, partial))
-			Con_AddToTabList (file->name, partial, NULL);
+		Con_AddToTabList (file->name, partial, NULL);
 	return true;
 }
 
@@ -931,7 +933,7 @@ static qboolean CompleteClassnames (const char *partial, void *unused)
 		if (ed == sv_player || ed->free || !ed->v.classname)
 			continue;
 		name = PR_GetString (ed->v.classname);
-		if (*name && Con_Match (name, partial))
+		if (*name)
 			Con_AddToTabList (name, partial, "#");
 	}
 
@@ -950,7 +952,7 @@ static qboolean CompleteBindKeys (const char *partial, void *unused)
 	for (i = 0; i < MAX_KEYS; i++)
 	{
 		const char *name = Key_KeynumToString (i);
-		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && Con_Match (name, partial))
+		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
 			Con_AddToTabList (name, partial, keybindings[i]);
 	}
 
@@ -966,7 +968,7 @@ static qboolean CompleteUnbindKeys (const char *partial, void *unused)
 		if (keybindings[i])
 		{
 			const char *name = Key_KeynumToString (i);
-			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0 && Con_Match (name, partial))
+			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
 				Con_AddToTabList (name, partial, keybindings[i]);
 		}
 	}

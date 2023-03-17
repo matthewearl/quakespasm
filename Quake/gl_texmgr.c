@@ -220,8 +220,7 @@ static void TexMgr_TextureMode_Completion_f (cvar_t *cvar, const char *partial)
 	int i;
 
 	for (i = 0; i < NUM_GLMODES; i++)
-		if (Con_Match (glmodes[i].name, partial))
-			Con_AddToTabList (glmodes[i].name, partial, NULL);
+		Con_AddToTabList (glmodes[i].name, partial, NULL);
 }
 
 /*
