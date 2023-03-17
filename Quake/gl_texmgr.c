@@ -212,6 +212,20 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 
 /*
 ===============
+TexMgr_TextureMode_Completion_f -- tab completion for gl_texturemode
+===============
+*/
+static void TexMgr_TextureMode_Completion_f (cvar_t *cvar, const char *partial)
+{
+	int i;
+
+	for (i = 0; i < NUM_GLMODES; i++)
+		if (Con_Match (glmodes[i].name, partial))
+			Con_AddToTabList (glmodes[i].name, partial, NULL);
+}
+
+/*
+===============
 TexMgr_TextureMode_f -- called when gl_texturemode changes
 ===============
 */
@@ -829,6 +843,7 @@ void TexMgr_Init (void)
 	gl_texturemode.string = glmodes[glmode_idx].name;
 	Cvar_RegisterVariable (&gl_texturemode);
 	Cvar_SetCallback (&gl_texturemode, &TexMgr_TextureMode_f);
+	Cvar_SetCompletion (&gl_texturemode, &TexMgr_TextureMode_Completion_f);
 	Cvar_RegisterVariable (&gl_lodbias);
 	Cvar_SetCallback (&gl_lodbias, TexMgr_LodBias_f);
 	Cvar_RegisterVariable (&r_softemu);
