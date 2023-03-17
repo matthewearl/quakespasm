@@ -334,7 +334,8 @@ void TexMgr_ApplySettings (void)
 	gl_texfilter.anisotropy	= CLAMP (1.f, gl_texture_anisotropy.value, gl_max_anisotropy);
 	gl_texfilter.lodbias	= lodbias;
 
-	if (softemu >= SOFTEMU_COARSE)
+	// softemu 2 & 3 override filtering mode, unless it's GL_NEAREST
+	if (softemu >= SOFTEMU_COARSE && gl_texfilter.mode != 0)
 	{
 		const float SOFTEMU_ANISOTROPY = 8.f;
 		gl_texfilter.mode = 2; // nearest with linear mips
