@@ -1073,7 +1073,7 @@ static void Modlist_Add (const char *name)
 {
 	filelist_item_t	*item;
 	modinfo_t		*info;
-	size_t			i;
+	int				i;
 
 	memset (&info, 0, sizeof (info));
 	item = FileList_AddWithData (name, NULL, sizeof (*info), &modlist);
@@ -1081,6 +1081,36 @@ static void Modlist_Add (const char *name)
 	info = (modinfo_t *) (item + 1);
 	info->status.value = MODSTATUS_INSTALLED;
 
+	// look for descript.ion file in mod dir and use first non-empty line as full name
+	if (!info->full_name)
+	{
+		for (i = com_numbasedirs - 1; i >= 0; i--)
+		{
+			char	path[MAX_OSPATH];
+			char	*description, *end;
+
+			if (q_snprintf (path, sizeof (path), "%s/%s/descript.ion", com_basedirs[i], name) >= sizeof (path))
+				continue;
+
+			description = (char *) COM_LoadMallocFile_TextMode_OSPath (path, NULL);
+			if (!description)
+				continue;
+
+			while (q_isspace (*description))
+				++description;
+			end = strchr (description, '\n');
+			if (end)
+				*end = '\0';
+			if (*description)
+				info->full_name = strdup (description);
+			free (description);
+			
+			if (info->full_name)
+				break;
+		}
+	}
+
+	// look for mod in hard-coded list
 	if (!info->full_name)
 	{
 		for (i = 0; i < countof (knownmods); i++)
