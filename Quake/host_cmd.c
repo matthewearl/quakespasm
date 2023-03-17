@@ -1087,15 +1087,16 @@ static void Modlist_Add (const char *name)
 		for (i = com_numbasedirs - 1; i >= 0; i--)
 		{
 			char	path[MAX_OSPATH];
-			char	*description, *end;
+			char	*buf, *description, *end;
 
 			if (q_snprintf (path, sizeof (path), "%s/%s/descript.ion", com_basedirs[i], name) >= sizeof (path))
 				continue;
 
-			description = (char *) COM_LoadMallocFile_TextMode_OSPath (path, NULL);
-			if (!description)
+			buf = (char *) COM_LoadMallocFile_TextMode_OSPath (path, NULL);
+			if (!buf)
 				continue;
 
+			description = buf;
 			while (q_isspace (*description))
 				++description;
 			end = strchr (description, '\n');
@@ -1103,8 +1104,8 @@ static void Modlist_Add (const char *name)
 				*end = '\0';
 			if (*description)
 				info->full_name = strdup (description);
-			free (description);
-			
+			free (buf);
+
 			if (info->full_name)
 				break;
 		}
