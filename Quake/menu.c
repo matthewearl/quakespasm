@@ -45,6 +45,7 @@ extern cvar_t vid_width;
 extern cvar_t vid_height;
 extern cvar_t vid_refreshrate;
 extern cvar_t vid_fullscreen;
+extern cvar_t vid_borderless;
 extern cvar_t vid_vsync;
 extern cvar_t vid_fsaamode;
 extern cvar_t vid_fsaa;
@@ -2545,13 +2546,13 @@ static void VID_Menu_RebuildRateList (void)
 
 /*
 ================
-VID_Menu_ChooseNextMode
+VID_Menu_ChooseNextResolution
 
 chooses next resolution in order, then updates vid_width and
 vid_height cvars, then updates refreshrate list
 ================
 */
-static void VID_Menu_ChooseNextMode (int dir)
+static void VID_Menu_ChooseNextResolution (int dir)
 {
 	int i;
 
@@ -2614,6 +2615,43 @@ static void VID_Menu_ChooseNextRate (int dir)
 	}
 
 	Cvar_SetValue ("vid_refreshrate",(float)vid_menu_rates[i]);
+}
+
+typedef enum
+{
+	DISPLAYMODE_FULLSCREEN,
+	DISPLAYMODE_WINDOWED,
+	DISPLAYMODE_BORDERLESS,
+
+	DISPLAYMODE_COUNT,
+} windowmode_t;
+
+static windowmode_t VID_Menu_GetDisplayMode (void)
+{
+	if (vid_fullscreen.value)
+		return DISPLAYMODE_FULLSCREEN;
+	return vid_borderless.value ? DISPLAYMODE_BORDERLESS : DISPLAYMODE_WINDOWED;
+}
+
+static void VID_Menu_SetDisplayMode (windowmode_t mode)
+{
+	Cvar_SetValueQuick (&vid_fullscreen, mode == DISPLAYMODE_FULLSCREEN);
+	if (mode != DISPLAYMODE_FULLSCREEN)
+		Cvar_SetValueQuick (&vid_borderless, mode == DISPLAYMODE_BORDERLESS);
+}
+
+/*
+================
+VID_Menu_ChooseNextDisplayMode
+
+chooses next window mode in order, then updates vid_fullscreen and vid_borderless cvars
+================
+*/
+static void VID_Menu_ChooseNextDisplayMode (int dir)
+{
+	windowmode_t mode = VID_Menu_GetDisplayMode ();
+	mode = (mode + DISPLAYMODE_COUNT - dir) % DISPLAYMODE_COUNT;
+	VID_Menu_SetDisplayMode (mode);
 }
 
 /*
@@ -2917,9 +2955,9 @@ void M_Menu_Video_f (void)
 	def (OPT_MUSICEXT,		"External Music")		\
 ////////////////////////////////////////////////////
 #define VIDEO_OPTIONS_LIST(def)						\
-	def (VID_OPT_MODE,			"Video Mode")		\
+	def (VID_OPT_RESOLUTION,	"Resolution")		\
+	def (VID_OPT_DISPLAYMODE,	"Display Mode")		\
 	def (VID_OPT_REFRESHRATE,	"Refresh Rate")		\
-	def (VID_OPT_FULLSCREEN,	"Fullscreen")		\
 	def (VID_OPT_TEST,			"Test changes")		\
 	def (VID_OPT_APPLY,			"Apply changes")	\
 													\
@@ -3291,14 +3329,14 @@ void M_AdjustSliders (int dir)
 	//
 	// Video options
 	//
-	case VID_OPT_MODE:
-		VID_Menu_ChooseNextMode (-dir);
+	case VID_OPT_RESOLUTION:
+		VID_Menu_ChooseNextResolution (-dir);
 		break;
 	case VID_OPT_REFRESHRATE:
 		VID_Menu_ChooseNextRate (-dir);
 		break;
-	case VID_OPT_FULLSCREEN:
-		Cbuf_AddText ("toggle vid_fullscreen\n");
+	case VID_OPT_DISPLAYMODE:
+		VID_Menu_ChooseNextDisplayMode (-dir);
 		break;
 	case VID_OPT_VSYNC:
 		Cbuf_AddText ("toggle vid_vsync\n"); // kristian
@@ -3611,14 +3649,20 @@ static void M_Options_DrawItem (int y, int item)
 	//
 	// Video Options
 	//
-	case VID_OPT_MODE:
+	case VID_OPT_RESOLUTION:
 		M_Print (x, y, va("%i x %i", (int)vid_width.value, (int)vid_height.value));
 		break;
 	case VID_OPT_REFRESHRATE:
 		M_Print (x, y, va("%i Hz", (int)vid_refreshrate.value));
 		break;
-	case VID_OPT_FULLSCREEN:
-		M_DrawCheckbox (x, y, (int)vid_fullscreen.value);
+	case VID_OPT_DISPLAYMODE:
+		switch (VID_Menu_GetDisplayMode ())
+		{
+		case DISPLAYMODE_FULLSCREEN:	M_Print (x, y, "Fullscreen"); break;
+		case DISPLAYMODE_WINDOWED:		M_Print (x, y, "Windowed"); break;
+		case DISPLAYMODE_BORDERLESS:	M_Print (x, y, "Borderless"); break;
+		default:						M_Print (x, y, "Other"); break;
+		}
 		break;
 	case VID_OPT_VSYNC:
 		M_DrawCheckbox (x, y, (int)vid_vsync.value);
