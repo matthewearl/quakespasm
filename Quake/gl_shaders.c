@@ -32,10 +32,10 @@ static int gl_num_programs;
 
 /*
 =============
-GL_Error
+GL_InitError
 =============
 */
-static void GL_Error (const char *message, ...)
+static void GL_InitError (const char *message, ...)
 {
 	char buf[4096];
 	size_t len;
@@ -50,11 +50,16 @@ static void GL_Error (const char *message, ...)
 		buf[--len] = '\0';
 
 	Sys_Error (
+		"Your system appears to meet the minimum requirements,\n"
+		"however an error was encountered during OpenGL initialization.\n"
+		"This could be caused by a driver or an engine bug.\n"
+		"Please report this issue, including the following details:\n"
+		"\n"
 		"%s\n"
 		"\n"
 		"Engine:	Ironwail " IRONWAIL_VER_STRING " (%d-bit)\n"
 		"OpenGL:	%s\n"
-		"GPU:	%s\n"
+		"GPU:   	%s\n"
 		"Vendor:	%s\n"
 #if defined(_WIN32)
 		"\n"
@@ -142,7 +147,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
-		GL_Error ("Error compiling %s %s shader:\n\n%s", name, typestr, infolog);
+		GL_InitError ("Error compiling %s %s shader:\n\n%s", name, typestr, infolog);
 	}
 
 	return shader;
@@ -176,7 +181,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
-		GL_Error ("Error linking %s program:\n\n%s", name, infolog);
+		GL_InitError ("Error linking %s program:\n\n%s", name, infolog);
 	}
 
 	if (gl_num_programs == countof(gl_programs))
