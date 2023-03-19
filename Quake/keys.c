@@ -240,6 +240,7 @@ static qboolean Key_IsWordSeparator (char c)
 	switch (c)
 	{
 	case ' ':
+	case '_':
 	case '\t':
 	case ';':
 		return true;
