@@ -6095,7 +6095,7 @@ void M_Draw (void)
 
 void M_Keydown (int key)
 {
-	if (!ui_mouse.value && M_IsMouseKey (key))
+	if (!bind_grab && !ui_mouse.value && M_IsMouseKey (key))
 		return;
 
 	switch (m_state)
