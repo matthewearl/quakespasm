@@ -1955,7 +1955,7 @@ Host_AutoLoad
 */
 static qboolean Host_AutoLoad (void)
 {
-	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1)
+	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1 || cl.intermission)
 		return false;
 
 	if (sv_autoload.value < 2.f)

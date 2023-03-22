@@ -821,7 +821,7 @@ static void Host_CheckAutosave (void)
 {
 	float health_change, speed, elapsed, score;
 
-	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f)
+	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
 		return;
 
 	if (cls.signon == SIGNONS)
