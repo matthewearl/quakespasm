@@ -875,7 +875,7 @@ static void Host_CheckAutosave (void)
 
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
-	Cbuf_AddText (va ("save \"autosave/%s\"\n", sv.name));
+	Cbuf_AddText (va ("save \"autosave/%s\" 0\n", sv.name));
 }
 
 /*

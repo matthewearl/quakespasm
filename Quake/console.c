@@ -387,7 +387,7 @@ static void Con_Print (const char *txt)
 	int		c, l;
 	static int	cr;
 	int		mask;
-	qboolean	boundary;
+	qboolean	boundary, skipnotify;
 
 	//con_backscroll = 0; //johnfitz -- better console scrolling
 
@@ -406,6 +406,12 @@ static void Con_Print (const char *txt)
 		mask = 0;
 
 	boundary = true;
+	skipnotify = false;
+	if (!Q_strncmp (txt, "[skipnotify]", 12))
+	{
+		skipnotify = true;
+		txt += 12;
+	}
 
 	while ( (c = *txt) )
 	{
@@ -440,7 +446,7 @@ static void Con_Print (const char *txt)
 			Con_Linefeed ();
 		// mark time for transparent overlay
 			if (con_current >= 0)
-				con_times[con_current % NUM_CON_TIMES] = realtime;
+				con_times[con_current % NUM_CON_TIMES] = skipnotify ? 0 : realtime;
 		}
 
 		switch (c)

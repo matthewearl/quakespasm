@@ -2330,8 +2330,8 @@ static void Host_Savegame_f (void)
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
-	if (Cmd_Argc () < 3)
-		Con_Printf ("Saving game to %s...\n", relname);
+	// second argument, if present, indicates whether or not text should be printed to the notification area
+	Con_Printf ("%sSaving game to %s...\n", Cmd_Argc () < 3 || atof (Cmd_Argv (2)) ? "" : "[skipnotify]", relname);
 
 	if (!strcmp (relname, sv.lastsave) && Host_IsSaving ())
 	{

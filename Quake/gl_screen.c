@@ -812,7 +812,6 @@ SCR_DrawSaving
 void SCR_DrawSaving (void)
 {
 	int x, y;
-	const char *str;
 
 	if (!Host_IsSaving ())
 		return;
@@ -830,12 +829,6 @@ void SCR_DrawSaving (void)
 	}
 
 	Draw_Pic (x, y, draw_disc);
-	y += draw_disc->height/2 - 8;
-
-	str = "Saving";
-	Draw_String (x - 4 - strlen (str)*8, y, str);
-	str = sv.lastsave;
-	Draw_String (x - 4 - strlen (str)*8, y+8, str);
 }
 
 /*
