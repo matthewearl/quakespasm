@@ -23,6 +23,63 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+cvar_t	r_debuglines = {"r_debuglines", "0", CVAR_NONE};
+
+typedef struct {
+	vec3_t start, end;
+} line_t;
+#define MAX_DEBUG_LINES 1024
+static line_t debug_lines[MAX_DEBUG_LINES];
+static int num_debug_lines = 0;
+
+void
+R_AddDebugLine (vec3_t start, vec3_t end)
+{
+	if (num_debug_lines < MAX_DEBUG_LINES) {
+		VectorCopy(start, debug_lines[num_debug_lines].start);
+		VectorCopy(end, debug_lines[num_debug_lines].end);
+		num_debug_lines++;
+	}
+}
+
+void
+R_ClearDebugLines (void)
+{
+	num_debug_lines = 0;
+}
+
+static void
+R_DrawDebugLines (void)
+{
+	int i;
+	line_t *line;
+
+	if (!r_debuglines.value)
+		return;
+
+	glDisable (GL_DEPTH_TEST);
+	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+	GL_PolygonOffset (OFFSET_SHOWTRIS);
+	glDisable (GL_TEXTURE_2D);
+	glDisable (GL_CULL_FACE);
+	glColor3f (1,0,0);
+
+	glBegin (GL_LINES);
+	for (i = 0; i < num_debug_lines; i++) {
+		line = &debug_lines[i];
+		glVertex3f (line->start[0], line->start[1], line->start[2]);
+		glVertex3f (line->end[0], line->end[1], line->end[2]);
+	}
+	glEnd ();
+
+	glColor3f (1,1,1);
+	glEnable (GL_TEXTURE_2D);
+	glEnable (GL_CULL_FACE);
+	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	GL_PolygonOffset (OFFSET_NONE);
+	glEnable (GL_DEPTH_TEST);
+}
+
 vec3_t		modelorg, r_entorigin;
 entity_t	*currententity;
 
@@ -906,6 +963,8 @@ void R_RenderScene (void)
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView
 
 	R_ShowTris (); //johnfitz
+
+	R_DrawDebugLines ();
 
 	R_ShowBoundingBoxes (); //johnfitz
 }

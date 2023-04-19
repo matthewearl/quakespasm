@@ -332,5 +332,9 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
+void R_AddDebugLine (vec3_t start, vec3_t end);
+void R_ClearDebugLines (void);
+
+
 #endif	/* QUAKEDEFS_H */
 

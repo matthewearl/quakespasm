@@ -693,6 +693,7 @@ void _Host_Frame (float time)
 	if (!Host_FilterTime (time))
 		return;			// don't run too fast, or packets will flood out
 
+	R_ClearDebugLines();
 // get new key events
 	Key_UpdateForDest ();
 	IN_UpdateInputMode ();
