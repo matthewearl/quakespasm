@@ -702,7 +702,9 @@ static void PF_traceline (void)
 	nomonsters = G_FLOAT(OFS_PARM2);
 	ent = G_EDICT(OFS_PARM3);
 
-	R_AddDebugLine(v1, v2);
+	if (NUM_FOR_EDICT(ent) == 1) {
+		R_AddDebugLine(v1, v2);
+	}
 
 	/* FIXME FIXME FIXME: Why do we hit this with certain progs.dat ?? */
 	if (developer.value) {

@@ -57,6 +57,12 @@ R_DrawDebugLines (void)
 	if (!r_debuglines.value)
 		return;
 
+	if (num_debug_lines != 0) {
+		Sys_Printf("@@@debugline {\"count\": %d,  \"time\": %.16f, "
+					"\"lines\": [",
+					num_debug_lines, sv.time);
+	}
+
 	glDisable (GL_DEPTH_TEST);
 	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
 	GL_PolygonOffset (OFFSET_SHOWTRIS);
@@ -67,6 +73,9 @@ R_DrawDebugLines (void)
 	glBegin (GL_LINES);
 	for (i = 0; i < num_debug_lines; i++) {
 		line = &debug_lines[i];
+		Sys_Printf("{\"start\": [%f, %f, %f], \"end\": [%f, %f, %f]},",
+					line->start[0], line->start[1], line->start[2],
+					line->end[0], line->end[1], line->end[2]);
 		glVertex3f (line->start[0], line->start[1], line->start[2]);
 		glVertex3f (line->end[0], line->end[1], line->end[2]);
 	}
@@ -78,6 +87,10 @@ R_DrawDebugLines (void)
 	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 	GL_PolygonOffset (OFFSET_NONE);
 	glEnable (GL_DEPTH_TEST);
+
+	if (num_debug_lines != 0) {
+		Sys_Printf("]}\n");
+	}
 }
 
 vec3_t		modelorg, r_entorigin;
