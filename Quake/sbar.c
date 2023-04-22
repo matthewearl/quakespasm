@@ -918,6 +918,7 @@ void Sbar_DrawFace (void)
 	Sbar_DrawPic (112, 0, sb_faces[f][anim]);
 }
 
+
 /*
 ===============
 Sbar_Draw
