@@ -979,6 +979,8 @@ void R_RenderScene (void)
 
 	R_DrawDebugLines ();
 
+	LgScan_Draw ();
+
 	R_ShowBoundingBoxes (); //johnfitz
 }
 

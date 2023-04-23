@@ -895,59 +895,6 @@ void SV_WalkMove (edict_t *ent)
 }
 
 
-static void
-ScanLightningGunBug (edict_t *ent)
-{
-    vec3_t forward, right, up, start, end, side_start, side_end;
-    vec3_t f;
-	trace_t	trace;
-    edict_t *hit = NULL;
-
-    // Simulate the trace in `W_FireLightning`.
-	AngleVectors (ent->v.v_angle, forward, right, up);
-    VectorCopy(ent->v.origin, start);
-    start[2] += 16.0f;
-    VectorMA(start, 600, forward, end);
-	trace = SV_Move (start, vec3_origin, vec3_origin, end, true, ent);
-
-    // Traces in `LightningDamage`.
-    VectorCopy(ent->v.origin, start);
-    VectorMA(trace.endpos, 4.0f, forward, end);
-    VectorSubtract(end, start, f);
-    f[0] = -f[1];
-    f[1] = f[0];
-    f[2] = 0.0f;
-    VectorScale(f, 16.0f, f);
-
-	trace = SV_Move (start, vec3_origin, vec3_origin, end, false, ent);
-    if (trace.ent && trace.ent->v.takedamage) {
-        hit = trace.ent;
-        Sys_Printf("Hit %d with main beam\n", NUM_FOR_EDICT(hit));
-    }
-    if (!hit) {
-        VectorAdd(start, f, side_start);
-        VectorAdd(end, f, side_end);
-        trace = SV_Move (side_start, vec3_origin, vec3_origin, side_end, false, ent);
-        if (trace.ent && trace.ent->v.takedamage) {
-            hit = trace.ent;
-            Sys_Printf("Hit %d with side beam 1\n", NUM_FOR_EDICT(hit));
-        }
-    }
-    if (!hit) {
-        VectorSubtract(start, f, side_start);
-        VectorSubtract(end, f, side_end);
-        trace = SV_Move (side_start, vec3_origin, vec3_origin, side_end, false, ent);
-        if (trace.ent && trace.ent->v.takedamage) {
-            hit = trace.ent;
-            Sys_Printf("Hit %d with side beam 2\n", NUM_FOR_EDICT(hit));
-        }
-    }
-    if (!hit) {
-        Sys_Printf("No hit\n");
-    }
-}
-
-
 /*
 ================
 SV_Physics_Client
@@ -1022,9 +969,9 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
 
-    if (num == 1) {
-        ScanLightningGunBug(ent);
-    }
+	if (num == 1) {
+		LgScan_DoScan(ent);
+	}
 }
 
 //============================================================================
