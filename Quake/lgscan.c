@@ -1,7 +1,7 @@
 #include "quakedef.h"
 
 
-#define LGSCAN_MAX  (1 << 12)
+#define LGSCAN_MAX  (1 << 14)
 #define LGSCAN_FOV  90
 
 
@@ -12,6 +12,22 @@ typedef struct {
 
 
 static lgscan_info_t lgscan_info;
+static qboolean lgscan_pick = false;
+int lgscan_highlighted = 0;
+
+
+static void
+LgScan_Pick (void)
+{
+    lgscan_pick = true;
+}
+
+
+void
+LgScan_Init(void)
+{ 
+	Cmd_AddCommand ("lgscan_pick", &LgScan_Pick); //johnfitz
+}
 
 
 static edict_t *
@@ -89,8 +105,21 @@ LgScan_DoScan (edict_t *ent)
 
     hit = LgScan_Single(ent, forward);
     if (hit) {
-        Con_Printf("Lg scan hit time: %.3f\n", sv.time);
-        ED_Print(hit);
+        //Con_Printf("Lg scan hit time: %.3f\n", sv.time);
+        //ED_Print(hit);
+    }
+
+    if (lgscan_pick) {
+        if (hit) {
+            lgscan_highlighted = NUM_FOR_EDICT(hit);
+            Con_Printf("Highlighed ent %d (%s)\n",
+                       lgscan_highlighted,
+                       PR_GetString(hit->v.classname));
+        } else {
+            lgscan_highlighted = 0;
+            Con_Printf("Cleared lgscan highlight\n");
+        }
+        lgscan_pick = false;
     }
 }
 
@@ -109,7 +138,7 @@ LgScan_Draw (void)
 	GL_PolygonOffset (OFFSET_SHOWTRIS);
 	glDisable (GL_TEXTURE_2D);
 	glDisable (GL_CULL_FACE);
-    glPointSize(5);
+	glPointSize(1);
 	glColor3f (0,1,0);
 
     glBegin(GL_POINTS);

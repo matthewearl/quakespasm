@@ -131,6 +131,8 @@ void SV_Init (void)
 		return; /* silence compiler */
 	}
 	Sys_Printf ("Server using protocol %i (%s)\n", sv_protocol, p);
+
+    LgScan_Init();
 }
 
 /*

@@ -336,8 +336,10 @@ void R_AddDebugLine (vec3_t start, vec3_t end);
 void R_ClearDebugLines (void);
 
 
+void LgScan_Init(void);
 void LgScan_DoScan (edict_t *ent);
 void LgScan_Draw (void);
+extern int lgscan_highlighted;
 
 #endif	/* QUAKEDEFS_H */
 

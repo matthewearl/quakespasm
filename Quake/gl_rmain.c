@@ -790,6 +790,9 @@ void R_ShowBoundingBoxes (void)
 		if (ed == sv_player)
 			continue; //don't draw player's own bbox
 
+        if (lgscan_highlighted && i + 1 != lgscan_highlighted)
+            continue;
+
 //		if (r_showbboxes.value != 2)
 //			if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
 //				continue; //don't draw if not in pvs
