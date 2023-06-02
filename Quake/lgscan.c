@@ -1,7 +1,7 @@
 #include "quakedef.h"
 
 
-#define LGSCAN_MAX  (1 << 14)
+#define LGSCAN_MAX  (1 << 12)
 #define LGSCAN_FOV  90
 
 
@@ -138,8 +138,8 @@ LgScan_Draw (void)
 	GL_PolygonOffset (OFFSET_SHOWTRIS);
 	glDisable (GL_TEXTURE_2D);
 	glDisable (GL_CULL_FACE);
-	glPointSize(1);
-	glColor3f (0,1,0);
+	glPointSize(5);
+	glColor3f (1,0,1);
 
     glBegin(GL_POINTS);
     for (i = 0; i < lgscan_info.num_dirs; i++) {
