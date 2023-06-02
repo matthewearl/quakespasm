@@ -26,7 +26,7 @@ LgScan_Pick (void)
 void
 LgScan_Init(void)
 { 
-	Cmd_AddCommand ("lgscan_pick", &LgScan_Pick); //johnfitz
+    Cmd_AddCommand ("lgscan_pick", &LgScan_Pick); //johnfitz
 }
 
 
@@ -35,14 +35,14 @@ LgScan_Single (edict_t *ent, vec3_t forward)
 {
     vec3_t start, end, side_start, side_end;
     vec3_t f;
-	trace_t	trace;
+    trace_t trace;
     edict_t *hit = NULL;
 
     // Simulate the trace in `W_FireLightning`.
     VectorCopy(ent->v.origin, start);
     start[2] += 16.0f;
     VectorMA(start, 600, forward, end);
-	trace = SV_Move (start, vec3_origin, vec3_origin, end, true, ent);
+    trace = SV_Move (start, vec3_origin, vec3_origin, end, true, ent);
 
     // Traces in `LightningDamage`.
     VectorCopy(ent->v.origin, start);
@@ -53,7 +53,7 @@ LgScan_Single (edict_t *ent, vec3_t forward)
     f[2] = 0.0f;
     VectorScale(f, 16.0f, f);
 
-	trace = SV_Move (start, vec3_origin, vec3_origin, end, false, ent);
+    trace = SV_Move (start, vec3_origin, vec3_origin, end, false, ent);
     if (trace.ent && trace.ent->v.takedamage) {
         hit = trace.ent;
     }
@@ -88,7 +88,7 @@ LgScan_DoScan (edict_t *ent)
 
     scale = tanf(DEG2RAD(LGSCAN_FOV / 2));
     lgscan_info.num_dirs = 0;
-	AngleVectors (ent->v.v_angle, forward, right, up);
+    AngleVectors (ent->v.v_angle, forward, right, up);
     for (i = 0; i < LGSCAN_MAX; i++) {
         r1 = ((rand() & 0x7fff) / ((float)0x7fff)) * 2.0f - 1.0f;
         r2 = ((rand() & 0x7fff) / ((float)0x7fff)) * 2.0f - 1.0f;
@@ -133,13 +133,13 @@ LgScan_Draw (void)
         return;
     }
 
-	glDisable (GL_DEPTH_TEST);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-	GL_PolygonOffset (OFFSET_SHOWTRIS);
-	glDisable (GL_TEXTURE_2D);
-	glDisable (GL_CULL_FACE);
-	glPointSize(5);
-	glColor3f (1,0,1);
+    glDisable (GL_DEPTH_TEST);
+    glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+    GL_PolygonOffset (OFFSET_SHOWTRIS);
+    glDisable (GL_TEXTURE_2D);
+    glDisable (GL_CULL_FACE);
+    glPointSize(5);
+    glColor3f (1,0,1);
 
     glBegin(GL_POINTS);
     for (i = 0; i < lgscan_info.num_dirs; i++) {
@@ -148,11 +148,11 @@ LgScan_Draw (void)
     }
     glEnd ();
 
-	glColor3f (1,1,1);
-	glEnable (GL_TEXTURE_2D);
-	glEnable (GL_CULL_FACE);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-	GL_PolygonOffset (OFFSET_NONE);
-	glEnable (GL_DEPTH_TEST);
+    glColor3f (1,1,1);
+    glEnable (GL_TEXTURE_2D);
+    glEnable (GL_CULL_FACE);
+    glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+    GL_PolygonOffset (OFFSET_NONE);
+    glEnable (GL_DEPTH_TEST);
 }
 
