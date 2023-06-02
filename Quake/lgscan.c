@@ -26,7 +26,7 @@ LgScan_Pick (void)
 void
 LgScan_Init(void)
 { 
-    Cmd_AddCommand ("lgscan_pick", &LgScan_Pick); //johnfitz
+    Cmd_AddCommand ("lgscan_pick", &LgScan_Pick);
 }
 
 
