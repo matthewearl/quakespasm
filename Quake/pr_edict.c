@@ -2027,7 +2027,7 @@ int PR_AllocString (int size, char **ptr)
 
 void SaveData_Init (savedata_t *save)
 {
-	memset (save, 0, sizeof (save));
+	memset (save, 0, sizeof (*save));
 	save->buffersize = 48 * 1024 * 1024; // ad_sepulcher needs ~32 MB
 	save->buffer = (byte *) malloc (save->buffersize);
 	if (!save->buffer)
