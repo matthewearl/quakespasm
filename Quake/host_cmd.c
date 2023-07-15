@@ -602,6 +602,8 @@ static qboolean Download (const char *url, download_t *download)
 	curl_easy_setopt (curl, CURLOPT_WRITEDATA, download->write_data);
 	curl_easy_setopt (curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
 	curl_easy_setopt (curl, CURLOPT_ACCEPT_ENCODING, "");
+	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 	//curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
 
 	mc = curl_multi_add_handle (multi_handle, curl);
