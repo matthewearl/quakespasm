@@ -369,8 +369,7 @@ static void TexMgr_Imagelist_Completion_f (const char *partial)
 	gltexture_t	*glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)
-		if (Con_Match (glt->name, partial))
-			Con_AddToTabList (glt->name, partial, NULL);
+		Con_AddToTabList (glt->name, partial, NULL);
 }
 
 /*
