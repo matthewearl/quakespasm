@@ -122,7 +122,7 @@ static void SND_Callback_snd_filterquality (cvar_t *var)
 	if (snd_filterquality.value < 1 || snd_filterquality.value > 5)
 	{
 		Con_Printf ("snd_filterquality must be between 1 and 5\n");
-		Cvar_SetQuick (&snd_filterquality, SND_FILTERQUALITY_DEFAULT);
+		Cvar_SetQuick (&snd_filterquality, snd_filterquality.default_string);
 	}
 }
 
