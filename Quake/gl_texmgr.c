@@ -361,6 +361,20 @@ void TexMgr_ApplySettings (void)
 
 /*
 ===============
+TexMgr_Imagelist_Completion_f -- tab completion for imagelist/imagedump
+===============
+*/
+static void TexMgr_Imagelist_Completion_f (const char *partial)
+{
+	gltexture_t	*glt;
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+		if (Con_Match (glt->name, partial))
+			Con_AddToTabList (glt->name, partial, NULL);
+}
+
+/*
+===============
 TexMgr_Imagelist_f -- report loaded textures
 ===============
 */
@@ -822,6 +836,7 @@ void TexMgr_Init (void)
 	static byte greytexture_data[16] = {127,127,127,255,127,127,127,255,127,127,127,255,127,127,127,255}; //50% grey
 	static byte blacktexture_data[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //black
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
+	cmd_function_t	*cmd;
 
 	// init texture list
 	free_gltextures = (gltexture_t *) Hunk_AllocName (MAX_GLTEXTURES * sizeof(gltexture_t), "gltextures");
@@ -849,8 +864,12 @@ void TexMgr_Init (void)
 	Cvar_RegisterVariable (&r_softemu);
 	Cvar_SetCallback (&r_softemu, TexMgr_SoftEmu_f);
 	Cmd_AddCommand ("gl_describetexturemodes", &TexMgr_DescribeTextureModes_f);
-	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
-	Cmd_AddCommand ("imagedump", &TexMgr_Imagedump_f);
+	cmd = Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
+	if (cmd)
+		cmd->completion = TexMgr_Imagelist_Completion_f;
+	cmd = Cmd_AddCommand ("imagedump", &TexMgr_Imagedump_f);
+	if (cmd)
+		cmd->completion = TexMgr_Imagelist_Completion_f;
 
 	// poll max size from hardware
 	glGetIntegerv (GL_MAX_TEXTURE_SIZE, &gl_max_texture_size);
