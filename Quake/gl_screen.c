@@ -1541,10 +1541,10 @@ void SCR_UpdateScreen (void)
 		Sbar_Draw ();
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawClock (); //johnfitz
+		SCR_DrawSpeed ();
 		SCR_DrawConsole ();
 		M_Draw ();
 		SCR_DrawFPS (); //johnfitz
-		SCR_DrawSpeed ();
 		SCR_DrawSaving ();
 	}
 
