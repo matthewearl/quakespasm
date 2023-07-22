@@ -1409,6 +1409,59 @@ static void VID_DescribeModes_f (void)
 //==========================================================================
 
 /*
+================
+VID_CompleteModeField
+================
+*/
+static void VID_CompleteModeField (cvar_t *cvar, const char *partial, size_t ofs)
+{
+	int i;
+
+	#define GET_FIELD_FOR_MODE(idx)		*(int*)((uintptr_t)&modelist[idx] + ofs)
+
+	for (i = 0; i < nummodes; i++)
+	{
+		char buf[64];
+		if (i > 0 && GET_FIELD_FOR_MODE (i) == GET_FIELD_FOR_MODE (i-1))
+			continue;
+		q_snprintf (buf, sizeof (buf), "%d", GET_FIELD_FOR_MODE (i));
+		Con_AddToTabList (buf, partial, cvar->value == GET_FIELD_FOR_MODE (i) ? "current" : NULL);
+	}
+
+	#undef GET_FIELD_FOR_MODE
+}
+
+/*
+================
+VID_Width_Completion_f
+================
+*/
+static void VID_Width_Completion_f (cvar_t *cvar, const char *partial)
+{
+	VID_CompleteModeField (cvar, partial, offsetof (vmode_t, width));
+}
+
+/*
+================
+VID_Height_Completion_f
+================
+*/
+static void VID_Height_Completion_f (cvar_t *cvar, const char *partial)
+{
+	VID_CompleteModeField (cvar, partial, offsetof (vmode_t, height));
+}
+
+/*
+================
+VID_Refresh_Completion_f
+================
+*/
+static void VID_Refresh_Completion_f (cvar_t *cvar, const char *partial)
+{
+	VID_CompleteModeField (cvar, partial, offsetof (vmode_t, refreshrate));
+}
+
+/*
 =================
 VID_InitModelist
 =================
@@ -1486,6 +1539,10 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_fsaamode, VID_FSAAMode_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
+
+	Cvar_SetCompletion (&vid_width, VID_Width_Completion_f);
+	Cvar_SetCompletion (&vid_height, VID_Height_Completion_f);
+	Cvar_SetCompletion (&vid_refreshrate, VID_Refresh_Completion_f);
 
 	Cvar_RegisterVariable (&gl_texture_anisotropy);
 	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
