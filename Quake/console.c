@@ -1032,9 +1032,11 @@ static void BuildTabList (const char *partial)
 	if (Cmd_Argc () >= 2)
 	{
 		cvar = Cvar_FindVar (Cmd_Argv (0));
-		if (cvar && cvar->completion)
+		if (cvar)
 		{
-			cvar->completion (cvar, partial);
+		// cvars can only have one argument
+			if (Cmd_Argc () == 2 && cvar->completion)
+				cvar->completion (cvar, partial);
 			return;
 		}
 
