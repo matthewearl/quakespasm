@@ -40,6 +40,7 @@ float		con_cursorspeed = 4;
 
 #define		CON_TEXTSIZE (1024 * 1024) //ericw -- was 65536. johnfitz -- new default size
 #define		CON_MINSIZE  16384 //johnfitz -- old default, now the minimum size
+#define		CON_MARGIN   1
 
 int		con_buffersize; //johnfitz -- user can now override default
 
@@ -116,6 +117,7 @@ void Con_ToggleConsole_f (void)
 		key_linepos = 1;
 		con_backscroll = 0; //johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; //johnfitz -- it should also return you to the bottom of the command history
+		key_tabhint[0] = '\0';			// clear tab hint
 
 		if (cls.state == ca_connected)
 		{
@@ -262,7 +264,7 @@ void Con_CheckResize (void)
 	char	*tbuf; //johnfitz -- tbuf no longer a static array
 	int mark; //johnfitz
 
-	width = (vid.conwidth >> 3) - 2; //johnfitz -- use vid.conwidth instead of vid.width
+	width = (vid.conwidth >> 3) - CON_MARGIN*2; //johnfitz -- use vid.conwidth instead of vid.width
 
 	if (width == con_linewidth)
 		return;
@@ -1080,13 +1082,23 @@ static void BuildTabList (const char *partial)
 Con_TabComplete -- johnfitz
 ============
 */
-void Con_TabComplete (void)
+void Con_TabComplete (tabcomplete_t mode)
 {
 	char	partial[MAXCMDLINE];
 	const char	*match;
 	static char	*c;
 	tab_t		*t;
 	int		mark, i;
+
+	key_tabhint[0] = '\0';
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		key_tabpartial[0] = '\0';
+
+	// only show completion hint when the cursor is at the end of the line
+		if ((size_t)key_linepos >= sizeof (key_lines[edit_line]) || key_lines[edit_line][key_linepos])
+			return;
+	}
 
 // if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -1119,8 +1131,8 @@ void Con_TabComplete (void)
 		if (!tablist)
 			return;
 
-		// print list if length > 1
-		if (tablist->next != tablist)
+		// print list if length > 1 and action is user-initiated
+		if (tablist->next != tablist && mode == TABCOMPLETE_USER)
 		{
 			int matches = 0;
 			int total = 0;
@@ -1175,6 +1187,17 @@ void Con_TabComplete (void)
 		} while (t != tablist);
 	}
 
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		size_t len = strlen (partial);
+		match = q_strcasestr (match, partial);
+		if (match && match[len])
+			q_strlcpy (key_tabhint, match + len, sizeof (key_tabhint));
+		Hunk_FreeToLowMark (mark);
+		key_tabpartial[0] = '\0';
+		return;
+	}
+
 // insert new match into edit line
 	q_strlcpy (partial, match, MAXCMDLINE); //first copy match string
 	q_strlcat (partial, key_lines[edit_line] + key_linepos, MAXCMDLINE); //then add chars after cursor
@@ -1200,6 +1223,8 @@ void Con_TabComplete (void)
 	// the changelevel command. the line below "fixes" it, although I'm not sure about
 	// the reason, yet, neither do I know any possible side effects of it:
 		c = key_lines[edit_line] + key_linepos;
+
+		Con_TabComplete (TABCOMPLETE_AUTOHINT);
 	}
 }
 
@@ -1322,7 +1347,8 @@ extern	qpic_t *pic_ovr, *pic_ins; //johnfitz -- new cursor handling
 
 void Con_DrawInput (void)
 {
-	int	i, ofs;
+	const char *workline = key_lines[edit_line];
+	int	i, ofs, len;
 
 	if (key_dest != key_console && !con_forcedup)
 		return;		// don't draw anything
@@ -1333,9 +1359,20 @@ void Con_DrawInput (void)
 	else
 		ofs = 0;
 
+	len = strlen (workline);
+
 // draw input string
-	for (i = 0; key_lines[edit_line][i+ofs] && i < con_linewidth; i++)
-		Draw_Character ((i+1)<<3, vid.conheight - 16, key_lines[edit_line][i+ofs]);
+	for (i = 0; i+ofs < len; i++)
+		Draw_Character ((i+1)<<3, vid.conheight - 16, workline[i+ofs]);
+
+// draw tab completion hint
+	if (key_tabhint[0])
+	{
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 0.75f);
+		for (i = 0; key_tabhint[i] && i+1+len-ofs < con_linewidth+CON_MARGIN*2; i++)
+			Draw_Character ((i+1+len-ofs)<<3, vid.conheight - 16, key_tabhint[i] | 0x80);
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 1.0f);
+	}
 
 // johnfitz -- new cursor handling
 	if (!((int)((realtime-key_blinktime)*con_cursorspeed) & 1))

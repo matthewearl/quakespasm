@@ -49,8 +49,13 @@ void Con_ToggleConsole_f (void);
 
 void Con_NotifyBox (const char *text);	// during startup for sound / cd warnings
 
+typedef enum {
+	TABCOMPLETE_AUTOHINT,
+	TABCOMPLETE_USER,
+} tabcomplete_t;
+
 const char *Con_Quakebar (int len);
-void Con_TabComplete (void);
+void Con_TabComplete (tabcomplete_t mode);
 void Con_AddToTabList (const char *name, const char *partial, const char *type);
 qboolean Con_Match (const char *str, const char *partial);
 void Con_LogCenterPrint (const char *str);
