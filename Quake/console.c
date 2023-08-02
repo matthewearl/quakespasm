@@ -1394,7 +1394,6 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 {
 	int	i, x, y, j, sb, rows;
 	const char	*text;
-	char	ver[32];
 
 	if (lines <= 0)
 		return;
@@ -1437,9 +1436,8 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 
 //draw version number in bottom right
 	y += 8;
-	q_snprintf (ver, sizeof(ver), CONSOLE_TITLE_STRING);
-	for (x = 0; x < (int)strlen(ver); x++)
-		Draw_Character ((con_linewidth - strlen(ver) + x + 2)<<3, y, ver[x] /*+ 128*/);
+	text = CONSOLE_TITLE_STRING;
+	M_PrintWhite (vid.conwidth - (strlen (text) << 3), y, text);
 }
 
 
