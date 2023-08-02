@@ -53,6 +53,8 @@ extern cvar_t r_softemu;
 extern cvar_t r_waterwarp;
 extern cvar_t r_oit;
 extern cvar_t r_alphasort;
+extern cvar_t r_lerpmodels;
+extern cvar_t r_lerpmove;
 
 extern char crosshair_char;
 
@@ -2969,6 +2971,7 @@ void M_Menu_Video_f (void)
 	def (VID_OPT_SCALE,			"Render Scale")		\
 	def (VID_OPT_ANISO,			"Anisotropic")		\
 	def (VID_OPT_TEXFILTER,		"Textures")			\
+	def (VID_OPT_ANIMLERP,		"Animations")		\
 	def (VID_OPT_PARTICLES,		"Particles")		\
 	def (VID_OPT_ALPHAMODE,		"Transparency")		\
 	def (VID_OPT_WATERWARP,		"Underwater FX")	\
@@ -3356,6 +3359,10 @@ void M_AdjustSliders (int dir)
 	case VID_OPT_TEXFILTER:
 		VID_Menu_ChooseNextTexFilter ();
 		break;
+	case VID_OPT_ANIMLERP:
+		Cvar_SetValueQuick (&r_lerpmodels, !r_lerpmove.value);
+		Cvar_SetValueQuick (&r_lerpmove, !r_lerpmove.value);
+		break;
 	case VID_OPT_PARTICLES:
 		Cvar_SetValueQuick (&r_particles, (int)(q_max (r_particles.value, 0.f) + 3 + dir) % 3);
 		break;
@@ -3686,6 +3693,9 @@ static void M_Options_DrawItem (int y, int item)
 		break;
 	case VID_OPT_TEXFILTER:
 		M_Print (x, y, VID_Menu_GetTexFilterDesc ());
+		break;
+	case VID_OPT_ANIMLERP:
+		M_Print (x, y, r_lerpmodels.value ? "Smooth" : "Classic");
 		break;
 	case VID_OPT_PARTICLES:
 		M_Print (x, y, VID_Menu_GetParticlesDesc ());
