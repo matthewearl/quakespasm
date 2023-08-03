@@ -191,7 +191,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		v_up[0] = 0;
 		v_up[1] = 0;
 		v_up[2] = 1;
-		CrossProduct(v_up, vpn, v_right);
+		CrossProduct(vpn, v_up, v_right);
 		VectorNormalizeFast(v_right);
 		s_up = v_up;
 		s_right = v_right;
