@@ -6198,7 +6198,7 @@ void M_Mousemove (int x, int y)
 	drawtransform_t transform;
 	float px, py;
 
-	if (!ui_mouse.value)
+	if (bind_grab || !ui_mouse.value)
 		return;
 
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
