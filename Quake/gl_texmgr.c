@@ -435,6 +435,7 @@ TexMgr_Imagedump_f -- dump all current textures to TGA files
 static void TexMgr_Imagedump_f (void)
 {
 	char tganame[MAX_OSPATH], tempname[MAX_OSPATH], dirname[MAX_OSPATH];
+	const char *reldirname = "imagedump";
 	const char *filter = NULL;
 	int count = 0;
 	gltexture_t	*glt;
@@ -444,7 +445,7 @@ static void TexMgr_Imagedump_f (void)
 	if (Cmd_Argc () >= 2)
 		filter = Cmd_Argv (1);
 
-	q_snprintf(dirname, sizeof(dirname), "%s/imagedump", com_gamedir);
+	q_snprintf(dirname, sizeof(dirname), "%s/%s", com_gamedir, reldirname);
 
 	glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
 
@@ -488,9 +489,11 @@ static void TexMgr_Imagedump_f (void)
 	}
 
 	if (filter)
-		Con_Printf ("dumped %i textures containing '%s' to %s\n", count, filter, dirname);
+		Con_SafePrintf ("dumped %i textures containing '%s' to ", count, filter);
 	else
-		Con_Printf ("dumped %i textures to %s\n", count, dirname);
+		Con_SafePrintf ("dumped %i textures to ", count);
+	Con_LinkPrintf (va ("%s/", dirname), "%s", reldirname);
+	Con_SafePrintf (".\n");
 }
 
 /*

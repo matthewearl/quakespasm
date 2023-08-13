@@ -281,7 +281,9 @@ static void Sky_SaveWind_f (void)
 
 	fclose (f);
 
-	Con_Printf ("Wrote '%s'.\n", relname);
+	Con_SafePrintf ("Wrote ");
+	Con_LinkPrintf (path, "%s", relname);
+	Con_SafePrintf ("\n");
 }
 
 /*

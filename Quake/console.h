@@ -42,6 +42,7 @@ void Con_DWarning (const char *fmt, ...) FUNC_PRINTF(1,2); //ericw
 void Con_Warning (const char *fmt, ...) FUNC_PRINTF(1,2); //johnfitz
 void Con_DPrintf (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Con_DPrintf2 (const char *fmt, ...) FUNC_PRINTF(1,2); //johnfitz
+void Con_LinkPrintf (const char *addr, const char *fmt, ...) FUNC_PRINTF(2,3);
 void Con_SafePrintf (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Con_DrawNotify (void);
 void Con_ClearNotify (void);
@@ -59,6 +60,9 @@ void Con_TabComplete (tabcomplete_t mode);
 void Con_AddToTabList (const char *name, const char *partial, const char *type);
 qboolean Con_Match (const char *str, const char *partial);
 void Con_LogCenterPrint (const char *str);
+
+void Con_Mousemove (int x, int y);
+void Con_Click (void);
 
 //
 // debuglog

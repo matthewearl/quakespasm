@@ -2277,10 +2277,11 @@ Host_Savegame_f
 */
 static void Host_Savegame_f (void)
 {
-	char	relname[MAX_OSPATH];
-	char	name[MAX_OSPATH];
-	FILE	*f;
-	int		i;
+	char		relname[MAX_OSPATH];
+	char		name[MAX_OSPATH];
+	const char	*skipnotify;
+	FILE		*f;
+	int			i;
 
 	if (cmd_source != src_command)
 		return;
@@ -2332,8 +2333,13 @@ static void Host_Savegame_f (void)
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
+	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
+
 	// second argument, if present, indicates whether or not text should be printed to the notification area
-	Con_Printf ("%sSaving game to %s...\n", Cmd_Argc () < 3 || atof (Cmd_Argv (2)) ? "" : "[skipnotify]", relname);
+	skipnotify = (Cmd_Argc () < 3 || atof (Cmd_Argv (2))) ? "" : "[skipnotify]";
+	Con_SafePrintf ("%sSaving game to ", skipnotify);
+	Con_LinkPrintf (name, "%s%s", skipnotify, relname);
+	Con_SafePrintf ("%s...\n", skipnotify);
 
 	if (!strcmp (relname, sv.lastsave) && Host_IsSaving ())
 	{
@@ -2343,8 +2349,6 @@ static void Host_Savegame_f (void)
 			SDL_CondWait (save_finished_condition, save_mutex);
 		SDL_UnlockMutex (save_mutex);
 	}
-
-	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 
 	f = Sys_fopen (name, "w");
 	if (!f)
@@ -2428,7 +2432,9 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	Con_Printf ("Loading game from %s...\n", relname);
+	Con_SafePrintf ("Loading game from ");
+	Con_LinkPrintf (name, "%s", relname);
+	Con_SafePrintf ("...\n");
 
 	SCR_BeginLoadingPlaque ();
 

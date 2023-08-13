@@ -285,7 +285,9 @@ void Host_WriteConfigurationToFile (const char *name)
 // config.cfg cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		f = Sys_fopen (va("%s/%s", com_gamedir, name), "w");
+		char fullname[MAX_OSPATH];
+		q_snprintf (fullname, sizeof (fullname), "%s/%s", com_gamedir, name);
+		f = Sys_fopen (fullname, "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write %s.\n", name);
@@ -304,7 +306,9 @@ void Host_WriteConfigurationToFile (const char *name)
 
 		fclose (f);
 
-		Con_Printf ("Wrote %s.\n", name);
+		Con_SafePrintf ("Wrote ");
+		Con_LinkPrintf (fullname, "%s", name);
+		Con_SafePrintf (".\n");
 	}
 }
 

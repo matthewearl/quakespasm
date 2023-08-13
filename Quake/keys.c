@@ -962,6 +962,7 @@ void Key_Init (void)
 	consolekeys[K_KP_ENTER] = true;
 	consolekeys[K_KP_INS] = true;
 	consolekeys[K_KP_DEL] = true;
+	consolekeys[K_MOUSE1] = true;
 #if defined(PLATFORM_OSX) || defined(PLATFORM_MAC)
 	consolekeys[K_COMMAND] = true;
 #endif
@@ -1140,6 +1141,8 @@ void Key_Event (int key, qboolean down)
 			sprintf (cmd, "-%s %i\n", kb+1, key);
 			Cbuf_AddText (cmd);
 		}
+		if (key_dest == key_console && key == K_MOUSE1 && !down)
+			Con_Click ();
 		return;
 	}
 

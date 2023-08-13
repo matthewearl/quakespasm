@@ -65,6 +65,8 @@ static qboolean	vid_initialized = false;
 
 static SDL_Window	*draw_context;
 static SDL_GLContext	gl_context;
+static SDL_Cursor		*cursor_arrow;
+static SDL_Cursor		*cursor_hand;
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean vid_changed = false;
@@ -167,6 +169,43 @@ extern cvar_t r_dynamic;
 extern cvar_t host_maxfps;
 extern cvar_t scr_showfps;
 extern cvar_t scr_pixelaspect;
+
+//==========================================================================
+//
+//  Mouse cursors
+//
+//==========================================================================
+
+static void VID_InitMouseCursors (void)
+{
+	cursor_arrow = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_ARROW);
+	cursor_hand = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_HAND);
+}
+
+static void VID_FreeMouseCursors (void)
+{
+	SDL_FreeCursor (cursor_arrow);
+	SDL_FreeCursor (cursor_hand);
+	cursor_arrow = NULL;
+	cursor_hand = NULL;
+}
+
+void VID_SetMouseCursor (mousecursor_t cursor)
+{
+	switch (cursor)
+	{
+	case MOUSECURSOR_DEFAULT:
+		SDL_SetCursor (cursor_arrow);
+		return;
+
+	case MOUSECURSOR_HAND:
+		SDL_SetCursor (cursor_hand);
+		return;
+
+	default:
+		return;
+	}
+}
 
 //==========================================================================
 //
@@ -1325,6 +1364,7 @@ void	VID_Shutdown (void)
 {
 	if (vid_initialized)
 	{
+		VID_FreeMouseCursors();
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 		draw_context = NULL;
 		gl_context = NULL;
@@ -1589,6 +1629,7 @@ void	VID_Init (void)
 	CFG_ReadCvarOverrides(read_vars, num_readvars);
 
 	VID_InitModelist();
+	VID_InitMouseCursors();
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;

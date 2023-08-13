@@ -52,6 +52,22 @@ int		con_current;		// where next message will be printed
 int		con_x;				// offset in current line for next print
 char		*con_text = NULL;
 
+typedef struct
+{
+	int			line;
+	int			col;
+} conofs_t;
+
+typedef struct
+{
+	const char	*path;
+	conofs_t	begin;
+	conofs_t	end;
+} conlink_t;
+
+static conlink_t	**con_links = NULL;
+static conlink_t	*con_hotlink = NULL;
+
 cvar_t		con_notifytime = {"con_notifytime","3",CVAR_NONE};	//seconds
 cvar_t		con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; //johnfitz
 cvar_t		con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
@@ -70,6 +86,200 @@ qboolean	con_debuglog = false;
 
 qboolean	con_initialized;
 
+
+/*
+================
+Con_ScreenToOffset
+
+Converts screen (pixel) coordinates to a console offset
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_ScreenToOffset (int x, int y, conofs_t *ofs)
+{
+	drawtransform_t	transform;
+	float			px, py;
+	qboolean		ret = true;
+
+// screen space to [-1..1]
+	px = (x - glx) * 2.f / (float) glwidth - 1.f;
+	py = (y - gly) * 2.f / (float) glheight - 1.f;
+	py = -py;
+	
+// [-1..1] to console canvas
+	Draw_GetCanvasTransform (CANVAS_CONSOLE, &transform);
+	px = (px - transform.offset[0]) / transform.scale[0];
+	py = (py - transform.offset[1]) / transform.scale[1];
+	x = (int) (px + 0.5f);
+	y = (int) (py + 0.5f);
+
+	y = vid.conheight - y;
+
+// pixels to characters
+	x >>= 3;
+	y >>= 3;
+
+// apply margins and scrolling
+	x -= CON_MARGIN;
+	y -= 2;
+	if (x < 0 || x >= con_linewidth)
+		ret = false;
+	if (y < 0 || y >= con_vislines)
+		ret = false;
+	if (con_backscroll && y < 2)
+		ret = false;
+
+	y += con_backscroll;
+	y = con_current - y;
+
+	ofs->line = y;
+	ofs->col = x;
+
+	return ret;
+}
+
+/*
+================
+Con_OfsCompare
+
+Performs a three-way comparison on console offsets
+================
+*/
+static int Con_OfsCompare (const conofs_t *lhs, const conofs_t *rhs)
+{
+	if (lhs->line != rhs->line)
+		return lhs->line - rhs->line;
+	return lhs->col - rhs->col;
+}
+
+/*
+================
+Con_OfsInRange
+
+Checks if an offset is within a half-open range
+================
+*/
+static qboolean Con_OfsInRange (const conofs_t *ofs, const conofs_t *begin, const conofs_t *end)
+{
+	return Con_OfsCompare (ofs, begin) >= 0 && Con_OfsCompare (ofs, end) < 0;
+}
+
+/*
+================
+Con_GetLinkAtOfs
+
+Returns the link at the given offset, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtOfs (const conofs_t *ofs)
+{
+	size_t lo, hi;
+
+// find the first link that ends after the offset
+	lo = 0;
+	hi = VEC_SIZE (con_links);
+	while (lo < hi)
+	{
+		size_t mid = (lo + hi) / 2;
+		if (Con_OfsCompare (ofs, &con_links[mid]->end) >= 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	if (lo == VEC_SIZE (con_links))
+		return NULL;
+
+	if (Con_OfsCompare (ofs, &con_links[lo]->begin) >= 0)
+		return con_links[lo];
+
+	return NULL;
+}
+
+/*
+================
+Con_GetLinkAtPixel
+
+Returns the link at the given pixel coordinates, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtPixel (int x, int y)
+{
+	conofs_t ofs;
+	if (!Con_ScreenToOffset (x, y, &ofs))
+		return NULL;
+	return Con_GetLinkAtOfs (&ofs);
+}
+
+/*
+================
+Con_SetHotLink
+
+Changes the current hot link and updates the mouse cursor
+================
+*/
+static void Con_SetHotLink (conlink_t *link)
+{
+	if (link == con_hotlink)
+		return;
+	con_hotlink = link;
+	VID_SetMouseCursor (con_hotlink ? MOUSECURSOR_HAND : MOUSECURSOR_DEFAULT);
+}
+
+/*
+================
+Con_GetMousePos
+
+Computes the console offset corresponding to the current mouse position
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_GetMousePos (conofs_t *ofs)
+{
+	int x, y;
+	SDL_GetMouseState (&x, &y);
+	return Con_ScreenToOffset (x, y, ofs);
+}
+
+/*
+================
+Con_GetMouseLink
+
+Returns the link at the current mouse position, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetMouseLink (void)
+{
+	conofs_t ofs;
+	if (Con_GetMousePos (&ofs))
+		return Con_GetLinkAtOfs (&ofs);
+	return NULL;
+}
+
+/*
+================
+Con_Mousemove
+Mouse movement callback
+================
+*/
+void Con_Mousemove (int x, int y)
+{
+	Con_SetHotLink (Con_GetLinkAtPixel (x, y));
+}
+
+/*
+================
+Con_Click
+
+Mouse click callback
+================
+*/
+void Con_Click (void)
+{
+	conlink_t *link = Con_GetMouseLink ();
+	if (link && !Sys_Explore (link->path))
+		S_LocalSound ("misc/menu2.wav");
+}
 
 /*
 ================
@@ -118,6 +328,7 @@ void Con_ToggleConsole_f (void)
 		con_backscroll = 0; //johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; //johnfitz -- it should also return you to the bottom of the command history
 		key_tabhint[0] = '\0';			// clear tab hint
+		Con_SetHotLink (NULL);
 
 		if (cls.state == ca_connected)
 		{
@@ -146,9 +357,17 @@ Con_Clear_f
 */
 static void Con_Clear_f (void)
 {
+	size_t i;
+
 	if (con_text)
 		Q_memset (con_text, ' ', con_buffersize); //johnfitz -- con_buffersize replaces CON_TEXTSIZE
+
 	con_backscroll = 0; //johnfitz -- if console is empty, being scrolled up is confusing
+
+	Con_SetHotLink (NULL);
+	for (i = 0; i < VEC_SIZE (con_links); i++)
+		free (con_links[i]);
+	VEC_CLEAR (con_links);
 }
 
 /*
@@ -168,7 +387,6 @@ static void Con_Dump_f (void)
 	q_strlcpy (relname, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt", sizeof (relname));
 	COM_AddExtension (relname, ".txt", sizeof (relname));
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
-	COM_CreatePath (name);
 	f = Sys_fopen (name, "w");
 	if (!f)
 	{
@@ -207,7 +425,9 @@ static void Con_Dump_f (void)
 	}
 
 	fclose (f);
-	Con_Printf ("Dumped console text to %s.\n", relname);
+	Con_SafePrintf ("Dumped console text to ");
+	Con_LinkPrintf (name, "%s", relname);
+	Con_SafePrintf (".\n");
 }
 
 /*
@@ -248,6 +468,13 @@ static void Con_MessageMode2_f (void)
 		return;
 	chat_team = true;
 	key_dest = key_message;
+}
+
+
+void Con_RecalcOffset (conofs_t *ofs, int oldnumlines)
+{
+	ofs->col = q_min (ofs->col, con_linewidth);
+	ofs->line += con_totallines - 1 - oldnumlines;
 }
 
 
@@ -299,6 +526,13 @@ void Con_CheckResize (void)
 	}
 
 	Hunk_FreeToLowMark (mark); //johnfitz
+
+	for (i = 0; i < (int) VEC_SIZE (con_links); i++)
+	{
+		conlink_t *link = con_links[i];
+		Con_RecalcOffset (&link->begin, con_current);
+		Con_RecalcOffset (&link->end, con_current);
+	}
 
 	Con_ClearNotify ();
 
@@ -624,6 +858,58 @@ void Con_DPrintf2 (const char *fmt, ...)
 		q_vsnprintf (msg, sizeof(msg), fmt, argptr);
 		va_end (argptr);
 		Con_Printf ("%s", msg);
+	}
+}
+
+
+/*
+==================
+Con_LinkPrintf
+
+Prints text that opens a link when clicked
+==================
+*/
+void Con_LinkPrintf (const char *addr, const char *fmt, ...)
+{
+	conlink_t	*link;
+	size_t		len;
+	va_list		argptr;
+	char		msg[MAXPRINTMSG];
+	char		*text;
+
+	len = strlen (addr);
+	link = (conlink_t *) malloc (sizeof (conlink_t) + len + 1);
+	if (!link)
+		Sys_Error ("Con_LinkPrintf: out of memory on %" SDL_PRIu64 "u bytes", (uint64_t)(sizeof (conlink_t) + len + 1));
+	
+	memcpy (link + 1, addr, len + 1);
+	link->path			= (const char *)(link + 1);
+	link->begin.line	= con_current;
+	link->begin.col		= con_x;
+	link->end			= link->begin;
+
+	va_start (argptr, fmt);
+	q_vsnprintf (msg, sizeof(msg), fmt, argptr);
+	va_end (argptr);
+
+	Con_SafePrintf ("\x02%s", msg);
+
+	link->end.line	= con_current;
+	link->end.col	= con_x;
+	VEC_PUSH (con_links, link);
+
+// Because of wrapping our text might actually start on the next line, so we skip leading spaces
+	text = con_text + (link->begin.line % con_totallines)*con_linewidth + link->begin.col;
+	while (Con_OfsCompare (&link->begin, &link->end) < 0)
+	{
+		if ((*text & 0x7f) != ' ')
+			break;
+		text++;
+		if (++link->begin.col == con_linewidth)
+		{
+			link->begin.col = 0;
+			link->begin.line++;
+		}
 	}
 }
 
@@ -1414,13 +1700,24 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 
 	for (i = con_current - rows + 1; i <= con_current - sb; i++, y += 8)
 	{
+		conofs_t ofs;
 		j = i - con_backscroll;
 		if (j < 0)
 			j = 0;
 		text = con_text + (j % con_totallines)*con_linewidth;
-
+		ofs.line = j;
 		for (x = 0; x < con_linewidth; x++)
-			Draw_Character ( (x + 1)<<3, y, text[x]);
+		{
+			char c = text[x];
+			ofs.col = x;
+			if (con_hotlink && Con_OfsInRange (&ofs, &con_hotlink->begin, &con_hotlink->end))
+			{
+				if (keydown[K_MOUSE1])
+					c &= 0x7f;
+				Draw_Character ((x + 1)<<3, y + 2, '_' | (c & 0x80));
+			}
+			Draw_Character ((x + 1)<<3, y, c);
+		}
 	}
 
 // draw scrollback arrows

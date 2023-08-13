@@ -1257,7 +1257,11 @@ void SCR_ScreenShot_f (void)
 
 	UTF8_ToQuake (basename, sizeof (basename), imagename);
 	if (ok)
-		Con_Printf ("Wrote %s\n", basename);
+	{
+		Con_SafePrintf ("Wrote ");
+		Con_LinkPrintf (va("%s/%s", com_gamedir, imagename), "%s", basename);
+		Con_SafePrintf ("\n");
+	}
 	else
 		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", basename);
 
